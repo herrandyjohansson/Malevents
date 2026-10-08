@@ -8,7 +8,7 @@ Built with Next.js 16 (App Router, Cache Components), React 19, Tailwind v4 and 
 
 - `/` Events: cards with search, date, category, source and "free only" filters (kept in the URL).
 - `/map` Map: pick a day in the next two weeks and see where events are. Uses [Leaflet](https://leafletjs.com) with free CARTO Dark Matter tiles over OpenStreetMap data (no API key; keep the attribution).
-- `/admin` Admin (shown in the nav when "Admin mode" is switched on in the header; no password yet): health, event count, last fetch, response time and cache lifetime per source; refresh a source's cache; switch a source off for visitors; drill into a source's normalized events.
+- `/admin` Admin (shown in the nav when "Admin mode" is switched on in the header; there is no login): health, event count, last fetch, response time and cache lifetime per source; refresh a source's cache; switch a source off for visitors; drill into a source's normalized events.
 
 ## Getting started
 

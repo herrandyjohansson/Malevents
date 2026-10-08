@@ -5,8 +5,7 @@ import { refresh, updateTag } from "next/cache";
 import { setSourceEnabled } from "@/lib/events/settings";
 import { getSource } from "@/lib/events/sources";
 
-// No auth for now: the admin is behind a client-side "admin mode" toggle only.
-// Add a check here (and a proxy.ts) before exposing these to the public.
+// The admin has no login by design; "admin mode" only shows or hides the tab.
 
 function assertSource(id: string) {
   if (!getSource(id)) throw new Error(`Unknown source "${id}"`);
