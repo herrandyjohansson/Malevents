@@ -26,6 +26,19 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
   other: "#a1a1aa",
 };
 
+/** Glyph shown inside map pins and the map legend. */
+export const CATEGORY_EMOJI: Record<EventCategory, string> = {
+  music: "🎵",
+  theatre: "🎭",
+  art: "🎨",
+  film: "🎬",
+  family: "🧸",
+  sports: "⚽",
+  food: "🍽️",
+  talks: "🎤",
+  other: "📍",
+};
+
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: TIME_ZONE,
   weekday: "short",

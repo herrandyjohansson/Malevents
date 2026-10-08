@@ -7,6 +7,7 @@ export interface MapEvent {
   category: EventCategory;
   categoryLabel: string;
   color: string;
+  emoji: string;
   venueName: string;
   lat: number;
   lng: number;
@@ -16,12 +17,14 @@ export interface MapEvent {
   sourceName: string;
 }
 
-export interface MapDay {
-  /** yyyy-mm-dd in Malmö time */
-  day: string;
-  weekday: string;
-  dayOfMonth: string;
-  month: string;
+/** One selectable range on the map: the whole week, or a single day. */
+export interface MapView {
+  key: string;
+  kind: "week" | "day";
   label: string;
+  /** Chip text */
+  top: string;
+  middle: string;
+  bottom: string;
   events: MapEvent[];
 }
