@@ -1,5 +1,4 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 
 import { malmoTime } from "../demo-dates";
 import { parsePriceText, toCategory } from "../map";
@@ -38,12 +37,9 @@ function toEvent(item: MalmoStadResponse["items"][number]): MalmoEvent {
 }
 
 async function getMalmoStadEvents(): Promise<MalmoEvent[]> {
-  "use cache";
-  cacheLife("hours");
-  cacheTag("events", `events:${ID}`);
-
   // No public endpoint is wired up yet. When one is, fetch it here with
-  // fetchJson<MalmoStadResponse>(ID, url) behind LIVE_MODE.
+  // fetchJson<MalmoStadResponse>(ID, url) behind LIVE_MODE. Venue coordinates
+  // come from the venue lookup in venues.ts.
   const data = demoResponse();
   return data.items.map(toEvent);
 }
@@ -52,6 +48,8 @@ export const malmoStad: EventSource = {
   id: ID,
   name: "Malmö stad",
   homepage: "https://malmo.se/evenemang",
+  description: "The city's public event calendar: libraries, parks, markets and city-run events.",
+  kind: "fixture",
   demo: true,
   fetchEvents: getMalmoStadEvents,
 };

@@ -1,5 +1,4 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 
 import { malmoTime } from "../demo-dates";
 import { toCategory } from "../map";
@@ -22,16 +21,19 @@ interface TicketMarketplaceResponse {
       dates: { start: { dateTime: string } };
       classifications: { segment: { name: string }; genre?: { name: string } }[];
       priceRanges?: { min: number; max: number; currency: string }[];
-      _embedded: { venues: { name: string; address?: { line1: string }; city?: { name: string } }[] };
+      _embedded: {
+        venues: {
+          name: string;
+          address?: { line1: string };
+          city?: { name: string };
+          location?: { latitude: string; longitude: string };
+        }[];
+      };
     }[];
   };
 }
 
 async function getTicketMarketplaceEvents(): Promise<MalmoEvent[]> {
-  "use cache";
-  cacheLife("hours");
-  cacheTag("events", `events:${ID}`);
-
   const data = demoResponse();
   return data._embedded.events.map((e): MalmoEvent => {
     const venue = e._embedded.venues[0];
@@ -44,7 +46,13 @@ async function getTicketMarketplaceEvents(): Promise<MalmoEvent[]> {
       description: e.info,
       startsAt: e.dates.start.dateTime,
       category: toCategory(c?.segment.name, c?.genre?.name),
-      venue: venue && { name: venue.name, address: venue.address?.line1, city: venue.city?.name },
+      venue: venue && {
+        name: venue.name,
+        address: venue.address?.line1,
+        city: venue.city?.name,
+        lat: venue.location ? Number(venue.location.latitude) : undefined,
+        lng: venue.location ? Number(venue.location.longitude) : undefined,
+      },
       isFree: range ? range.max === 0 : false,
       price: range && range.max > 0 ? range : undefined,
       url: e.url,
@@ -56,6 +64,9 @@ export const ticketMarketplace: EventSource = {
   id: ID,
   name: "Ticket marketplace",
   homepage: "https://malmoarena.com/",
+  description: "Ticketed concerts, sports and shows. Modelled on keyed ticketing APIs; needs an API key to go live.",
+  kind: "fixture",
+  cacheProfile: "minutes",
   demo: true,
   fetchEvents: getTicketMarketplaceEvents,
 };
@@ -65,6 +76,7 @@ function demoResponse(): TicketMarketplaceResponse {
     name: "Malmö Arena",
     address: { line1: "Hyllie Stationstorg 2" },
     city: { name: "Malmö" },
+    location: { latitude: "55.5653", longitude: "12.9752" },
   };
   const url = "https://malmoarena.com/";
   return {

@@ -30,6 +30,8 @@ export interface MalmoEvent {
     name: string;
     address?: string;
     city?: string;
+    lat?: number;
+    lng?: number;
   };
   price?: {
     min?: number;
@@ -41,22 +43,42 @@ export interface MalmoEvent {
   url: string;
 }
 
+export type CacheProfile = "minutes" | "hours" | "days";
+
 /**
- * One adapter per upstream API. `fetchEvents` should do its own caching
- * (`"use cache"` + `cacheLife` + `cacheTag`) and may throw; the aggregator
- * isolates failures so one broken source never breaks the page.
+ * One adapter per upstream API. `fetchEvents` fetches and normalizes and may
+ * throw. Caching, timeouts and error isolation are applied centrally (see
+ * fetch-source.ts and aggregate.ts), so adapters stay small.
  */
 export interface EventSource {
   id: string;
   name: string;
   homepage: string;
+  /** Short description of the upstream, shown in the admin. */
+  description: string;
+  /** How the adapter talks to its upstream, shown in the admin. */
+  kind: "json-api" | "json-ld" | "fixture";
+  /** The URL the adapter calls in live mode, if any. */
+  endpoint?: string;
   /** True while the adapter serves fixture data instead of a live API. */
   demo?: boolean;
+  /** How long a successful response is cached. Defaults to "hours". */
+  cacheProfile?: CacheProfile;
   /** Per-source budget before the aggregator gives up on it. */
   timeoutMs?: number;
   fetchEvents: () => Promise<MalmoEvent[]>;
 }
 
-export type SourceStatus =
-  | { id: string; name: string; demo: boolean; ok: true; count: number }
-  | { id: string; name: string; demo: boolean; ok: false; error: string };
+export interface SourceStatus {
+  id: string;
+  name: string;
+  demo: boolean;
+  enabled: boolean;
+  state: "ok" | "error" | "disabled";
+  count: number;
+  error?: string;
+  /** When the cached response was fetched from the upstream. */
+  fetchedAt?: string;
+  /** Time this request spent waiting on the source (cache hits are fast). */
+  durationMs?: number;
+}
