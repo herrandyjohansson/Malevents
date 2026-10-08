@@ -8,7 +8,7 @@ Built with Next.js 16 (App Router, Cache Components), React 19, Tailwind v4 and 
 
 - `/` Events: cards with search, date, category, source and "free only" filters (kept in the URL).
 - `/map` Map: pick a day in the next two weeks and see where events are. Uses [Leaflet](https://leafletjs.com) with free CARTO Dark Matter tiles over OpenStreetMap data (no API key; keep the attribution).
-- `/admin` Admin: health, event count, last fetch, response time and cache lifetime per source; refresh a source's cache; switch a source off for visitors; drill into a source's normalized events.
+- `/admin` Admin (shown in the nav when "Admin mode" is switched on in the header; no password yet): health, event count, last fetch, response time and cache lifetime per source; refresh a source's cache; switch a source off for visitors; drill into a source's normalized events.
 
 ## Getting started
 
@@ -52,6 +52,5 @@ All sources currently serve bundled demo fixtures (marked "demo" in the UI) with
 | --- | --- |
 | `EVENTS_LIVE=true` | Adapters with a live endpoint call it instead of fixtures (currently `malmo-live`, which reads JSON-LD from the venue site). |
 | `DEMO_SOURCE_FAILURE=true` | Makes the Skåne culture source fail, to see how the page degrades. |
-| `ADMIN_PASSWORD` / `ADMIN_USER` | HTTP Basic auth for `/admin` (user defaults to `admin`). Without a password the admin is open in development and locked in production. |
 
 Admin on/off settings are saved to `.data/source-settings.json`. That works locally and on a single long-running server; on serverless hosting, swap `src/lib/events/settings.ts` for a database or KV store.

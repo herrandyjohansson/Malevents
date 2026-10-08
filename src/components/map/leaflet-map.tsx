@@ -2,18 +2,29 @@
 
 import "leaflet/dist/leaflet.css";
 
-import type { CircleMarker, LayerGroup, Map as LeafletMapInstance } from "leaflet";
+import type { LayerGroup, Map as LeafletMapInstance, Marker } from "leaflet";
 import { useEffect, useRef } from "react";
 
 import type { MapEvent } from "./types";
 
 const MALMO_CENTER: [number, number] = [55.6, 13.0];
 
-// Free basemap: CARTO "Dark Matter" tiles over OpenStreetMap data. No API key;
-// attribution is required. Swap TILE_URL for any other XYZ tile server.
+// Free basemap, no API key: CARTO "Dark Matter" tiles over OpenStreetMap data.
+// Attribution is required. Swap TILE_URL for any other XYZ tile server, e.g.
+// https://tile.openstreetmap.org/{z}/{x}/{y}.png (light, light use only).
 const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 const ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+/**
+ * Teardrop pin coloured by category with an emoji glyph, plus a count badge
+ * when several events share a venue. Only trusted values (colour, emoji,
+ * number) go into this HTML; event text never does.
+ */
+function pinHtml(color: string, emoji: string, count: number) {
+  const badge = count > 1 ? `<span class="mev-pin-count">${count}</span>` : "";
+  return `<div class="mev-pin" style="--pin:${color}"><span class="mev-pin-glyph">${emoji}</span></div>${badge}`;
+}
 
 /** Build popup content with DOM APIs so upstream text is never parsed as HTML. */
 function popupContent(events: MapEvent[]) {
@@ -54,7 +65,7 @@ export function LeafletMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMapInstance | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
-  const markersRef = useRef(new Map<string, CircleMarker>());
+  const markersRef = useRef(new Map<string, Marker>());
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const onSelectRef = useRef(onSelect);
 
@@ -104,19 +115,22 @@ export function LeafletMap({
       }
 
       for (const group of byVenue.values()) {
-        const [{ lat, lng, color }] = group;
-        const marker = L.circleMarker([lat, lng], {
-          radius: 8 + Math.min(group.length - 1, 4) * 2,
-          color: "#0f0f17",
-          weight: 2,
-          fillColor: color,
-          fillOpacity: 0.95,
-        })
+        const [{ lat, lng, color, emoji }] = group;
+        const icon = L.divIcon({
+          className: "mev-pin-wrap",
+          html: pinHtml(color, emoji, group.length),
+          iconSize: [32, 32],
+          // The rotated square's sharp corner sits 16·√2 ≈ 23px below its centre.
+          iconAnchor: [16, 39],
+          popupAnchor: [0, -36],
+          tooltipAnchor: [0, -36],
+        });
+        // Leaflet treats string tooltips as HTML, so pass a text-only element.
+        const tooltip = document.createElement("span");
+        tooltip.textContent = group.length > 1 ? `${group[0].venueName} (${group.length})` : group[0].title;
+        const marker = L.marker([lat, lng], { icon, riseOnHover: true })
           .bindPopup(popupContent(group), { maxWidth: 280 })
-          .bindTooltip(group.length > 1 ? `${group[0].venueName} (${group.length})` : group[0].title, {
-            direction: "top",
-            offset: [0, -8],
-          })
+          .bindTooltip(tooltip, { direction: "top" })
           .on("click", () => onSelectRef.current(group[0].id))
           .addTo(layer);
         for (const e of group) markersRef.current.set(e.id, marker);

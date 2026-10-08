@@ -137,3 +137,43 @@
   border-left: 2px solid var(--cat);
   padding-left: 6px;
 }
+
+/* Map pins: a rotated square with one sharp corner makes a teardrop. */
+.mev-pin-wrap {
+  background: none;
+  border: none;
+}
+.mev-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--pin);
+  border: 2px solid #0f0f17;
+  box-shadow: 0 4px 14px -4px rgb(0 0 0 / 80%), 0 0 0 1px rgb(255 255 255 / 15%);
+  transition: transform 120ms ease;
+}
+.mev-pin-wrap:hover .mev-pin {
+  transform: rotate(-45deg) scale(1.12);
+}
+.mev-pin-glyph {
+  transform: rotate(45deg);
+  font-size: 15px;
+  line-height: 1;
+}
+.mev-pin-count {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--foreground);
+  color: var(--background);
+  font: 600 10px/18px var(--font-geist-sans), sans-serif;
+  text-align: center;
+}
