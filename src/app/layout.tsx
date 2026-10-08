@@ -1,5 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { SiteHeader } from "@/components/layout/site-header";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,13 +23,18 @@ export const metadata: Metadata = {
   description: "Concerts, exhibitions, sports, markets and more in Malmö, gathered from many sources in one place.",
 };
 
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#0f0f17",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+    <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col font-sans">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }

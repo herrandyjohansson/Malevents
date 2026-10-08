@@ -1,5 +1,4 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 
 import { LIVE_MODE } from "../config";
 import { malmoTime } from "../demo-dates";
@@ -15,10 +14,6 @@ const PAGE_URL = "https://malmolive.se/";
  * in the same shape.
  */
 async function getMalmoLiveEvents(): Promise<MalmoEvent[]> {
-  "use cache";
-  cacheLife("hours");
-  cacheTag("events", `events:${ID}`);
-
   const events = LIVE_MODE ? await fetchJsonLdEvents(ID, PAGE_URL) : demoEvents();
   return events.map((e) => jsonLdToEvent(ID, PAGE_URL, e));
 }
@@ -27,6 +22,9 @@ export const malmoLive: EventSource = {
   id: ID,
   name: "Malmö Live",
   homepage: PAGE_URL,
+  description: "Concert hall programme, read from the schema.org Event data on the venue's site.",
+  kind: LIVE_MODE ? "json-ld" : "fixture",
+  endpoint: PAGE_URL,
   demo: !LIVE_MODE,
   fetchEvents: getMalmoLiveEvents,
 };
@@ -35,6 +33,7 @@ function demoEvents(): JsonLdEvent[] {
   const location = {
     name: "Malmö Live Konserthus",
     address: { streetAddress: "Dag Hammarskjölds torg 4", addressLocality: "Malmö" },
+    geo: { latitude: 55.6084, longitude: 12.9942 },
   };
   return [
     {

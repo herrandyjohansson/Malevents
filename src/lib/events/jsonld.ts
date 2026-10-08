@@ -18,6 +18,7 @@ export interface JsonLdEvent {
   isAccessibleForFree?: boolean;
   location?: {
     name?: string;
+    geo?: { latitude?: number | string; longitude?: number | string };
     address?: string | { streetAddress?: string; addressLocality?: string };
   };
   offers?: JsonLdOffer | JsonLdOffer[];
@@ -104,6 +105,8 @@ export function jsonLdToEvent(sourceId: string, fallbackUrl: string, e: JsonLdEv
           name: e.location.name,
           address: typeof address === "string" ? address : address?.streetAddress,
           city: typeof address === "string" ? undefined : address?.addressLocality,
+          lat: toNumber(e.location.geo?.latitude),
+          lng: toNumber(e.location.geo?.longitude),
         }
       : undefined,
     isFree: e.isAccessibleForFree === true || (prices.length > 0 && Math.max(...prices) === 0),

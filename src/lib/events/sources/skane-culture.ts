@@ -1,5 +1,4 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 
 import { malmoTime } from "../demo-dates";
 import { SourceError } from "../http";
@@ -13,10 +12,6 @@ const ID = "skane-culture";
  * throw, which shows how the page degrades when one upstream is down.
  */
 async function getSkaneCultureEvents(): Promise<MalmoEvent[]> {
-  "use cache";
-  cacheLife("hours");
-  cacheTag("events", `events:${ID}`);
-
   if (process.env.DEMO_SOURCE_FAILURE === "true") {
     throw new SourceError(ID, "HTTP 503 from demo upstream");
   }
@@ -74,6 +69,9 @@ export const skaneCulture: EventSource = {
   id: ID,
   name: "Skåne culture calendar",
   homepage: "https://www.modernamuseet.se/malmo/",
+  description: "Regional culture calendar: museums, galleries and cinemas. Set DEMO_SOURCE_FAILURE=true to see a failing source.",
+  kind: "fixture",
+  cacheProfile: "days",
   demo: true,
   fetchEvents: getSkaneCultureEvents,
 };

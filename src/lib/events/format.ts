@@ -13,17 +13,17 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
   other: "Other",
 };
 
-/** Tailwind gradient used as the card header when an event has no image. */
-export const CATEGORY_GRADIENTS: Record<EventCategory, string> = {
-  music: "from-violet-500 to-fuchsia-500",
-  theatre: "from-rose-500 to-orange-400",
-  art: "from-amber-400 to-yellow-300",
-  film: "from-slate-700 to-slate-500",
-  family: "from-sky-400 to-cyan-300",
-  sports: "from-emerald-500 to-lime-400",
-  food: "from-orange-500 to-amber-400",
-  talks: "from-indigo-500 to-blue-400",
-  other: "from-zinc-500 to-zinc-400",
+/** Category accent colours, used for card accents, legend dots and map markers. */
+export const CATEGORY_COLORS: Record<EventCategory, string> = {
+  music: "#c084fc",
+  theatre: "#fb7185",
+  art: "#fbbf24",
+  film: "#94a3b8",
+  family: "#38bdf8",
+  sports: "#4ade80",
+  food: "#fb923c",
+  talks: "#818cf8",
+  other: "#a1a1aa",
 };
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
@@ -56,4 +56,43 @@ export function formatPrice(event: MalmoEvent) {
   const unit = currency === "SEK" ? "kr" : currency;
   if (min !== undefined && max !== undefined && min !== max) return `${min}–${max} ${unit}`;
   return `${min ?? max} ${unit}`;
+}
+
+const partsFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIME_ZONE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
+/** Pieces for a calendar-style date tile. */
+export function dateParts(iso: string) {
+  const parts = partsFormat.formatToParts(new Date(iso));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return { weekday: get("weekday"), day: get("day"), month: get("month") };
+}
+
+export function formatTime(iso: string) {
+  return timeFormat.format(new Date(iso));
+}
+
+/** Long label for a yyyy-mm-dd Malmö day, e.g. "Friday 9 October". */
+export function formatDayLabel(day: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(`${day}T00:00:00Z`));
+}
+
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+export function formatRelative(iso: string, now: Date) {
+  const seconds = Math.round((Date.parse(iso) - now.getTime()) / 1000);
+  const abs = Math.abs(seconds);
+  if (abs < 60) return relative.format(seconds, "second");
+  if (abs < 3600) return relative.format(Math.round(seconds / 60), "minute");
+  if (abs < 86400) return relative.format(Math.round(seconds / 3600), "hour");
+  return relative.format(Math.round(seconds / 86400), "day");
 }

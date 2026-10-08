@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* The app is dark-only; <html class="dark"> turns on shadcn's dark: variants. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -21,6 +22,8 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -31,48 +34,29 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
+  /* Dark is the only theme. */
+  color-scheme: dark;
+  --radius: 0.75rem;
+  --background: oklch(0.135 0.012 275);
+  --foreground: oklch(0.96 0.005 275);
+  --card: oklch(0.175 0.016 275);
+  --card-foreground: oklch(0.96 0.005 275);
+  --popover: oklch(0.19 0.018 275);
+  --popover-foreground: oklch(0.96 0.005 275);
+  --primary: oklch(0.72 0.19 330);
+  --primary-foreground: oklch(0.15 0.02 330);
+  --secondary: oklch(0.235 0.018 275);
+  --secondary-foreground: oklch(0.96 0.005 275);
+  --muted: oklch(0.235 0.018 275);
+  --muted-foreground: oklch(0.7 0.015 275);
+  --accent: oklch(0.255 0.022 275);
+  --accent-foreground: oklch(0.98 0.005 275);
+  --destructive: oklch(0.68 0.2 22);
+  --success: oklch(0.76 0.17 155);
+  --warning: oklch(0.82 0.16 80);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.72 0.19 330 / 60%);
 }
 
 @layer base {
@@ -81,5 +65,75 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(60rem 30rem at 15% -10%, oklch(0.72 0.19 330 / 12%), transparent 60%),
+      radial-gradient(50rem 30rem at 95% 0%, oklch(0.7 0.15 250 / 10%), transparent 60%);
+    background-attachment: fixed;
   }
+}
+
+/* Leaflet, restyled for the dark theme. Scoped under .malevents-map so these
+   rules win over leaflet.css, which loads after this file. */
+.malevents-map.leaflet-container {
+  font-family: var(--font-geist-sans), sans-serif;
+  background: #0f0f17;
+}
+.malevents-map .leaflet-popup-content-wrapper,
+.malevents-map .leaflet-popup-tip,
+.malevents-map .leaflet-tooltip {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 60%);
+}
+.malevents-map .leaflet-tooltip-top::before {
+  border-top-color: var(--popover);
+}
+.malevents-map .leaflet-popup-content {
+  margin: 12px 14px;
+}
+.malevents-map a.leaflet-popup-close-button {
+  color: var(--muted-foreground);
+}
+.malevents-map .leaflet-bar a,
+.malevents-map .leaflet-bar a:hover {
+  background: var(--popover);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.malevents-map.leaflet-container .leaflet-control-attribution {
+  background: rgb(15 15 23 / 75%);
+  color: var(--muted-foreground);
+}
+.malevents-map.leaflet-container .leaflet-control-attribution a {
+  color: var(--foreground);
+}
+.malevents-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.malevents-popup-venue {
+  margin: 0 !important;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.malevents-map .malevents-popup-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--popover-foreground);
+  text-decoration: none;
+}
+.malevents-map .malevents-popup-item:hover strong {
+  color: var(--primary);
+}
+.malevents-map .malevents-popup-item span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  border-left: 2px solid var(--cat);
+  padding-left: 6px;
 }

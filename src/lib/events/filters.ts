@@ -44,7 +44,7 @@ const dayFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
 const weekdayFormat = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, weekday: "short" });
 
 /** yyyy-mm-dd in Malmö local time. */
-function localDay(date: Date) {
+export function localDay(date: Date) {
   return dayFormat.format(date);
 }
 
@@ -78,9 +78,9 @@ export function applyFilters(events: MalmoEvent[], filters: EventFilters, now: D
   const q = filters.q.toLowerCase();
 
   return events.filter((e) => {
+    if (!isUpcoming(e, now)) return false;
     const start = new Date(e.startsAt);
     const end = e.endsAt ? new Date(e.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_MS);
-    if (end < now) return false;
     if (filters.category !== "all" && e.category !== filters.category) return false;
     if (filters.source !== "all" && e.sourceId !== filters.source) return false;
     if (filters.free && !e.isFree) return false;
@@ -95,4 +95,11 @@ export function applyFilters(events: MalmoEvent[], filters: EventFilters, now: D
     }
     return true;
   });
+}
+
+/** True if the event hasn't finished yet. */
+export function isUpcoming(event: MalmoEvent, now: Date) {
+  const start = new Date(event.startsAt);
+  const end = event.endsAt ? new Date(event.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_MS);
+  return end >= now;
 }
