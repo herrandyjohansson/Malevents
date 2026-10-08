@@ -40,17 +40,27 @@ src/lib/events/
 
 ### Adding a source
 
-1. Create `src/lib/events/sources/<name>.ts` with a `fetchEvents` function that returns `MalmoEvent[]` (see `malmo-stad.ts` for a JSON API, `malmo-live.ts` for sites that publish schema.org JSON-LD). Caching is applied for you.
+1. Create `src/lib/events/sources/<name>.ts` with a `fetchEvents` function that returns `MalmoEvent[]` (see `malmo-live.ts` or `slagthuset.ts` for a JSON API, `moriska.ts` for scraping HTML; `jsonld.ts` parses sites that publish schema.org JSON-LD). Caching is applied for you.
 2. Export an `EventSource` object and add it to `SOURCES` in `sources/index.ts`.
 3. Put API keys in environment variables and read them inside the adapter only; adapters are `server-only`.
 
+### Venue sources
+
+None of these venues offers a documented, keyless API, so each adapter uses the most structured public data the site itself loads. Requests send a `MaleventsBot` user agent and are cached for hours.
+
+| Source | Method | Endpoint |
+| --- | --- | --- |
+| Malmö Live Konserthus (Clarion Hotel & Congress Malmö Live building) | JSON feed behind the site's own programme listing, one row per performance | `https://malmolive.se/api/events` |
+| Slagthuset | Open WordPress REST API (headless WP behind the Next.js site), `events` post type with ACF fields | `https://wp.slagthuset.se/wp-json/wp/v2/events` |
+| Moriska Paviljongen | Programme pages scraped for dates (the REST API omits them), joined on the event link with the WordPress REST API for title, text and image | `https://moriskapaviljongen.se/biljetter-program-2/` + `/wp-json/wp/v2/mp_event` |
+
 ### Demo data
 
-All sources currently serve bundled demo fixtures (marked "demo" in the UI) with dates relative to today.
+Without `EVENTS_LIVE=true`, every source serves bundled fixtures in its upstream's real shape (marked "demo" in the UI), with dates relative to today.
 
 | Variable | Effect |
 | --- | --- |
-| `EVENTS_LIVE=true` | Adapters with a live endpoint call it instead of fixtures (currently `malmo-live`, which reads JSON-LD from the venue site). |
+| `EVENTS_LIVE=true` | Adapters with a live endpoint call it instead of fixtures (currently Malmö Live, Slagthuset and Moriska Paviljongen). |
 | `DEMO_SOURCE_FAILURE=true` | Makes the Skåne culture source fail, to see how the page degrades. |
 
 Admin on/off settings are saved to `.data/source-settings.json`. That works locally and on a single long-running server; on serverless hosting, swap `src/lib/events/settings.ts` for a database or KV store.
