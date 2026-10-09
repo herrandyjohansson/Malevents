@@ -57,7 +57,7 @@ export interface EventSource {
   /** Short description of the upstream, shown in the admin. */
   description: string;
   /** How the adapter talks to its upstream, shown in the admin. */
-  kind: "json-api" | "json-ld" | "fixture";
+  kind: "json-api" | "json-ld" | "html" | "fixture";
   /** The URL the adapter calls in live mode, if any. */
   endpoint?: string;
   /** True while the adapter serves fixture data instead of a live API. */
