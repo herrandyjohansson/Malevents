@@ -11,20 +11,11 @@ export interface MapEvent {
   venueName: string;
   lat: number;
   lng: number;
+  /** First and last Malmö day the event runs, yyyy-mm-dd. */
+  startDay: string;
+  endDay: string;
   timeLabel: string;
   priceLabel?: string;
   url: string;
   sourceName: string;
-}
-
-/** One selectable range on the map: the whole week, or a single day. */
-export interface MapView {
-  key: string;
-  kind: "week" | "day";
-  label: string;
-  /** Chip text */
-  top: string;
-  middle: string;
-  bottom: string;
-  events: MapEvent[];
 }

@@ -1,14 +1,12 @@
 import "server-only";
 
-import type { MapEvent, MapView } from "@/components/map/types";
+import type { MapEvent } from "@/components/map/types";
 
 import { isUpcoming, localDay } from "./filters";
 import {
   CATEGORY_COLORS,
   CATEGORY_EMOJI,
   CATEGORY_LABELS,
-  dateParts,
-  formatDayLabel,
   formatEventDate,
   formatPrice,
 } from "./format";
@@ -24,6 +22,7 @@ function overlaps(e: MalmoEvent, from: string, to: string) {
 }
 
 function toMapEvent(e: MalmoEvent, sourceNames: Map<string, string>): MapEvent {
+  const startDay = localDay(new Date(e.startsAt));
   return {
     id: e.id,
     title: e.title,
@@ -34,6 +33,8 @@ function toMapEvent(e: MalmoEvent, sourceNames: Map<string, string>): MapEvent {
     venueName: e.venue!.name,
     lat: e.venue!.lat!,
     lng: e.venue!.lng!,
+    startDay,
+    endDay: e.endsAt ? localDay(new Date(e.endsAt)) : startDay,
     timeLabel: formatEventDate(e),
     priceLabel: formatPrice(e),
     url: e.url,
@@ -51,35 +52,10 @@ export function weekMapEvents(events: MalmoEvent[], sources: SourceStatus[], now
     .map((e) => toMapEvent(e, sourceNames));
 }
 
-/** A "next 7 days" view followed by one view per day for the next `days` days. */
-export function buildMapViews(events: MalmoEvent[], sources: SourceStatus[], now: Date, days = 14): MapView[] {
+/** Upcoming, placeable events, each tagged with the Malmö days it spans. */
+export function buildMapEvents(events: MalmoEvent[], sources: SourceStatus[], now: Date): MapEvent[] {
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
-  const upcoming = events.filter((e) => isUpcoming(e, now) && hasCoordinates(e));
-
-  const week: MapView = {
-    key: "week",
-    kind: "week",
-    label: "Next 7 days",
-    top: "Next",
-    middle: "7",
-    bottom: "days",
-    events: weekMapEvents(events, sources, now),
-  };
-
-  const dayViews = Array.from({ length: days }, (_, i): MapView => {
-    const date = new Date(now.getTime() + i * DAY_MS);
-    const day = localDay(date);
-    const { weekday, day: dayOfMonth, month } = dateParts(date.toISOString());
-    return {
-      key: day,
-      kind: "day",
-      label: formatDayLabel(day),
-      top: weekday,
-      middle: dayOfMonth,
-      bottom: month,
-      events: upcoming.filter((e) => overlaps(e, day, day)).map((e) => toMapEvent(e, sourceNames)),
-    };
-  });
-
-  return [week, ...dayViews];
+  return events
+    .filter((e) => isUpcoming(e, now) && hasCoordinates(e))
+    .map((e) => toMapEvent(e, sourceNames));
 }

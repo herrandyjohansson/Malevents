@@ -1,64 +1,120 @@
 "use client";
 
 import { MapPin, MapPinOff } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { addDays, addMonths, formatRange, rangeLength, weekend, type DayRange } from "./days";
 import { LeafletMap } from "./leaflet-map";
 import { MapLegend } from "./map-legend";
-import type { MapView } from "./types";
+import { RangeCalendar } from "./range-calendar";
+import type { MapEvent } from "./types";
 
-export function EventMapView({ views, unplacedCount }: { views: MapView[]; unplacedCount: number }) {
-  const [selectedKey, setSelectedKey] = useState(views[0].key);
+function overlaps(e: MapEvent, range: DayRange) {
+  return e.startDay <= range.to && e.endDay >= range.from;
+}
+
+export function EventMapView({
+  events,
+  today,
+  initialRange,
+  unplacedCount,
+}: {
+  events: MapEvent[];
+  today: string;
+  initialRange?: DayRange;
+  unplacedCount: number;
+}) {
+  const presets = useMemo(
+    () => [
+      { label: "Today", range: { from: today, to: today } },
+      { label: "This weekend", range: weekend(today) },
+      { label: "Next 7 days", range: { from: today, to: addDays(today, 6) } },
+      { label: "This month", range: { from: today, to: addDays(addMonths(today, 1), -1) } },
+    ],
+    [today],
+  );
+  const [range, setRange] = useState<DayRange>(() =>
+    initialRange ? { from: initialRange.from < today ? today : initialRange.from, to: initialRange.to } : presets[2].range,
+  );
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const current = views.find((v) => v.key === selectedKey) ?? views[0];
+
+  const visible = useMemo(() => events.filter((e) => overlaps(e, range)), [events, range]);
+  // Page as far as the last known event, at least next month, at most a year out.
+  const lastMonth = useMemo(() => {
+    const latest = events.reduce((max, e) => (e.startDay > max ? e.startDay : max), addMonths(today, 1));
+    const cap = addMonths(today, 12);
+    return latest > cap ? cap : latest;
+  }, [events, today]);
+
+  function select(next: DayRange) {
+    const from = next.from < today ? today : next.from;
+    setRange({ from, to: next.to });
+    setSelectedEventId(null);
+    // Keep the pick in the URL so it survives a reload and can be shared.
+    window.history.replaceState(null, "", `?from=${from}&to=${next.to}`);
+  }
+
+  const days = rangeLength(range);
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="Date range" className="-mx-4 flex gap-2 overflow-x-auto px-4 pt-2 pb-1 sm:mx-0 sm:px-0">
-        {views.map((v) => {
-          const active = v.key === selectedKey;
-          return (
-            <button
-              key={v.key}
-              role="tab"
-              aria-selected={active}
-              aria-label={`${v.label}, ${v.events.length} events`}
-              disabled={v.events.length === 0}
-              onClick={() => {
-                setSelectedKey(v.key);
-                setSelectedEventId(null);
-              }}
-              className={cn(
-                "bg-card hover:border-primary/50 relative flex h-16 shrink-0 flex-col items-center justify-center rounded-lg border text-center transition-colors disabled:cursor-not-allowed disabled:opacity-35",
-                v.kind === "week" ? "w-20" : "w-14",
-                active && "border-primary bg-primary/15 shadow-[0_0_24px_-8px] shadow-primary",
-              )}
-            >
-              <span className="text-muted-foreground text-[10px] font-medium uppercase">{v.top}</span>
-              <span className="text-lg leading-none font-semibold">{v.middle}</span>
-              <span className="text-muted-foreground text-[10px] uppercase">{v.bottom}</span>
-              {v.events.length > 0 && (
-                <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-semibold">
-                  {v.events.length}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <div className="grid gap-4 lg:h-[72vh] lg:grid-cols-[340px_1fr] lg:grid-rows-[auto_minmax(0,1fr)]">
+        <section aria-label="Pick dates" className="bg-card flex flex-col gap-3 rounded-xl border p-3 lg:col-start-1 lg:row-start-1">
+          <div className="flex flex-wrap gap-1.5">
+            {presets.map((p) => {
+              const active = p.range.from === range.from && p.range.to === range.to;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => select(p.range)}
+                  className={cn(
+                    "hover:border-primary/50 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    active && "border-primary bg-primary/15 text-foreground",
+                    !active && "text-muted-foreground",
+                  )}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <RangeCalendar
+            today={today}
+            lastMonth={lastMonth}
+            value={range}
+            onChange={select}
+            countFor={(day) => events.reduce((n, e) => (e.startDay <= day && e.endDay >= day ? n + 1 : n), 0)}
+          />
+        </section>
 
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-        <aside className="bg-card flex max-h-[65vh] flex-col overflow-hidden rounded-xl border max-lg:order-2">
+        <div className="flex h-[60vh] min-h-[360px] flex-col gap-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-xl border">
+            <LeafletMap events={visible} selectedId={selectedEventId} onSelect={setSelectedEventId} />
+          </div>
+          <MapLegend events={visible} />
+        </div>
+
+        <aside className="bg-card flex max-h-[60vh] min-h-0 flex-col overflow-hidden rounded-xl border lg:col-start-1 lg:row-start-2 lg:max-h-none">
           <div className="border-b px-4 py-3">
-            <h2 className="font-semibold">{current.label}</h2>
+            <h2 className="font-semibold" aria-live="polite">
+              {formatRange(range)}
+            </h2>
             <p className="text-muted-foreground text-sm">
-              {current.events.length === 1 ? "1 event" : `${current.events.length} events`}
+              {visible.length === 1 ? "1 event" : `${visible.length} events`}
+              {days > 1 && ` over ${days} days`}
             </p>
           </div>
+          {visible.length === 0 && (
+            <p className="text-muted-foreground px-4 py-6 text-sm">
+              Nothing on the map for these dates. Try a wider range.
+            </p>
+          )}
           <ul className="flex-1 overflow-y-auto p-2">
-            {current.events.map((e) => (
+            {visible.map((e) => (
               <li key={e.id}>
                 <button
                   onClick={() => setSelectedEventId(e.id)}
@@ -94,13 +150,6 @@ export function EventMapView({ views, unplacedCount }: { views: MapView[]; unpla
             </p>
           )}
         </aside>
-
-        <div className="flex flex-col gap-3 max-lg:order-1">
-          <div className="h-[65vh] min-h-[360px] overflow-hidden rounded-xl border">
-            <LeafletMap events={current.events} selectedId={selectedEventId} onSelect={setSelectedEventId} />
-          </div>
-          <MapLegend events={current.events} />
-        </div>
       </div>
     </div>
   );
