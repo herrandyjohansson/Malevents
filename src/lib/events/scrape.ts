@@ -7,8 +7,12 @@ export type Page = cheerio.CheerioAPI;
 export const loadHtml = (html: string): Page => cheerio.load(html);
 
 const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+/** English spellings some sites mix in, mapped onto MONTHS. */
+const ENGLISH_MONTHS: Record<string, string> = { may: "maj", oct: "okt" };
 const MONTH_WORD =
-  "januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|okt|nov|dec";
+  "januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|" +
+  "january|february|march|june|july|august|october|" +
+  "jan|feb|mar|apr|may|jun|jul|aug|sept|sep|okt|oct|nov|dec";
 
 /** "9 okt", "09 oktober 2026", "fre 9 okt 19.00", "26 november 2026 | 18:30", "10 okt 23:59". */
 const SWEDISH_DATE = new RegExp(
@@ -36,7 +40,8 @@ export function parseSwedishDate(text: string, today?: string): ParsedDate | und
   const match = text.match(SWEDISH_DATE);
   if (!match || match.index === undefined) return undefined;
   const [, dayText, monthText, yearText, hour, minute] = match;
-  const month = MONTHS.indexOf(monthText.slice(0, 3).toLowerCase()) + 1;
+  const short = monthText.slice(0, 3).toLowerCase();
+  const month = MONTHS.indexOf(ENGLISH_MONTHS[short] ?? short) + 1;
   const day = Number(dayText);
   if (month < 1 || day < 1 || day > 31) return undefined;
   const year = yearText ? Number(yearText) : inferYear(month, day, today);

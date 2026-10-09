@@ -16,7 +16,7 @@ const PAGE_SIZE = 24;
 const MAX_PAGES = 4;
 const DETAIL_CONCURRENCY = 4;
 /** Event pages read per refresh (soonest first); the rest show without a start time until they move up. */
-const MAX_DETAILS = 60;
+const MAX_DETAILS = 150;
 /** Passes, gift cards and memberships are listed like events but aren't ones. */
 const NOT_AN_EVENT = /season pass|säsongskort|presentkort|gift ?card|medlemskap|membership/i;
 
@@ -38,6 +38,14 @@ export interface TicksterDetail {
   soldOut?: boolean;
 }
 
+/** "Babel, Malmö" → { name: "Babel", city: "Malmö" }; coordinates come from venues.ts. */
+function placeToVenue(place: string | undefined): MalmoEvent["venue"] {
+  if (!place) return undefined;
+  const parts = place.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return undefined;
+  return { name: parts[0], city: parts.length > 1 ? parts[parts.length - 1] : undefined };
+}
+
 /** Parse a Tickster organizer page ("events by …"). */
 export function parseTicksterListing(html: string): TicksterListing[] {
   const $ = loadHtml(html);
@@ -52,7 +60,7 @@ export function parseTicksterListing(html: string): TicksterListing[] {
     if (!title || NOT_AN_EVENT.test(title)) continue;
     const date = parseSwedishDate(card.text)!;
     const after = card.text.slice(date.index).replace(/^[^,]*,\s*/, "");
-    const place = after.split(/\s+Köp\b/)[0].trim() || undefined;
+    const place = after.split(/\s+(?:Köp|Buy|Försäljning|Slutsål|Utsål|Sold)\b/i)[0].trim() || undefined;
     const ticketUrl = card.el.find('a[href*="secure.tickster.com"]').first().attr("href");
     byId.set(`${ticksterId}|${ymd}`, { ticksterId, url: card.href, ymd, title, place, ticketUrl });
   }
@@ -84,17 +92,27 @@ interface TicksterSourceOptions {
   organizerUrl: string;
   /** The venue's own site, linked from the admin. */
   homepage: string;
-  venue: NonNullable<MalmoEvent["venue"]>;
+  /** Fixed venue for a single-venue organizer; otherwise each event's place text is used. */
+  venue?: NonNullable<MalmoEvent["venue"]>;
+  /** Listing page size and how many pages to read (default 24 × 4). */
+  pageSize?: number;
+  maxPages?: number;
+  /** Extra query string for the listing, e.g. "sort=eventstart". */
+  query?: string;
   /** Keep only listings whose place text matches (organizers sometimes tour). */
   placeFilter?: RegExp;
   /** Fixtures used when EVENTS_LIVE=false. */
   demo: () => { listingHtml: string; detailHtml: (l: TicksterListing) => string };
 }
 
-async function fetchListings(organizerUrl: string, sourceId: string) {
+async function fetchListings(
+  organizerUrl: string,
+  sourceId: string,
+  { pageSize = PAGE_SIZE, maxPages = MAX_PAGES, query }: { pageSize?: number; maxPages?: number; query?: string },
+) {
   const listings: TicksterListing[] = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const url = `${organizerUrl}?skip=${page * PAGE_SIZE}&take=${PAGE_SIZE}`;
+  for (let page = 0; page < maxPages; page++) {
+    const url = `${organizerUrl}?skip=${page * pageSize}&take=${pageSize}${query ? `&${query}` : ""}`;
     let html: string;
     try {
       html = await fetchText(sourceId, url);
@@ -104,7 +122,7 @@ async function fetchListings(organizerUrl: string, sourceId: string) {
     }
     const found = parseTicksterListing(html);
     listings.push(...found);
-    if (!html.includes(`skip=${(page + 1) * PAGE_SIZE}`)) break;
+    if (found.length === 0 || !html.includes(`skip=${(page + 1) * pageSize}`)) break;
   }
   return listings;
 }
@@ -120,7 +138,7 @@ export function ticksterSource(options: TicksterSourceOptions): EventSource {
 
   async function getEvents(): Promise<MalmoEvent[]> {
     const fixtures = LIVE_MODE ? undefined : options.demo();
-    const listings = (fixtures ? parseTicksterListing(fixtures.listingHtml) : await fetchListings(options.organizerUrl, id)).filter(
+    const listings = (fixtures ? parseTicksterListing(fixtures.listingHtml) : await fetchListings(options.organizerUrl, id, options)).filter(
       (l) => !options.placeFilter || !l.place || options.placeFilter.test(l.place),
     );
     const today = malmoTime(0, "00:00").slice(0, 10);
@@ -145,7 +163,7 @@ export function ticksterSource(options: TicksterSourceOptions): EventSource {
         description: d.description,
         startsAt: toIso({ ymd: l.ymd, time: d.time }),
         category: toCategory(l.title, d.description),
-        venue,
+        venue: venue ?? placeToVenue(l.place),
         ...price,
         imageUrl: d.image,
         url: l.url,
@@ -163,7 +181,7 @@ export function ticksterSource(options: TicksterSourceOptions): EventSource {
     kind: LIVE_MODE ? "html" : "fixture",
     endpoint: options.organizerUrl,
     demo: !LIVE_MODE,
-    timeoutMs: 30000,
+    timeoutMs: 45000,
     fetchEvents: getEvents,
   };
 }

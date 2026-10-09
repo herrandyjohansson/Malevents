@@ -12,7 +12,8 @@ const ID = "malmo-opera";
 const SITE = "https://www.malmoopera.se";
 /** The calendar: one row per performance, 10 per page, `?page=N` from 0. */
 const CALENDAR_URL = `${SITE}/malmo-opera`;
-const MAX_PAGES = 20;
+/** ~20 pages reach about eight months ahead; the loop stops early when pages run out. */
+const MAX_PAGES = 30;
 const DETAIL_CONCURRENCY = 3;
 
 const VENUE = { name: "Malmö Opera", address: "Östra Rönneholmsvägen 20", city: "Malmö", lat: 55.5986, lng: 12.9905 };

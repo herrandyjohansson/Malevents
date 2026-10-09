@@ -18,7 +18,7 @@ const MAX_PAGES = 15;
 /** Event pages fetched in parallel; each is cached for days, so this only matters for new events. */
 const DETAIL_CONCURRENCY = 4;
 /** Event pages read per refresh; later events keep the listing's data until they move up. */
-const MAX_DETAILS = 60;
+const MAX_DETAILS = 150;
 
 const VENUE = { name: "Moriska Paviljongen", address: "Norra Parkgatan 2", city: "Malmö", lat: 55.5932, lng: 13.0096 };
 
