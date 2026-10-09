@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { DEFAULT_SOURCE_TIMEOUT_MS } from "./config";
 import { fetchSource } from "./fetch-source";
@@ -67,8 +68,11 @@ export async function loadSource(
  * Fan out to every enabled source in parallel. Each source is cached on its
  * own, so a slow or failing upstream only affects itself: failures are
  * reported in `sources` and the remaining events still render.
+ *
+ * Wrapped in React's `cache` so components on the same page (the home page's
+ * week map and event list) share one lookup and merge per request.
  */
-export async function getAllEvents(): Promise<{ events: MalmoEvent[]; sources: SourceStatus[] }> {
+export const getAllEvents = cache(async (): Promise<{ events: MalmoEvent[]; sources: SourceStatus[] }> => {
   const settings = await getSourceSettings();
   const results = await Promise.all(SOURCES.map((s) => loadSource(s, settings[s.id]?.enabled ?? isEnabledByDefault(s))));
 
@@ -83,4 +87,4 @@ export async function getAllEvents(): Promise<{ events: MalmoEvent[]; sources: S
 
   const events = [...byKey.values()].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
   return { events, sources: results.map((r) => r.status) };
-}
+});
