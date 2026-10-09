@@ -9,12 +9,13 @@ import type { MapEvent } from "./types";
 
 const MALMO_CENTER: [number, number] = [55.6, 13.0];
 
-// Free basemap, no API key: CARTO "Dark Matter" tiles over OpenStreetMap data.
-// Attribution is required. Swap TILE_URL for any other XYZ tile server, e.g.
-// https://tile.openstreetmap.org/{z}/{x}/{y}.png (light, light use only).
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+// Free basemap, no API key: the standard OpenStreetMap tiles, which the OSM tile
+// usage policy allows for low-traffic sites that show the attribution. They are
+// light, so globals.css darkens the tile pane to fit the dark theme.
+// (CARTO's basemaps now show an "API key required" tile on deployed sites.)
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /**
  * Teardrop pin coloured by category with an emoji glyph, plus a count badge
@@ -81,7 +82,7 @@ export function LeafletMap({
       leafletRef.current = L;
       const map = L.map(containerRef.current, { zoomControl: false }).setView(MALMO_CENTER, 13);
       L.control.zoom({ position: "bottomright" }).addTo(map);
-      L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, subdomains: "abcd", maxZoom: 19 }).addTo(map);
+      L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
       // Trigger the markers effect now that the map exists.
