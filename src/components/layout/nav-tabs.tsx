@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Map, Settings2, ShieldCheck } from "lucide-react";
+import { CalendarDays, CalendarRange, Map, Settings2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/", label: "Events", icon: CalendarDays },
   { href: "/map", label: "Map", icon: Map },
+  { href: "/calendar", label: "Calendar", icon: CalendarRange },
   { href: "/admin", label: "Admin", icon: Settings2, adminOnly: true },
 ] as const;
 
