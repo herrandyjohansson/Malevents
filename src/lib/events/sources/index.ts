@@ -1,9 +1,14 @@
+import { inkonst } from "./inkonst";
 import { malmoLive } from "./malmo-live";
+import { malmoOpera } from "./malmo-opera";
+import { malmoStadsteater } from "./malmo-stadsteater";
 import { malmoStad } from "./malmo-stad";
 import { moriska } from "./moriska";
 import { skaneCulture } from "./skane-culture";
 import { slagthuset } from "./slagthuset";
+import { ticksterMalmo } from "./tickster-malmo";
 import { ticketMarketplace } from "./ticket-marketplace";
+import { LIVE_MODE } from "../config";
 import type { EventSource } from "../types";
 
 /**
@@ -15,6 +20,10 @@ export const SOURCES: EventSource[] = [
   malmoLive,
   slagthuset,
   moriska,
+  malmoOpera,
+  malmoStadsteater,
+  inkonst,
+  ticksterMalmo,
   ticketMarketplace,
   skaneCulture,
 ];
@@ -30,6 +39,15 @@ export const SOURCE_META = SOURCES.map(({ id, name, homepage, description, kind,
   demo: demo ?? false,
   cacheProfile: cacheProfile ?? "hours",
 }));
+
+/**
+ * Whether a source is on when the admin hasn't chosen. In live mode,
+ * sources that only have demo fixtures stay off so made-up events never
+ * mix with real ones; the admin can still switch them on.
+ */
+export function isEnabledByDefault(source: Pick<EventSource, "demo">) {
+  return !(LIVE_MODE && source.demo);
+}
 
 export function getSource(id: string) {
   return SOURCES.find((s) => s.id === id);

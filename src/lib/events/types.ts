@@ -41,6 +41,11 @@ export interface MalmoEvent {
   isFree: boolean;
   imageUrl?: string;
   url: string;
+  /** Direct ticket link, when the upstream gives one apart from the event page. */
+  ticketUrl?: string;
+  soldOut?: boolean;
+  /** Free-text extras from the upstream, e.g. age limit or doors time. */
+  notes?: string[];
 }
 
 export type CacheProfile = "minutes" | "hours" | "days";

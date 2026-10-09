@@ -1,22 +1,26 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoLocalToIso, malmoTime, malmoToday } from "../demo-dates";
+import { malmoTime } from "../demo-dates";
+import { fetchDetailPage } from "../fetch-page";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchJson, fetchText } from "../http";
-import { toCategory } from "../map";
+import { parsePriceText, toCategory } from "../map";
+import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, textOf, toIso } from "../scrape";
 import type { EventSource, MalmoEvent } from "../types";
 
 const ID = "moriska";
 const SITE = "https://moriskapaviljongen.se";
 const PROGRAM_URL = `${SITE}/biljetter-program-2/`;
 const API = `${SITE}/wp-json/wp/v2/mp_event?per_page=100&_fields=link,title,excerpt,yoast_head_json`;
-/** The programme lists 10 events per page; this covers a few months ahead. */
-const MAX_PAGES = 6;
+/** The programme lists 10 events per page; this covers the season ahead. */
+const MAX_PAGES = 15;
+/** Event pages fetched in parallel; each is cached for days, so this only matters for new events. */
+const DETAIL_CONCURRENCY = 4;
+/** Event pages read per refresh; later events keep the listing's data until they move up. */
+const MAX_DETAILS = 150;
 
 const VENUE = { name: "Moriska Paviljongen", address: "Norra Parkgatan 2", city: "Malmö", lat: 55.5932, lng: 13.0096 };
-
-const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 
 /** One card in the programme listing: link, text and the parsed date. */
 export interface MoriskaListing {
@@ -35,49 +39,56 @@ export interface MoriskaPost {
   yoast_head_json?: { og_image?: { url: string }[] };
 }
 
-/** "09 oktober 17.30" → the next such date in Malmö time. Listings carry no year. */
-const DATE_IN_TEXT = /(\d{1,2})\s+(januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|okt|nov|dec)\.?\s+(?:(\d{4})\s*\|?\s*)?(?:kl\.?\s*)?(\d{1,2})[.:](\d{2})/i;
+/** What an event's own page adds: the year-qualified date, price and ticket link. */
+export interface MoriskaDetail {
+  startsAt?: string;
+  priceText?: string;
+  ticketUrl?: string;
+  image?: string;
+  description?: string;
+}
 
 function normalizeUrl(url: string) {
   return new URL(url, SITE).toString().replace(/\/+$/, "").toLowerCase();
 }
 
-function inferYear(month: number, day: number, today = malmoToday()) {
-  const [y, m, d] = today.split("-").map(Number);
-  // Anything more than a week in the past belongs to next year's programme.
-  const candidate = Date.UTC(y, month - 1, day);
-  return candidate < Date.UTC(y, m - 1, d - 7) ? y + 1 : y;
-}
-
 /**
  * Pull event cards out of a programme page. The theme's markup is not
- * documented, so this keys on what is stable: each card is a link to
- * /program/<slug>/ whose text holds a Swedish date and a time.
+ * documented, so this keys on what is stable: each card holds a link to
+ * /program/<slug>/ and a Swedish date with a time ("09 oktober 17.30").
  */
 export function parseMoriskaProgram(html: string, today?: string): MoriskaListing[] {
-  const anchors = html.matchAll(/<a\b[^>]*\bhref=["']((?:https?:\/\/(?:www\.)?moriskapaviljongen\.se)?\/program\/[^"'#?]+)["'][^>]*>([\s\S]*?)<\/a>/gi);
-  const byUrl = new Map<string, MoriskaListing>();
-  for (const [, href, inner] of anchors) {
-    const text = htmlToText(inner);
-    const match = text.match(DATE_IN_TEXT);
-    if (!match) continue;
-    const [, dayText, monthText, yearText, hour, minute] = match;
-    const month = MONTHS.indexOf(monthText.slice(0, 3).toLowerCase()) + 1;
-    const day = Number(dayText);
-    if (month < 1 || day < 1 || day > 31) continue;
-    const year = yearText ? Number(yearText) : inferYear(month, day, today);
-    const ymd = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const url = new URL(href, SITE).toString();
+  const $ = loadHtml(html);
+  const byKey = new Map<string, MoriskaListing>();
+  for (const card of findCards($, 'a[href*="/program/"]', SITE, (t) => parseSwedishDate(t)?.time !== undefined)) {
+    const date = parseSwedishDate(card.text, today)!;
+    const startsAt = toIso(date);
     // The same slug is sometimes reused for two dates, so key on both.
-    const startsAt = malmoLocalToIso(ymd, `${hour.padStart(2, "0")}:${minute}`);
-    byUrl.set(`${normalizeUrl(url)}|${startsAt}`, {
-      url,
-      text,
-      heading: text.slice(0, match.index).trim(),
+    byKey.set(`${normalizeUrl(card.href)}|${startsAt}`, {
+      url: card.href,
+      text: card.text,
+      heading: card.text.slice(0, date.index).trim(),
       startsAt,
     });
   }
-  return [...byUrl.values()];
+  return [...byKey.values()];
+}
+
+/** Read an event page: "26 november 2026 | 18:30", "595 kr + serviceavgift", the Nortic link. */
+export function parseMoriskaDetail(html: string): MoriskaDetail {
+  const $ = loadHtml(html);
+  const text = textOf($, $("main").length ? $("main") : $("body"));
+  const date = parseSwedishDate(text);
+  const price = text.match(/(?:fri entré|gratis|\d[\d\s]*(?:[–-]\s*\d+)?\s*(?:kr|:-|sek)\b[^.|]{0,30})/i)?.[0];
+  const ticket = $('a[href*="nortic.se"], a[href*="tickster.com"], a[href*="ticketmaster."]').first().attr("href");
+  const meta = pageMeta($);
+  return {
+    startsAt: date?.time && /\d{4}/.test(text.slice(date.index, date.index + 25)) ? toIso(date) : undefined,
+    priceText: price?.trim(),
+    ticketUrl: ticket,
+    image: meta.image,
+    description: meta.description,
+  };
 }
 
 /** True when the page links to a further page of the programme. */
@@ -85,9 +96,14 @@ export function hasNextPage(html: string, page: number) {
   return html.includes(`/page/${page + 1}/`);
 }
 
-export function moriskaToEvent(listing: MoriskaListing, post: MoriskaPost | undefined): MalmoEvent {
+export function moriskaToEvent(
+  listing: MoriskaListing,
+  post: MoriskaPost | undefined,
+  detail: MoriskaDetail = {},
+): MalmoEvent {
   const title = post ? decodeEntities(post.title.rendered).trim() : listing.heading || listing.text;
-  const excerpt = post?.excerpt ? htmlToText(post.excerpt.rendered) : undefined;
+  const excerpt = (post?.excerpt ? htmlToText(post.excerpt.rendered) : undefined) || detail.description;
+  const price = parsePriceText(detail.priceText);
   // What the card shows besides the title is the room (Jazzklubb, RedRoom, GrandFloor …).
   const heading = listing.heading.toLowerCase();
   const room = post && heading.startsWith(title.toLowerCase()) ? listing.heading.slice(title.length).trim() || undefined : undefined;
@@ -96,17 +112,21 @@ export function moriskaToEvent(listing: MoriskaListing, post: MoriskaPost | unde
     sourceId: ID,
     title,
     description: truncate(excerpt),
-    startsAt: listing.startsAt,
+    // The event page's date carries the year; the listing's year is inferred.
+    startsAt: detail.startsAt ?? listing.startsAt,
     category: toCategory(room, title, excerpt),
     venue: { ...VENUE, address: room ? `${room}, ${VENUE.address}` : VENUE.address },
-    isFree: /fri entré|gratis/i.test(`${listing.text} ${excerpt ?? ""}`),
-    imageUrl: post?.yoast_head_json?.og_image?.[0]?.url,
+    isFree: price.isFree || /fri entré|gratis/i.test(`${listing.text} ${excerpt ?? ""}`),
+    price: price.price,
+    imageUrl: post?.yoast_head_json?.og_image?.[0]?.url ?? detail.image,
     url: listing.url,
+    ticketUrl: detail.ticketUrl,
   };
 }
 
 async function fetchProgram(): Promise<MoriskaListing[]> {
   const listings: MoriskaListing[] = [];
+  const seen = new Set<string>();
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = page === 1 ? PROGRAM_URL : `${PROGRAM_URL}page/${page}/`;
     let html: string;
@@ -117,7 +137,16 @@ async function fetchProgram(): Promise<MoriskaListing[]> {
       if (page === 1) throw err;
       break;
     }
-    listings.push(...parseMoriskaProgram(html));
+    // Later pages can repeat the upcoming list (the theme's "Older Entries" isn't strictly
+    // paged), so keep only cards not seen yet and stop once a page adds nothing.
+    const fresh = parseMoriskaProgram(html).filter((l) => {
+      const key = `${normalizeUrl(l.url)}|${l.startsAt}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (fresh.length === 0) break;
+    listings.push(...fresh);
     if (!hasNextPage(html, page)) break;
   }
   return listings;
@@ -133,18 +162,28 @@ async function getMoriskaEvents(): Promise<MalmoEvent[]> {
     ? await Promise.all([fetchProgram(), fetchJson<MoriskaPost[]>(ID, API).catch(() => [])])
     : [parseMoriskaProgram(demoProgramHtml()), demoPosts()];
   const postsByUrl = new Map(posts.map((p) => [normalizeUrl(p.link), p]));
-  return listings.map((l) => moriskaToEvent(l, postsByUrl.get(normalizeUrl(l.url))));
+  const details = LIVE_MODE
+    ? await mapLimit(listings, DETAIL_CONCURRENCY, (l, i) =>
+        i >= MAX_DETAILS
+          ? Promise.resolve<MoriskaDetail>({})
+          : fetchDetailPage(ID, l.url)
+          .then(parseMoriskaDetail)
+          .catch((): MoriskaDetail => ({})),
+      )
+    : listings.map((l) => parseMoriskaDetail(demoDetailHtml(l)));
+  return listings.map((l, i) => moriskaToEvent(l, postsByUrl.get(normalizeUrl(l.url)), details[i]));
 }
 
 export const moriska: EventSource = {
   id: ID,
   name: "Moriska Paviljongen",
   homepage: PROGRAM_URL,
-  description: "Concerts, club nights and shows at Moriska Paviljongen, scraped from the programme pages and joined with the WordPress REST API.",
+  description:
+    "Concerts, club nights and shows at Moriska Paviljongen: programme pages scraped with cheerio, joined with the WordPress REST API and enriched from each event page.",
   kind: LIVE_MODE ? "html" : "fixture",
   endpoint: PROGRAM_URL,
   demo: !LIVE_MODE,
-  timeoutMs: 15000,
+  timeoutMs: 30000,
   fetchEvents: getMoriskaEvents,
 };
 
@@ -171,6 +210,19 @@ function demoProgramHtml() {
     ${card("the-halloween-party", "THE HALLOWEEN PARTY", "GrandFloor", 13, "23:00")}
     <a href="${SITE}/biljetter-program-2/page/2/">Older Entries</a>
   </main>`;
+}
+
+/** An event page as the theme renders it: full date with year, price and a Nortic link. */
+function demoDetailHtml(listing: MoriskaListing) {
+  const [ymd, time] = listing.startsAt.split("T");
+  const [y, m, d] = ymd.split("-").map(Number);
+  const months = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
+  return `<html><head><meta property="og:image" content="${SITE}/wp-content/uploads/demo.jpg"></head><body><main>
+    <h1>${listing.heading}</h1>
+    <p>${d} ${months[m - 1]} ${y} | ${time.slice(0, 5)}</p>
+    <p>Pris: 295 kr + serviceavgift</p>
+    <a href="https://nortic.se/ticket/event/81534">Köp biljett</a>
+  </main></body></html>`;
 }
 
 function demoPosts(): MoriskaPost[] {

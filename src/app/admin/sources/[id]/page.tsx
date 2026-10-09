@@ -14,7 +14,7 @@ import { loadSource } from "@/lib/events/aggregate";
 import { DEFAULT_SOURCE_TIMEOUT_MS } from "@/lib/events/config";
 import { CATEGORY_COLORS, CATEGORY_LABELS, formatEventDate, formatPrice, formatRelative } from "@/lib/events/format";
 import { getSourceSettings } from "@/lib/events/settings";
-import { getSource } from "@/lib/events/sources";
+import { getSource, isEnabledByDefault } from "@/lib/events/sources";
 import { hasCoordinates } from "@/lib/events/venues";
 
 export default function SourcePage({ params }: PageProps<"/admin/sources/[id]">) {
@@ -41,7 +41,7 @@ async function SourceDetail({ params }: { params: Promise<{ id: string }> }) {
 
   await connection();
   const settings = await getSourceSettings();
-  const enabled = settings[id]?.enabled ?? true;
+  const enabled = settings[id]?.enabled ?? isEnabledByDefault(source);
   // Always load for the preview, even when the source is switched off for visitors.
   const { status, events } = await loadSource(source, true);
   const now = new Date();
