@@ -126,6 +126,7 @@ export function moriskaToEvent(
 
 async function fetchProgram(): Promise<MoriskaListing[]> {
   const listings: MoriskaListing[] = [];
+  const seen = new Set<string>();
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = page === 1 ? PROGRAM_URL : `${PROGRAM_URL}page/${page}/`;
     let html: string;
@@ -136,7 +137,16 @@ async function fetchProgram(): Promise<MoriskaListing[]> {
       if (page === 1) throw err;
       break;
     }
-    listings.push(...parseMoriskaProgram(html));
+    // Later pages can repeat the upcoming list (the theme's "Older Entries" isn't strictly
+    // paged), so keep only cards not seen yet and stop once a page adds nothing.
+    const fresh = parseMoriskaProgram(html).filter((l) => {
+      const key = `${normalizeUrl(l.url)}|${l.startsAt}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (fresh.length === 0) break;
+    listings.push(...fresh);
     if (!hasNextPage(html, page)) break;
   }
   return listings;
