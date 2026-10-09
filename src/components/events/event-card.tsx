@@ -60,9 +60,26 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
           </dl>
         </div>
       </div>
-      <div className="text-muted-foreground flex items-center justify-between border-t px-5 py-2.5 text-xs">
+      <div className="text-muted-foreground flex items-center justify-between gap-3 border-t px-5 py-2.5 text-xs">
         <span className="truncate">via {sourceName}</span>
-        <ArrowUpRight className="group-hover:text-primary size-4 transition-colors" />
+        <span className="flex shrink-0 items-center gap-3">
+          {event.soldOut ? (
+            <span className="text-destructive font-medium">Sold out</span>
+          ) : (
+            event.ticketUrl && (
+              <a
+                href={event.ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary relative z-10 font-medium underline-offset-2 hover:underline"
+              >
+                Tickets
+                <span className="sr-only"> for {event.title} (opens in a new tab)</span>
+              </a>
+            )
+          )}
+          <ArrowUpRight className="group-hover:text-primary size-4 transition-colors" />
+        </span>
       </div>
     </Card>
   );

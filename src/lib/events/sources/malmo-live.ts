@@ -76,6 +76,12 @@ export function malmoLiveRowToEvent(row: MalmoLiveRow): MalmoEvent {
     price: high ? { min: low ?? high, max: high, currency: row.price_currency || "SEK" } : undefined,
     imageUrl: row.field_media_image_1 ? new URL(row.field_media_image_1, SITE).toString() : undefined,
     url: row.view_node ? new URL(row.view_node, SITE).toString() : `${SITE}/program`,
+    ticketUrl:
+      row.tessitura_event_id && row.tessitura_instance_id
+        ? `https://biljetter.malmolive.se/events/${row.tessitura_event_id}/${row.tessitura_instance_id}?lang=sv`
+        : undefined,
+    soldOut: row.sold_out === "1" || undefined,
+    notes: hall ? [hall] : undefined,
   };
 }
 

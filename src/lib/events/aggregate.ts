@@ -4,7 +4,7 @@ import { DEFAULT_SOURCE_TIMEOUT_MS } from "./config";
 import { fetchSource } from "./fetch-source";
 import { SourceError } from "./http";
 import { getSourceSettings } from "./settings";
-import { SOURCES } from "./sources";
+import { isEnabledByDefault, SOURCES } from "./sources";
 import type { EventSource, MalmoEvent, SourceStatus } from "./types";
 
 function withTimeout<T>(source: EventSource, promise: Promise<T>): Promise<T> {
@@ -70,7 +70,7 @@ export async function loadSource(
  */
 export async function getAllEvents(): Promise<{ events: MalmoEvent[]; sources: SourceStatus[] }> {
   const settings = await getSourceSettings();
-  const results = await Promise.all(SOURCES.map((s) => loadSource(s, settings[s.id]?.enabled ?? true)));
+  const results = await Promise.all(SOURCES.map((s) => loadSource(s, settings[s.id]?.enabled ?? isEnabledByDefault(s))));
 
   const byKey = new Map<string, MalmoEvent>();
   for (const { events } of results) {

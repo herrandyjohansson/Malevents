@@ -22,6 +22,7 @@ const VENUES: Record<string, [lat: number, lng: number]> = {
   panora: [55.5921, 13.0057],
   slagthuset: [55.6094, 13.0052],
   "moriska paviljongen": [55.5932, 13.0096],
+  inkonst: [55.5966, 13.0004],
 };
 
 function key(name: string) {

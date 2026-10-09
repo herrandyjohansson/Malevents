@@ -12,7 +12,7 @@ const SITE = "https://slagthuset.se";
 const API = "https://wp.slagthuset.se/wp-json/wp/v2/events";
 const FIELDS = "id,link,title,acf,event_medium";
 /** The API orders by publish date, newest first, so upcoming events sit on the first pages. */
-const PAGES = 3;
+const PAGES = 4;
 
 interface Term {
   name: string;
@@ -41,6 +41,8 @@ export interface SlagthusetPost {
     biljettlank?: string;
     underrubrik?: string;
     lang_info?: string;
+    /** e.g. "13 år" */
+    aldersgrans?: string;
     typ_av_evenemang?: Term | false;
     gom_i_kalender?: boolean;
   };
@@ -86,6 +88,13 @@ export function slagthusetPostToEvent(post: SlagthusetPost): MalmoEvent | undefi
     ...parsePriceText(acf.pris),
     imageUrl: post.event_medium ? post.event_medium.url : undefined,
     url: post.link || SITE,
+    ticketUrl: acf.biljettlank || undefined,
+    soldOut: /utsål|slutsål/i.test(status) || undefined,
+    notes: [
+      room,
+      hm(acf.oppnar) ? `Insläpp ${hm(acf.oppnar)}` : undefined,
+      acf.aldersgrans ? `Åldersgräns ${acf.aldersgrans}` : undefined,
+    ].filter((n): n is string => Boolean(n)),
   };
 }
 
