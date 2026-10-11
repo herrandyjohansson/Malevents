@@ -52,7 +52,7 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
   minute: "2-digit",
 });
 
-export function formatEventDate(event: MalmoEvent) {
+export function formatEventDate(event: Pick<MalmoEvent, "startsAt" | "endsAt">) {
   const start = new Date(event.startsAt);
   const end = event.endsAt ? new Date(event.endsAt) : undefined;
   const startDay = dateFormat.format(start);

@@ -10,6 +10,7 @@ Built with Next.js 16 (App Router, Cache Components), React 19, Tailwind v4 and 
 - `/tonight` Tonight: what's on right now and a timeline of what starts later today (or tomorrow, once tonight is over), with exhibitions folded away.
 - `/map` Map: pick a day in the next two weeks and see where events are. Uses [Leaflet](https://leafletjs.com) with the free standard OpenStreetMap tiles, darkened with CSS (no API key; keep the attribution, and move to a hosted tile plan if traffic grows, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/)).
 - `/venues` Venues: every venue with upcoming events, searchable and filterable by category; `/venues/<slug>` shows a venue's programme and location.
+- `/saved` Saved: events you hearted on any card, grouped by day, with one-tap "add to calendar" (.ics) for one event or all. Kept in the browser's localStorage, no account.
 - `/admin` Admin (shown in the nav when "Admin mode" is switched on in the header; there is no login): health, event count, last fetch, response time and cache lifetime per source; refresh a source's cache; switch a source off for visitors; drill into a source's normalized events.
 
 ## Filters
