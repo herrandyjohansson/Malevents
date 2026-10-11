@@ -1,23 +1,38 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { NavTabs, NavTabsFallback } from "./nav-tabs";
+import { Logo } from "./logo";
+import { HeaderNav, HeaderNavFallback, MobileNav, MobileNavFallback } from "./nav-tabs";
 
 export function SiteHeader() {
   return (
-    <header className="bg-background/70 sticky top-0 z-[1000] border-b backdrop-blur-xl">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span
-            aria-hidden
-            className="from-primary size-6 rounded-md bg-gradient-to-br to-sky-400 shadow-[0_0_20px_-4px] shadow-primary/60"
-          />
-          Malevents
-        </Link>
-        <Suspense fallback={<NavTabsFallback />}>
-          <NavTabs />
-        </Suspense>
+    <>
+      <header className="glass sticky top-0 z-[1000] border-b">
+        <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
+            <Logo className="size-7" />
+            <span className="text-[15px]">Malevents</span>
+          </Link>
+          <Suspense fallback={<HeaderNavFallback />}>
+            <HeaderNav />
+          </Suspense>
+        </div>
+      </header>
+      <Suspense fallback={<MobileNavFallback />}>
+        <MobileNav />
+      </Suspense>
+    </>
+  );
+}
+
+/** Slow colour fields and a dot grid behind the top of every page. */
+export function Backdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[36rem]">
+      <div className="aurora">
+        <span />
       </div>
-    </header>
+      <div className="dot-grid absolute inset-0" />
+    </div>
   );
 }

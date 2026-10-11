@@ -13,5 +13,5 @@ export async function WeekMapPreview() {
 }
 
 export function WeekMapPreviewSkeleton() {
-  return <Skeleton className="h-[25rem] rounded-xl" />;
+  return <Skeleton className="h-[25rem] rounded-2xl" />;
 }

@@ -179,7 +179,7 @@ export function EventMapView({
   return (
     <div
       ref={viewRef}
-      className="flex flex-col gap-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-0 max-lg:overflow-hidden"
+      className="flex flex-col gap-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-(--tabbar-h) max-lg:overflow-hidden"
       style={{ "--sheet-h": `${sheetHeight}px` } as React.CSSProperties}
     >
       {/* Phone: date chips float over the top of the map. */}
@@ -213,7 +213,7 @@ export function EventMapView({
         <section
           aria-label="Pick dates"
           className={cn(
-            "bg-card flex flex-col gap-3 rounded-xl border p-3 lg:col-start-1 lg:row-start-1",
+            "bg-card flex flex-col gap-3 rounded-2xl border p-3 lg:col-start-1 lg:row-start-1",
             "max-lg:absolute max-lg:inset-x-3 max-lg:top-14 max-lg:z-30 max-lg:shadow-2xl",
             !datesOpen && "max-lg:hidden",
           )}
@@ -229,7 +229,7 @@ export function EventMapView({
         </section>
 
         <div className="flex h-[60vh] min-h-[360px] flex-col gap-3 max-lg:absolute max-lg:inset-0 max-lg:h-auto max-lg:min-h-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full">
-          <div className="min-h-0 flex-1 overflow-hidden rounded-xl border max-lg:rounded-none max-lg:border-0">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border max-lg:rounded-none max-lg:border-0">
             <LeafletMap
               events={visible}
               selectedId={selectedEventId}
@@ -244,7 +244,7 @@ export function EventMapView({
 
         <aside
           className={cn(
-            "bg-card flex max-h-[60vh] min-h-0 flex-col overflow-hidden rounded-xl border lg:col-start-1 lg:row-start-2 lg:max-h-none",
+            "bg-card flex max-h-[60vh] min-h-0 flex-col overflow-hidden rounded-2xl border lg:col-start-1 lg:row-start-2 lg:max-h-none",
             "max-lg:absolute max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-10 max-lg:h-(--sheet-h) max-lg:max-h-none",
             "max-lg:rounded-b-none max-lg:rounded-t-2xl max-lg:border-x-0 max-lg:border-b-0 max-lg:shadow-[0_-12px_40px_-12px_rgb(0_0_0/70%)]",
             dragHeight === null && "max-lg:transition-[height] max-lg:duration-300 max-lg:ease-[cubic-bezier(0.32,0.72,0,1)]",

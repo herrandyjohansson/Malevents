@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { RefreshAllButton, RefreshSourceButton, SourceToggle } from "@/components/admin/source-controls";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,17 +21,14 @@ export const metadata: Metadata = { title: "Admin", robots: { index: false } };
 
 export default function AdminPage() {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <p className="text-primary text-sm font-medium">Admin</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Event sources</h1>
-          <p className="text-muted-foreground max-w-2xl">
-            Check each API&apos;s health, refresh its cached data, or switch it off without a deploy.
-          </p>
-        </div>
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 pb-10 sm:px-6">
+      <PageHeader
+        eyebrow="Admin"
+        title="Event sources"
+        description="Check each API's health, refresh its cached data, or switch it off without a deploy."
+      >
         <RefreshAllButton />
-      </section>
+      </PageHeader>
       <Suspense fallback={<AdminSkeleton />}>
         <AdminOverview />
       </Suspense>

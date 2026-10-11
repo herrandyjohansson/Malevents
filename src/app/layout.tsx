@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { SiteHeader } from "@/components/layout/site-header";
+import { Backdrop, SiteHeader } from "@/components/layout/site-header";
 
 import "./globals.css";
 
@@ -25,13 +25,14 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#0f0f17",
+  themeColor: "#0b0b12",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="relative isolate flex min-h-full flex-col font-sans">
+        <Backdrop />
         <SiteHeader />
         {children}
       </body>

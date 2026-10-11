@@ -29,7 +29,7 @@ export async function EventResults({
         {visible.length === 1 ? "1 event" : `${visible.length} events`}
       </p>
       {visible.length > 0 ? (
-        <SpotlightList className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <SpotlightList className="rise-in grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((event) => (
             <li key={event.id} className="flex [&>*]:flex-1">
               <EventCard event={event} sourceName={sourceNames.get(event.sourceId) ?? event.sourceId} />
@@ -37,7 +37,7 @@ export async function EventResults({
           ))}
         </SpotlightList>
       ) : (
-        <div className="bg-card/40 flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
+        <div className="bg-card/40 flex flex-col items-center gap-3 rounded-2xl border border-dashed py-16 text-center">
           <CalendarX className="text-muted-foreground size-8" />
           <p className="font-medium">No events match these filters</p>
           <Button variant="outline" size="sm" asChild>

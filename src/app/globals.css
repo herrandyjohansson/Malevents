@@ -36,27 +36,38 @@
 :root {
   /* Dark is the only theme. */
   color-scheme: dark;
-  --radius: 0.75rem;
-  --background: oklch(0.135 0.012 275);
-  --foreground: oklch(0.96 0.005 275);
-  --card: oklch(0.175 0.016 275);
-  --card-foreground: oklch(0.96 0.005 275);
-  --popover: oklch(0.19 0.018 275);
-  --popover-foreground: oklch(0.96 0.005 275);
-  --primary: oklch(0.72 0.19 330);
-  --primary-foreground: oklch(0.15 0.02 330);
-  --secondary: oklch(0.235 0.018 275);
-  --secondary-foreground: oklch(0.96 0.005 275);
-  --muted: oklch(0.235 0.018 275);
-  --muted-foreground: oklch(0.7 0.015 275);
-  --accent: oklch(0.255 0.022 275);
-  --accent-foreground: oklch(0.98 0.005 275);
+  --radius: 0.875rem;
+  --background: oklch(0.12 0.014 278);
+  --foreground: oklch(0.97 0.004 278);
+  --card: oklch(0.16 0.016 278);
+  --card-foreground: oklch(0.97 0.004 278);
+  --popover: oklch(0.18 0.018 278);
+  --popover-foreground: oklch(0.97 0.004 278);
+  --primary: oklch(0.72 0.2 335);
+  --primary-foreground: oklch(0.15 0.02 335);
+  --secondary: oklch(0.22 0.018 278);
+  --secondary-foreground: oklch(0.97 0.004 278);
+  --muted: oklch(0.22 0.018 278);
+  --muted-foreground: oklch(0.7 0.014 278);
+  --accent: oklch(0.25 0.022 278);
+  --accent-foreground: oklch(0.98 0.004 278);
   --destructive: oklch(0.68 0.2 22);
-  --success: oklch(0.76 0.17 155);
+  --success: oklch(0.78 0.17 155);
   --warning: oklch(0.82 0.16 80);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.72 0.19 330 / 60%);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 11%);
+  --ring: oklch(0.72 0.2 335 / 60%);
+  /* Brand gradient stops: the logo, headings and the aurora behind page headers. */
+  --brand-1: oklch(0.72 0.2 335);
+  --brand-2: oklch(0.74 0.15 240);
+  --brand-3: oklch(0.8 0.15 60);
+  /* Height of the phone tab bar at the bottom of the screen (0 where there is none). */
+  --tabbar-h: 0px;
+}
+@media (max-width: 47.999rem) {
+  :root {
+    --tabbar-h: calc(4rem + env(safe-area-inset-bottom));
+  }
 }
 
 @layer base {
@@ -65,10 +76,147 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(60rem 30rem at 15% -10%, oklch(0.72 0.19 330 / 12%), transparent 60%),
-      radial-gradient(50rem 30rem at 95% 0%, oklch(0.7 0.15 250 / 10%), transparent 60%);
-    background-attachment: fixed;
+    padding-bottom: var(--tabbar-h);
+    /* Page headers bleed their aurora to the screen edges; never scroll sideways. */
+    overflow-x: clip;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(100deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
+  background-clip: text;
+  color: transparent;
+}
+
+/* Aurora: slow, blurred colour fields drifting behind page headers.
+   Pure CSS, so it costs nothing until it is on screen. */
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent);
+  mask-image: linear-gradient(to bottom, black 40%, transparent);
+}
+.aurora::before,
+.aurora::after,
+.aurora > span {
+  content: "";
+  position: absolute;
+  width: 42rem;
+  height: 22rem;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.32;
+  animation: aurora-drift 22s ease-in-out infinite alternate;
+}
+.aurora::before {
+  left: -8rem;
+  top: -10rem;
+  background: var(--brand-1);
+}
+.aurora::after {
+  right: -10rem;
+  top: -8rem;
+  background: var(--brand-2);
+  animation-duration: 28s;
+  animation-direction: alternate-reverse;
+}
+.aurora > span {
+  left: 35%;
+  top: -14rem;
+  width: 30rem;
+  background: var(--brand-3);
+  opacity: 0.16;
+  animation-duration: 34s;
+}
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(6rem, 2rem, 0) rotate(12deg) scale(1.15);
+  }
+  100% {
+    transform: translate3d(-4rem, 3rem, 0) rotate(-8deg) scale(0.95);
+  }
+}
+/* A faint dot grid under the aurora gives the header some texture. */
+.dot-grid {
+  background-image: radial-gradient(oklch(1 0 0 / 7%) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%);
+  mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before,
+  .aurora::after,
+  .aurora > span {
+    animation: none;
+  }
+}
+
+/* Glass surfaces: the header, the phone tab bar and floating panels. */
+.glass {
+  background: color-mix(in oklch, var(--background) 72%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+
+/* A thin gradient ring, drawn with a masked border so it follows any radius. */
+/* Callers position the element (relative or absolute). */
+.gradient-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(120deg, var(--brand-1), var(--brand-2), var(--brand-3));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Tab bar pill: springs to the active tab, stretching a little on the way. */
+.tab-indicator {
+  transition:
+    transform 420ms cubic-bezier(0.34, 1.4, 0.5, 1),
+    width 420ms cubic-bezier(0.34, 1.4, 0.5, 1),
+    opacity 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-indicator {
+    transition: none;
+  }
+}
+
+/* Staggered fade-up for lists as they stream in. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.rise-in > * {
+  animation: rise-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.rise-in > *:nth-child(2) { animation-delay: 40ms; }
+.rise-in > *:nth-child(3) { animation-delay: 80ms; }
+.rise-in > *:nth-child(4) { animation-delay: 120ms; }
+.rise-in > *:nth-child(5) { animation-delay: 160ms; }
+.rise-in > *:nth-child(6) { animation-delay: 200ms; }
+.rise-in > *:nth-child(n + 7) { animation-delay: 240ms; }
+@media (prefers-reduced-motion: reduce) {
+  .rise-in > * {
+    animation: none;
   }
 }
 
@@ -96,6 +244,9 @@
 }
 .spotlight-card:hover::before {
   opacity: 1;
+}
+.spotlight-card:hover {
+  box-shadow: 0 18px 50px -18px color-mix(in oklch, var(--cat, var(--primary)) 55%, transparent);
 }
 /* Skeletons: a light band sweeps across instead of the whole block pulsing. */
 .skeleton-shimmer {
