@@ -5,12 +5,14 @@ export interface NavTab {
   label: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  /** Carries the shared event filters over when you switch to it. */
+  sharesFilters?: boolean;
 }
 
 export const NAV_TABS: NavTab[] = [
-  { href: "/", label: "Discover", icon: Sparkles },
-  { href: "/map", label: "Map", icon: Map },
-  { href: "/calendar", label: "Calendar", icon: CalendarRange },
+  { href: "/", label: "Discover", icon: Sparkles, sharesFilters: true },
+  { href: "/map", label: "Map", icon: Map, sharesFilters: true },
+  { href: "/calendar", label: "Calendar", icon: CalendarRange, sharesFilters: true },
   { href: "/admin", label: "Admin", icon: Settings2, adminOnly: true },
 ];
 

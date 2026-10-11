@@ -1,15 +1,13 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ExternalLink, Search, X } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
 
+import { FilterBar } from "@/components/filters/filter-bar";
+import { useFilters } from "@/components/filters/use-filters";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/events/format";
-import { EVENT_CATEGORIES, type EventCategory } from "@/lib/events/types";
+import { facetCounts, filtersToParams, isLongRunning, matcher } from "@/lib/events/filters";
 import { cn } from "@/lib/utils";
 
 import type { CalendarEvent } from "./types";
@@ -17,8 +15,6 @@ import type { CalendarEvent } from "./types";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** Pills shown per day cell before collapsing into "+N more". */
 const MAX_PILLS = 3;
-/** Events covering more days than this count as long-running (exhibitions etc.). */
-const LONG_RUNNING_DAYS = 2;
 const MAX_MONTHS_AHEAD = 12;
 
 // Day math on yyyy-mm-dd strings, done in UTC so it never shifts a day.
@@ -60,9 +56,6 @@ const dayLabel = new Intl.DateTimeFormat("en-GB", {
   month: "long",
 });
 
-function isLongRunning(e: CalendarEvent) {
-  return daysBetween(e.startDay, e.endDay) + 1 > LONG_RUNNING_DAYS;
-}
 
 /** Single-day events by start time first, long-running ones after. */
 function byDisplayOrder(a: CalendarEvent, b: CalendarEvent) {
@@ -94,128 +87,30 @@ export function CalendarView({
 }) {
   const currentMonth = today.slice(0, 7);
   const [month, setMonth] = useState(currentMonth);
-  const [query, setQuery] = useState("");
-  const [categories, setCategories] = useState<EventCategory[]>([]);
-  const [source, setSource] = useState("all");
-  const [freeOnly, setFreeOnly] = useState(false);
-  const [hideLongRunning, setHideLongRunning] = useState(false);
-  const [onlyMatches, setOnlyMatches] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-
-  const q = query.trim().toLowerCase();
-  const isMatch = (e: CalendarEvent) => q !== "" && e.searchText.includes(q);
-
-  const filtered = events.filter(
-    (e) =>
-      (categories.length === 0 || categories.includes(e.category)) &&
-      (source === "all" || e.sourceId === source) &&
-      (!freeOnly || e.isFree) &&
-      (!hideLongRunning || !isLongRunning(e)) &&
-      (!onlyMatches || q === "" || e.searchText.includes(q)),
-  );
+  // The shared filters (in the URL), applied in the browser.
+  const { filters } = useFilters("client");
+  const filterKey = filtersToParams(filters).toString();
+  const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const facets = useMemo(() => facetCounts(events, filters, today), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lastMonth = `${addMonths(currentMonth, MAX_MONTHS_AHEAD)}-01`;
 
   const days = monthGrid(month);
   const eventsByDay = groupByDay(filtered, days);
-  // While searching, float matches to the top of each day so they aren't hidden under "+N more".
-  if (q) for (const list of eventsByDay.values()) list.sort((a, b) => Number(isMatch(b)) - Number(isMatch(a)));
-
   const inMonth = filtered.filter((e) => e.startDay.slice(0, 7) <= month && e.endDay.slice(0, 7) >= month);
-  const matchCount = q ? inMonth.filter(isMatch).length : 0;
-  const presentCategories = EVENT_CATEGORIES.filter((c) => events.some((e) => e.category === c));
-  const hasFilters = q || categories.length > 0 || source !== "all" || freeOnly || hideLongRunning;
-
-  function toggleCategory(c: EventCategory) {
-    setCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  }
-
-  function clearFilters() {
-    setQuery("");
-    setCategories([]);
-    setSource("all");
-    setFreeOnly(false);
-    setHideLongRunning(false);
-    setOnlyMatches(false);
-  }
-
   const selectedEvents = selectedDay ? (eventsByDay.get(selectedDay) ?? []) : [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {/* Filters */}
-      <div className="glass flex flex-col gap-3 rounded-2xl border p-3">
-        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
-          <div className="relative md:w-72">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input
-              type="search"
-              placeholder="Highlight by title or venue"
-              aria-label="Highlight events by title or venue"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <Select value={source} onValueChange={setSource}>
-            <SelectTrigger className="w-full md:w-48" aria-label="Source">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All sources</SelectItem>
-              {sources.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={freeOnly} onCheckedChange={setFreeOnly} />
-              Free only
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={hideLongRunning} onCheckedChange={setHideLongRunning} />
-              Hide exhibitions &amp; multi-day
-            </label>
-            <label className={cn("flex items-center gap-2 text-sm", !q && "opacity-50")}>
-              <Switch checked={onlyMatches} onCheckedChange={setOnlyMatches} disabled={!q} />
-              Only show matches
-            </label>
-          </div>
-
-          {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="md:ml-auto">
-              <X />
-              Clear
-            </Button>
-          )}
-        </div>
-
-        <ul className="flex flex-wrap gap-1.5" aria-label="Categories">
-          {presentCategories.map((c) => {
-            const on = categories.includes(c);
-            return (
-              <li key={c}>
-                <button
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleCategory(c)}
-                  className={cn(
-                    "flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
-                    on ? "text-foreground" : "text-muted-foreground hover:text-foreground bg-secondary/60",
-                    categories.length > 0 && !on && "opacity-60",
-                  )}
-                  style={on ? { borderColor: CATEGORY_COLORS[c], background: `${CATEGORY_COLORS[c]}26` } : undefined}
-                >
-                  <span aria-hidden>{CATEGORY_EMOJI[c]}</span>
-                  {CATEGORY_LABELS[c]}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      <div className="glass rounded-2xl border p-2.5">
+        <FilterBar
+          mode="client"
+          facets={facets}
+          sources={sources}
+          today={today}
+          lastMonth={lastMonth}
+          countFor={(day) => events.reduce((n, e) => (e.startDay <= day && e.endDay >= day ? n + 1 : n), 0)}
+        />
       </div>
 
       {/* Month navigation */}
@@ -224,8 +119,7 @@ export function CalendarView({
           {monthLabel.format(toDate(`${month}-01`))}
         </h2>
         <p className="text-muted-foreground text-sm" aria-live="polite">
-          {inMonth.length === 1 ? "1 event" : `${inMonth.length} events`}
-          {q && ` · ${matchCount === 1 ? "1 match" : `${matchCount} matches`}`}
+          {inMonth.length === 1 ? "1 event" : `${inMonth.length} events`} this month
         </p>
         <div className="flex items-center gap-1">
           <Button
@@ -267,7 +161,6 @@ export function CalendarView({
             const outside = day.slice(0, 7) !== month;
             const isToday = day === today;
             const isPast = day < today;
-            const dayHasMatch = q !== "" && list.some(isMatch);
             const shown = list.slice(0, MAX_PILLS);
             return (
               <div
@@ -275,7 +168,6 @@ export function CalendarView({
                 className={cn(
                   "group relative flex min-h-20 flex-col gap-1 border-r border-b p-1 sm:p-1.5 [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0",
                   outside && "bg-background/40",
-                  dayHasMatch && "bg-primary/[0.07]",
                 )}
               >
                 <button
@@ -300,7 +192,7 @@ export function CalendarView({
                     {list.slice(0, 6).map((e) => (
                       <span
                         key={e.id}
-                        className={cn("size-1.5 rounded-full", q && !isMatch(e) && "opacity-30")}
+                        className="size-1.5 rounded-full"
                         style={{ background: e.color }}
                       />
                     ))}
@@ -309,7 +201,7 @@ export function CalendarView({
                 <ul className="relative hidden min-w-0 flex-col gap-0.5 sm:flex">
                   {shown.map((e) => (
                     <li key={e.id}>
-                      <EventPill event={e} dimmed={q !== "" && !isMatch(e)} highlighted={isMatch(e)} />
+                      <EventPill event={e} />
                     </li>
                   ))}
                   {list.length > MAX_PILLS && (
@@ -346,7 +238,7 @@ export function CalendarView({
             <ul className="-mx-2 flex flex-col gap-1 overflow-y-auto">
               {selectedEvents.map((e) => (
                 <li key={e.id}>
-                  <DayEvent event={e} dimmed={q !== "" && !isMatch(e)} highlighted={isMatch(e)} />
+                  <DayEvent event={e} />
                 </li>
               ))}
             </ul>
@@ -357,7 +249,7 @@ export function CalendarView({
   );
 }
 
-function EventPill({ event: e, dimmed, highlighted }: { event: CalendarEvent; dimmed: boolean; highlighted: boolean }) {
+function EventPill({ event: e }: { event: CalendarEvent }) {
   const longRunning = isLongRunning(e);
   return (
     <a
@@ -367,28 +259,22 @@ function EventPill({ event: e, dimmed, highlighted }: { event: CalendarEvent; di
       title={`${e.title}${e.venueName ? ` · ${e.venueName}` : ""} · ${e.dateLabel}`}
       className={cn(
         "flex min-w-0 items-center gap-1 rounded border-l-2 px-1.5 py-0.5 text-[11px] leading-tight transition-opacity hover:brightness-125",
-        dimmed && "opacity-30",
-        highlighted && "ring-primary ring-1",
       )}
       style={{ borderColor: e.color, background: `${e.color}${longRunning ? "14" : "26"}` }}
     >
       {!longRunning && <span className="text-muted-foreground shrink-0 tabular-nums">{e.timeLabel}</span>}
-      <span className={cn("truncate", highlighted && "font-semibold")}>{e.title}</span>
+      <span className="truncate">{e.title}</span>
     </a>
   );
 }
 
-function DayEvent({ event: e, dimmed, highlighted }: { event: CalendarEvent; dimmed: boolean; highlighted: boolean }) {
+function DayEvent({ event: e }: { event: CalendarEvent }) {
   return (
     <a
       href={e.url}
       target="_blank"
       rel="noreferrer"
-      className={cn(
-        "hover:bg-accent/60 flex items-start gap-3 rounded-lg px-2 py-2 transition-colors",
-        dimmed && "opacity-40",
-        highlighted && "bg-primary/10 ring-primary/60 ring-1",
-      )}
+      className="hover:bg-accent/60 flex items-start gap-3 rounded-lg px-2 py-2 transition-colors"
     >
       <span
         aria-hidden

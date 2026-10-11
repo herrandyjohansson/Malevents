@@ -2,7 +2,7 @@ import "server-only";
 
 import type { MapEvent } from "@/components/map/types";
 
-import { isUpcoming, localDay } from "./filters";
+import { isUpcoming, localDay, toFilterable } from "./filters";
 import {
   CATEGORY_COLORS,
   CATEGORY_EMOJI,
@@ -22,8 +22,8 @@ function overlaps(e: MalmoEvent, from: string, to: string) {
 }
 
 function toMapEvent(e: MalmoEvent, sourceNames: Map<string, string>): MapEvent {
-  const startDay = localDay(new Date(e.startsAt));
   return {
+    ...toFilterable(e),
     id: e.id,
     title: e.title,
     category: e.category,
@@ -33,8 +33,6 @@ function toMapEvent(e: MalmoEvent, sourceNames: Map<string, string>): MapEvent {
     venueName: e.venue!.name,
     lat: e.venue!.lat!,
     lng: e.venue!.lng!,
-    startDay,
-    endDay: e.endsAt ? localDay(new Date(e.endsAt)) : startDay,
     timeLabel: formatEventDate(e),
     priceLabel: formatPrice(e),
     url: e.url,

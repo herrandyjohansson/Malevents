@@ -17,7 +17,7 @@ import {
   toRange,
   weekday,
   type DayRange,
-} from "./days";
+} from "@/lib/days";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -42,19 +42,20 @@ export function RangeCalendar({
   today: string;
   /** Last month you can page to (any day in it). */
   lastMonth: string;
-  value: DayRange;
+  /** Null when no days are picked yet. */
+  value: DayRange | null;
   onChange: (range: DayRange) => void;
   /** Number of events on a day, shown under the date. */
-  countFor: (day: string) => number;
+  countFor?: (day: string) => number;
 }) {
-  const [month, setMonth] = useState(() => monthStart(value.from < today ? today : value.from));
+  const [month, setMonth] = useState(() => monthStart(!value || value.from < today ? today : value.from));
   const [drag, setDrag] = useState<{ anchor: string; current: string } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const days = monthGrid(month);
   const shown = drag ? toRange(drag.anchor, drag.current) : value;
   // Roving tab stop: one day in the grid is reachable with Tab.
-  const focusDay = monthStart(value.from) === month ? value.from : month < today ? today : month;
+  const focusDay = value && monthStart(value.from) === month ? value.from : month <= today ? today : month;
   const canPrev = month > monthStart(today);
   const canNext = month < monthStart(lastMonth);
 
@@ -65,7 +66,7 @@ export function RangeCalendar({
     e.preventDefault();
     // Keep receiving moves while the pointer (or finger) leaves the cell.
     e.currentTarget.setPointerCapture(e.pointerId);
-    setDrag({ anchor: e.shiftKey ? value.from : day, current: day });
+    setDrag({ anchor: e.shiftKey && value ? value.from : day, current: day });
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
@@ -93,7 +94,7 @@ export function RangeCalendar({
       );
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onChange(e.shiftKey ? toRange(value.from, day) : { from: day, to: day });
+      onChange(e.shiftKey && value ? toRange(value.from, day) : { from: day, to: day });
     }
   }
 
@@ -144,10 +145,10 @@ export function RangeCalendar({
         {days.map((day) => {
           const outside = monthStart(day) !== month;
           const past = day < today;
-          const selected = inRange(day, shown);
-          const isStart = day === shown.from;
-          const isEnd = day === shown.to;
-          const count = past ? 0 : countFor(day);
+          const selected = shown !== null && inRange(day, shown);
+          const isStart = day === shown?.from;
+          const isEnd = day === shown?.to;
+          const count = past || !countFor ? 0 : countFor(day);
           return (
             <button
               key={day}
@@ -156,7 +157,7 @@ export function RangeCalendar({
               disabled={past}
               tabIndex={day === focusDay ? 0 : -1}
               aria-pressed={selected}
-              aria-label={`${formatDay(day)}, ${count === 1 ? "1 event" : `${count} events`}`}
+              aria-label={countFor ? `${formatDay(day)}, ${count === 1 ? "1 event" : `${count} events`}` : formatDay(day)}
               onKeyDown={(e) => onKeyDown(e, day)}
               className={cn(
                 "focus-visible:ring-ring/60 relative flex h-10 flex-col items-center justify-center text-sm outline-none focus-visible:z-10 focus-visible:ring-2",

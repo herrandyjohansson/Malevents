@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getAllEvents } from "@/lib/events/aggregate";
 import { buildCalendarEvents } from "@/lib/events/calendar-data";
 import { localDay } from "@/lib/events/filters";
-import { SOURCE_META } from "@/lib/events/sources";
 
 export const metadata: Metadata = { title: "Calendar" };
 
@@ -33,7 +32,7 @@ async function CalendarData() {
     <CalendarView
       events={buildCalendarEvents(events, sources, now)}
       today={localDay(now)}
-      sources={SOURCE_META.map(({ id, name }) => ({ id, name }))}
+      sources={sources.filter((s) => s.enabled).map(({ id, name }) => ({ id, name }))}
     />
   );
 }

@@ -2,23 +2,38 @@
 
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useAdminMode } from "@/lib/admin-mode";
+import { filterQuery } from "@/lib/events/filters";
 import { cn } from "@/lib/utils";
 
-import { isActiveTab, NAV_TABS } from "./nav-config";
+import { isActiveTab, NAV_TABS, type NavTab } from "./nav-config";
 
 function visibleTabs(adminMode: boolean) {
   return NAV_TABS.filter((t) => !t.adminOnly || adminMode);
+}
+
+/** Tab links keep the shared filters, so a filter set on one tab still applies on the next. */
+function useFilterQuery() {
+  const query = filterQuery(new URLSearchParams(useSearchParams()));
+  return (tab: NavTab) => (query && tab.sharesFilters ? `${tab.href}?${query}` : tab.href);
 }
 
 /**
  * Desktop tab bar. A pill springs to the active tab; until it has been
  * measured (and on the server) the active tab paints its own background.
  */
-function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMode: boolean }) {
+function DesktopTabs({
+  pathname,
+  adminMode,
+  hrefFor = (t) => t.href,
+}: {
+  pathname: string | null;
+  adminMode: boolean;
+  hrefFor?: (tab: NavTab) => string;
+}) {
   const listRef = useRef<HTMLUListElement>(null);
   const [pill, setPill] = useState<{ x: number; width: number } | null>(null);
   const tabs = visibleTabs(adminMode);
@@ -47,12 +62,13 @@ function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMo
         )}
         style={pill ? { transform: `translateX(${pill.x}px)`, width: pill.width } : undefined}
       />
-      {tabs.map(({ href, label, icon: Icon }) => {
+      {tabs.map((tab) => {
+        const { href, label, icon: Icon } = tab;
         const active = href === activeHref;
         return (
           <li key={href} className="relative">
             <Link
-              href={href}
+              href={hrefFor(tab)}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "text-muted-foreground hover:text-foreground flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
@@ -71,17 +87,26 @@ function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMo
 }
 
 /** Phone tab bar, fixed to the bottom of the screen like a native app. */
-function MobileTabBar({ pathname, adminMode }: { pathname: string | null; adminMode: boolean }) {
+function MobileTabBar({
+  pathname,
+  adminMode,
+  hrefFor = (t) => t.href,
+}: {
+  pathname: string | null;
+  adminMode: boolean;
+  hrefFor?: (tab: NavTab) => string;
+}) {
   const tabs = visibleTabs(adminMode);
   return (
     <div className="glass fixed inset-x-0 bottom-0 z-[1000] border-t pb-[env(safe-area-inset-bottom)] md:hidden">
       <ul className="mx-auto flex h-16 max-w-md items-stretch justify-around px-2">
-        {tabs.map(({ href, label, icon: Icon }) => {
+        {tabs.map((tab) => {
+          const { href, label, icon: Icon } = tab;
           const active = pathname !== null && isActiveTab(pathname, href);
           return (
             <li key={href} className="flex flex-1">
               <Link
-                href={href}
+                href={hrefFor(tab)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "text-muted-foreground flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
@@ -131,11 +156,12 @@ export function HeaderNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [adminMode, setAdminMode] = useAdminMode();
+  const hrefFor = useFilterQuery();
 
   return (
     <>
       <nav aria-label="Main" className="max-md:hidden">
-        <DesktopTabs pathname={pathname} adminMode={adminMode} />
+        <DesktopTabs pathname={pathname} adminMode={adminMode} hrefFor={hrefFor} />
       </nav>
       <div className="ml-auto flex items-center gap-2">
         <AdminModeToggle
@@ -167,9 +193,10 @@ export function HeaderNavFallback() {
 export function MobileNav() {
   const pathname = usePathname();
   const [adminMode] = useAdminMode();
+  const hrefFor = useFilterQuery();
   return (
     <nav aria-label="Main" className="md:hidden">
-      <MobileTabBar pathname={pathname} adminMode={adminMode} />
+      <MobileTabBar pathname={pathname} adminMode={adminMode} hrefFor={hrefFor} />
     </nav>
   );
 }

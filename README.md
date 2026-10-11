@@ -10,6 +10,12 @@ Built with Next.js 16 (App Router, Cache Components), React 19, Tailwind v4 and 
 - `/map` Map: pick a day in the next two weeks and see where events are. Uses [Leaflet](https://leafletjs.com) with the free standard OpenStreetMap tiles, darkened with CSS (no API key; keep the attribution, and move to a hosted tile plan if traffic grows, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/)).
 - `/admin` Admin (shown in the nav when "Admin mode" is switched on in the header; there is no login): health, event count, last fetch, response time and cache lifetime per source; refresh a source's cache; switch a source off for visitors; drill into a source's normalized events.
 
+## Filters
+
+Discover, Map and Calendar share one filter bar: search, quick chips (Today, Tonight, This weekend, Next 7 days, Free), category chips with live counts, and a Filters panel (side panel on desktop, bottom sheet on phones) with dates, categories, sources and options. Every active filter shows as a removable pill.
+
+Filters live in the URL (`q`, `cat`, `src`, `when` or `from`/`to`, `free`, `nolong`), so links are shareable and the tabs carry them over. Discover filters on the server; Map and Calendar filter in the browser with the same functions from `src/lib/events/filters.ts`. Older `?category=`, `?source=` and map `?from=&to=` links still work.
+
 ## Getting started
 
 ```bash
@@ -27,7 +33,7 @@ src/lib/events/
   sources/            one adapter per upstream API
     index.ts          the registry: add new adapters here
   aggregate.ts        fans out to every source in parallel and merges results
-  filters.ts          URL search params -> filters, applied on the server
+  filters.ts          the shared filter model: URL params <-> filters, matching and facet counts
   http.ts, jsonld.ts  shared fetch helpers (timeouts, schema.org Event parsing)
 ```
 
