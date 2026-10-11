@@ -11,7 +11,7 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
 
   return (
     <Card
-      className="group hover:border-primary/40 relative gap-0 overflow-hidden py-0 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_40px_-12px] hover:shadow-primary/30"
+      className="spotlight-card group hover:border-primary/40 relative gap-0 overflow-hidden py-0 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_40px_-12px] hover:shadow-primary/30"
       style={{ "--cat": color } as React.CSSProperties}
     >
       <div aria-hidden className="h-1 bg-[var(--cat)] opacity-80" />
