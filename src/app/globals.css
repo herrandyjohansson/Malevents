@@ -72,6 +72,56 @@
   }
 }
 
+/* Event cards: a soft glow in the category color that follows the cursor.
+   SpotlightList sets --spot-x/--spot-y; without a mouse the glow never shows. */
+/* isolate + z-index -1 paints the glow above the card background but under its
+   content, without repositioning children (the title's stretched link needs that). */
+.spotlight-card {
+  isolation: isolate;
+}
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    22rem circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    color-mix(in oklch, var(--cat, var(--primary)) 14%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+/* Skeletons: a light band sweeps across instead of the whole block pulsing. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 8%), transparent);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+    display: none;
+  }
+}
+
 /* Leaflet, restyled for the dark theme. Scoped under .malevents-map so these
    rules win over leaflet.css, which loads after this file. */
 .malevents-map.leaflet-container {
