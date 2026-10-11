@@ -58,10 +58,13 @@ export function LeafletMap({
   events,
   selectedId,
   onSelect,
+  padding = { top: 48, bottom: 48 },
 }: {
   events: MapEvent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Space kept clear of pins and popups at the top and bottom, e.g. under floating controls. */
+  padding?: { top: number; bottom: number };
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMapInstance | null>(null);
@@ -69,6 +72,7 @@ export function LeafletMap({
   const markersRef = useRef(new Map<string, Marker>());
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const onSelectRef = useRef(onSelect);
+  const { top: padTop, bottom: padBottom } = padding;
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -108,6 +112,8 @@ export function LeafletMap({
 
       layer.clearLayers();
       markersRef.current.clear();
+      // Touch screens have no hover, and a tap would show the tooltip on top of the popup.
+      const canHover = window.matchMedia("(hover: hover)").matches;
 
       const byVenue = new Map<string, MapEvent[]>();
       for (const e of events) {
@@ -126,21 +132,29 @@ export function LeafletMap({
           popupAnchor: [0, -36],
           tooltipAnchor: [0, -36],
         });
-        // Leaflet treats string tooltips as HTML, so pass a text-only element.
-        const tooltip = document.createElement("span");
-        tooltip.textContent = group.length > 1 ? `${group[0].venueName} (${group.length})` : group[0].title;
         const marker = L.marker([lat, lng], { icon, riseOnHover: true })
-          .bindPopup(popupContent(group), { maxWidth: 280 })
-          .bindTooltip(tooltip, { direction: "top" })
+          .bindPopup(popupContent(group), {
+            maxWidth: 280,
+            // Busy venues scroll inside the popup instead of growing past a phone screen.
+            maxHeight: 300,
+            autoPanPaddingTopLeft: [16, padTop],
+            autoPanPaddingBottomRight: [16, padBottom],
+          })
           .on("click", () => onSelectRef.current(group[0].id))
           .addTo(layer);
+        if (canHover) {
+          // Leaflet treats string tooltips as HTML, so pass a text-only element.
+          const tooltip = document.createElement("span");
+          tooltip.textContent = group.length > 1 ? `${group[0].venueName} (${group.length})` : group[0].title;
+          marker.bindTooltip(tooltip, { direction: "top" });
+        }
         for (const e of group) markersRef.current.set(e.id, marker);
       }
 
       if (events.length > 0) {
         map.fitBounds(
           L.latLngBounds(events.map((e) => [e.lat, e.lng])),
-          { padding: [48, 48], maxZoom: 15 },
+          { paddingTopLeft: [48, padTop], paddingBottomRight: [48, padBottom], maxZoom: 15 },
         );
       } else {
         map.setView(MALMO_CENTER, 13);
@@ -150,16 +164,25 @@ export function LeafletMap({
     draw();
     container.addEventListener("leaflet-ready", draw);
     return () => container.removeEventListener("leaflet-ready", draw);
-  }, [events]);
+  }, [events, padTop, padBottom]);
 
-  // Focus the selected event's marker.
+  // Focus the selected event's marker and ring it with a pulse.
   useEffect(() => {
     if (!selectedId) return;
     const marker = markersRef.current.get(selectedId);
     if (!marker || !mapRef.current) return;
-    mapRef.current.flyTo(marker.getLatLng(), Math.max(mapRef.current.getZoom(), 15), { duration: 0.6 });
-    marker.openPopup();
-  }, [selectedId]);
+    const map = mapRef.current;
+    // Open the popup once the flight ends, so its auto-pan works from the final view.
+    const open = () => marker.openPopup();
+    map.once("moveend", open);
+    map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 15), { duration: 0.6 });
+    const el = marker.getElement();
+    el?.classList.add("is-selected");
+    return () => {
+      map.off("moveend", open);
+      el?.classList.remove("is-selected");
+    };
+  }, [selectedId, events]);
 
   return <div ref={containerRef} className="malevents-map isolate size-full bg-[#0f0f17]" role="region" aria-label="Event map" />;
 }
