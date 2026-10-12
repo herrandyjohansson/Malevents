@@ -40,6 +40,7 @@ This README is the project's summary report: what the site does, how the code is
 - **Discover** (`/`): a hero with "This weekend" and "Explore the map" shortcuts and a small map of the coming week, then all upcoming events as image cards with search, date ("Today", "This weekend", "Next 7 days", "Next 30 days"), category, source and "Free only" filters. Filters live in the URL, so a filtered view can be shared. Cards show image, time, venue, price, and a Tickets link or "Sold out" when the source gives one.
 - **Map** (`/map`): drag across a month calendar to pick a date range (kept in the URL as `?from=YYYY-MM-DD&to=YYYY-MM-DD`) and see where events happen, with pins colored by category. On phones the map fills the screen, with date chips on top and a swipe-up sheet listing the events.
 - **Calendar** (`/calendar`): a full-page month calendar with search highlighting, category chips, a source picker, "Free only", "Hide exhibitions & multi-day" and "Only show matches".
+- **Week** (`/week`): the next seven days. A coverflow reel of picks (one per category, with a picture) tilts as you scroll, then a planner board puts each day in its own column with a category-mix bar and a compact time-ordered list. On phones each column is a screen wide and you swipe between days; chips above jump to a day.
 - **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Per source: health, event count, last fetch, response time and cache lifetime; refresh one source or all; switch a source off for visitors without a deploy; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location.
 
 ## Tech stack
@@ -77,6 +78,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── page.tsx          /            Discover
     │   ├── map/page.tsx      /map         Map
     │   ├── calendar/page.tsx /calendar    Calendar
+    │   ├── week/page.tsx     /week        Week
     │   ├── admin/
     │   │   ├── page.tsx                  /admin               source overview
     │   │   ├── sources/[id]/page.tsx     /admin/sources/:id   one source's events
@@ -87,6 +89,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── events/           event-card, event-art (image over a category-colored placeholder), event-filters, event-results, spotlight-list, skeletons, source-status
     │   ├── map/              leaflet-map, event-map-view, range-calendar, week-map preview/card, legend, day helpers
     │   ├── calendar/         calendar-view
+    │   ├── week/             highlight-reel (coverflow), week-board (day columns), scroll-buttons
     │   ├── admin/            source-controls, status-badge
     │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, select, skeleton, switch, table
     └── lib/
@@ -102,6 +105,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
             ├── filters.ts        URL params → filters, applied on the server; Malmö-local days
             ├── map-data.ts       events → map pins (week preview and date ranges)
             ├── calendar-data.ts  events → calendar entries
+            ├── week-data.ts      events → seven day columns and the picks reel
             ├── venues.ts         coordinates for known Malmö venues
             ├── http.ts           fetch with timeout, MaleventsBot user agent, SourceError
             ├── fetch-page.ts     cached fetch of event detail pages
@@ -192,6 +196,7 @@ Sources with a live endpoint fetch it by default. Sources that only have demo fi
 | `/` | `app/page.tsx` | `PageHeader`, `WeekMapPreview` (7-day map), `EventFilters`, `EventResults` → `SpotlightList` + `EventCard`, `SourceStatus` | Static shell; filters read from search params and applied on the server |
 | `/map` | `app/map/page.tsx` | `EventMapView` → `RangeCalendar`, `LeafletMap`, `MapLegend` | Server prepares pins; range selection is client-side and written to the URL with `history.replaceState` |
 | `/calendar` | `app/calendar/page.tsx` | `CalendarView` | Server prepares entries; filters run in the browser |
+| `/week` | `app/week/page.tsx` | `HighlightReel`, `WeekBoard` | Request-time, server-rendered; the coverflow tilt is a CSS scroll-driven animation, the only client code is the arrow buttons |
 | `/admin` | `app/admin/page.tsx` | `StatusBadge`, `SourceToggle`, `RefreshSourceButton`, `RefreshAllButton`, shadcn `Table`/`Card` | Request-time; `robots: noindex` |
 | `/admin/sources/[id]` | `app/admin/sources/[id]/page.tsx` | event table for one source | Request-time |
 
