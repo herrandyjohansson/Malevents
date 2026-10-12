@@ -1,4 +1,4 @@
-import { CalendarRange, Map, Settings2, Sparkles, type LucideIcon } from "lucide-react";
+import { CalendarRange, Columns3, Map, Settings2, Sparkles, type LucideIcon } from "lucide-react";
 
 export interface NavTab {
   href: string;
@@ -13,6 +13,7 @@ export const NAV_TABS: NavTab[] = [
   { href: "/", label: "Discover", icon: Sparkles, sharesFilters: true },
   { href: "/map", label: "Map", icon: Map, sharesFilters: true },
   { href: "/calendar", label: "Calendar", icon: CalendarRange, sharesFilters: true },
+  { href: "/week", label: "Week", icon: Columns3 },
   { href: "/admin", label: "Admin", icon: Settings2, adminOnly: true },
 ];
 

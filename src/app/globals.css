@@ -442,3 +442,41 @@
   font: 600 10px/18px var(--font-geist-sans), sans-serif;
   text-align: center;
 }
+
+/* A slim scrollbar for panels that scroll inside the page. */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 12%) transparent;
+}
+
+/* Week tab reel: a coverflow. Each card tilts as it scrolls through the row,
+   facing you in the middle. Scroll-driven, so no JavaScript; browsers without
+   view timelines keep a flat row. */
+@supports (animation-timeline: view()) {
+  .coverflow {
+    perspective: 1100px;
+  }
+  .coverflow-item {
+    animation: coverflow-tilt linear both;
+    animation-timeline: view(inline);
+  }
+}
+@keyframes coverflow-tilt {
+  0% {
+    transform: rotateY(48deg) scale(0.8);
+    opacity: 0.45;
+  }
+  50% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: rotateY(-48deg) scale(0.8);
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coverflow-item {
+    animation: none !important;
+  }
+}
