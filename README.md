@@ -39,9 +39,12 @@ This README is the project's summary report: what the site does, how the code is
 ## What the site does
 
 - **Discover** (`/`): a hero with "This weekend" and "Explore the map" shortcuts and a small map of the coming week, then all upcoming events as image cards under the shared filter bar (see [Filters](#filters)). Cards show image, time, venue, price, and a Tickets link or "Sold out" when the source gives one.
+- **Tonight** (`/tonight`): what's on right now and an hour-by-hour timeline of what starts later today (or tomorrow, once tonight is over), with exhibitions folded into an "Open all day" section.
 - **Map** (`/map`): the same filters, plus a month calendar you drag across to pick dates, and pins colored by category. On phones the map fills the screen, with filter chips floating on top (the rest in a bottom sheet) and a swipe-up sheet listing the events.
 - **Calendar** (`/calendar`): a full-page month calendar under the same filter bar.
 - **Week** (`/week`): the next seven days. A coverflow reel of picks (one per category, with a picture) tilts as you scroll, then a planner board puts each day in its own column with a category-mix bar and a compact time-ordered list. On phones each column is a screen wide and you swipe between days; chips above jump to a day.
+- **Venues** (`/venues`): every venue with upcoming events, searchable and filterable by category; `/venues/<slug>` shows a venue's programme and location.
+- **Saved** (`/saved`): events you hearted on any card, grouped by day, with "add to calendar" (.ics) for one event or all. Kept in the browser's localStorage, no account.
 - **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Per source: health, event count, last fetch, response time and cache lifetime; refresh one source or all; switch a source off for visitors without a deploy; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location.
 
 ## Filters

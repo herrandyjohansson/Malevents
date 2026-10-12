@@ -2,10 +2,11 @@ import { CATEGORY_COLORS, CATEGORY_EMOJI } from "@/lib/events/format";
 import type { EventCategory } from "@/lib/events/types";
 import { cn } from "@/lib/utils";
 
+import { RemoteImage } from "./remote-image";
+
 /**
- * An event's picture, over a category-coloured placeholder. The image has an
- * empty alt, so if it fails to load browsers draw nothing and the placeholder
- * shows through, with no client-side error handling needed.
+ * An event's picture, over a category-coloured placeholder that shows
+ * through when there is no image or it fails to load.
  */
 export function EventArt({
   src,
@@ -31,14 +32,8 @@ export function EventArt({
         <span className={cn("text-5xl opacity-80 drop-shadow-lg", emojiClassName)}>{CATEGORY_EMOJI[category]}</span>
       </div>
       {src && (
-        // Event images come from many venue hosts, so next/image's remotePatterns can't list them all.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <RemoteImage
           src={src}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
           className="absolute inset-0 size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         />
       )}
