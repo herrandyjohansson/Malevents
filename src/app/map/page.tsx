@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { isDay } from "@/components/map/days";
+import { PageHeader } from "@/components/layout/page-header";
 import { EventMapView } from "@/components/map/event-map-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAllEvents } from "@/lib/events/aggregate";
@@ -16,14 +17,15 @@ type SearchParams = PageProps<"/map">["searchParams"];
 
 export default function MapPage({ searchParams }: PageProps<"/map">) {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-10 sm:px-6">
       {/* On phones the map takes the whole screen, so the intro is for screen readers only. */}
-      <section className="flex flex-col gap-2 max-lg:sr-only">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Events on the map</h1>
-        <p className="text-muted-foreground">
-          Drag across the calendar, say Friday to Sunday, to see where things are happening on those days.
-        </p>
-      </section>
+      <PageHeader
+        className="max-lg:sr-only"
+        size="compact"
+        eyebrow="Map"
+        title="Where it's happening"
+        description="Drag across the calendar, say Friday to Sunday, to see where things are on those days."
+      />
       <Suspense fallback={<MapSkeleton />}>
         <MapData searchParams={searchParams} />
       </Suspense>
@@ -58,7 +60,7 @@ function MapSkeleton() {
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
         <Skeleton className="h-[72vh] max-lg:hidden" />
-        <Skeleton className="h-[72vh] max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-0 max-lg:h-auto max-lg:rounded-none" />
+        <Skeleton className="h-[72vh] max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-(--tabbar-h) max-lg:h-auto max-lg:rounded-none" />
       </div>
     </div>
   );

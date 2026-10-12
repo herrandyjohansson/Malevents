@@ -142,7 +142,7 @@ export function CalendarView({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/* Filters */}
-      <div className="bg-card/60 flex flex-col gap-3 rounded-xl border p-3 backdrop-blur-xl">
+      <div className="glass flex flex-col gap-3 rounded-2xl border p-3">
         <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
           <div className="relative md:w-72">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
@@ -253,7 +253,7 @@ export function CalendarView({
       </div>
 
       {/* Month grid */}
-      <div className="bg-card flex min-h-[32rem] flex-1 flex-col overflow-hidden rounded-xl border">
+      <div className="bg-card/80 flex min-h-[32rem] flex-1 flex-col overflow-hidden rounded-2xl border">
         <div className="grid grid-cols-7 border-b">
           {WEEKDAYS.map((d) => (
             <div key={d} className="text-muted-foreground px-2 py-2 text-center text-xs font-medium uppercase">

@@ -12,7 +12,7 @@ export function WeekMapCard({ events }: { events: MapEvent[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
-    <div className="bg-card flex flex-col overflow-hidden rounded-xl border">
+    <div className="bg-card/80 flex flex-col overflow-hidden rounded-2xl border shadow-[0_20px_60px_-30px] shadow-primary/40 backdrop-blur">
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div>
           <h2 className="font-semibold">This week on the map</h2>
