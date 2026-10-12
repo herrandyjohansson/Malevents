@@ -277,38 +277,46 @@
    rules win over leaflet.css, which loads after this file. */
 .malevents-map.leaflet-container {
   font-family: var(--font-geist-sans), sans-serif;
-  background: #0f0f17;
+  background: #45516e;
 }
-/* OSM tiles are light; invert them into a dark basemap (markers live in other panes). */
-.malevents-map .leaflet-tile-pane {
+/* Fallback OSM raster tiles are light; invert them into a dark basemap. The
+   OpenFreeMap vector basemap is already dark and skips this. */
+.malevents-map .mev-osm-tiles {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
 }
 .malevents-map .leaflet-popup-content-wrapper,
 .malevents-map .leaflet-popup-tip,
 .malevents-map .leaflet-tooltip {
-  background: var(--popover);
+  background: color-mix(in oklch, var(--popover) 92%, transparent);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 60%);
+  border: 1px solid oklch(1 0 0 / 10%);
+  box-shadow: 0 18px 40px -12px rgb(0 0 0 / 75%);
+  backdrop-filter: blur(12px);
+}
+.malevents-map .leaflet-popup-content-wrapper {
+  border-radius: 16px;
+  padding: 0;
+}
+.malevents-map .leaflet-tooltip {
+  border-radius: 8px;
+  font-weight: 500;
 }
 .malevents-map .leaflet-tooltip-top::before {
   border-top-color: var(--popover);
 }
 .malevents-map .leaflet-popup-content {
-  margin: 12px 14px;
+  margin: 0;
 }
 .malevents-map a.leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
   color: var(--muted-foreground);
-}
-.malevents-map .leaflet-bar a,
-.malevents-map .leaflet-bar a:hover {
-  background: var(--popover);
-  color: var(--foreground);
-  border-color: var(--border);
 }
 .malevents-map.leaflet-container .leaflet-control-attribution {
-  background: rgb(15 15 23 / 75%);
+  background: rgb(15 15 23 / 70%);
   color: var(--muted-foreground);
+  border-top-left-radius: 6px;
+  font-size: 10px;
 }
 .malevents-map.leaflet-container .leaflet-control-attribution a {
   color: var(--foreground);
@@ -316,31 +324,123 @@
 .malevents-popup {
   display: flex;
   flex-direction: column;
+}
+.malevents-popup-header {
+  display: flex;
+  align-items: baseline;
   gap: 8px;
+  padding: 12px 36px 10px 14px;
+  border-bottom: 1px solid var(--border);
 }
 .malevents-popup-venue {
   margin: 0 !important;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  line-height: 1.3;
+}
+.malevents-popup-count {
+  flex-shrink: 0;
+  font-size: 11px;
   color: var(--muted-foreground);
+}
+.malevents-popup-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
 }
 .malevents-map .malevents-popup-item {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
   color: var(--popover-foreground);
   text-decoration: none;
+  transition: background-color 120ms ease;
+}
+.malevents-map .malevents-popup-item:hover,
+.malevents-map .malevents-popup-item:focus-visible {
+  background: oklch(1 0 0 / 6%);
 }
 .malevents-map .malevents-popup-item:hover strong {
   color: var(--primary);
 }
-.malevents-map .malevents-popup-item span {
-  font-size: 12px;
+.malevents-popup-glyph {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--cat) 80%, black);
+  font-size: 13px;
+}
+.malevents-popup-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.malevents-popup-text strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+.malevents-popup-text span {
+  font-size: 11.5px;
   color: var(--muted-foreground);
-  border-left: 2px solid var(--cat);
-  padding-left: 6px;
+}
+
+/* Cluster bubbles: a glassy disc with the event count, ringed by the colours
+   of the categories inside. */
+.mev-cluster-wrap {
+  background: none;
+  border: none;
+}
+.mev-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ring);
+  box-shadow: 0 6px 20px -6px rgb(0 0 0 / 80%);
+  transition: transform 120ms ease;
+}
+.mev-cluster::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: oklch(0.18 0.018 278 / 92%);
+}
+.mev-cluster span {
+  position: relative;
+  font: 700 13px/1 var(--font-geist-sans), sans-serif;
+  color: var(--foreground);
+}
+.mev-cluster-wrap:hover .mev-cluster {
+  transform: scale(1.08);
+}
+/* Clusters glide apart and together as you zoom. */
+.malevents-map .leaflet-cluster-anim .leaflet-marker-icon,
+.malevents-map .leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+}
+
+/* "Near me": a blue dot with a soft halo. */
+.mev-me-wrap {
+  background: none;
+  border: none;
+}
+.mev-me {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 3px solid white;
+  box-shadow: 0 0 0 6px rgb(59 130 246 / 25%), 0 2px 8px rgb(0 0 0 / 60%);
 }
 
 /* Map pins: a rotated square with one sharp corner makes a teardrop. */
@@ -357,8 +457,8 @@
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   background: var(--pin);
-  border: 2px solid #0f0f17;
-  box-shadow: 0 4px 14px -4px rgb(0 0 0 / 80%), 0 0 0 1px rgb(255 255 255 / 15%);
+  border: 2px solid rgb(255 255 255 / 90%);
+  box-shadow: 0 6px 16px -4px rgb(0 0 0 / 85%), 0 0 18px -4px var(--pin);
   transition: transform 120ms ease;
 }
 .mev-pin-wrap:hover .mev-pin {
@@ -418,9 +518,6 @@
   .malevents-map .leaflet-bottom {
     bottom: var(--sheet-h, 0px);
     transition: bottom 300ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .malevents-map .leaflet-control-zoom {
-    display: none;
   }
 }
 .no-scrollbar {
