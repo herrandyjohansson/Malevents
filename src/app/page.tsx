@@ -2,7 +2,6 @@ import { Map as MapIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { EventFilters, EventFiltersFallback } from "@/components/events/event-filters";
 import { EventGridSkeleton } from "@/components/events/event-grid-skeleton";
 import { EventResults } from "@/components/events/event-results";
 import { PageHeader } from "@/components/layout/page-header";
@@ -42,12 +41,6 @@ export default function Home({ searchParams }: PageProps<"/">) {
         </PageHeader>
         <Suspense fallback={<WeekMapPreviewSkeleton />}>
           <WeekMapPreview />
-        </Suspense>
-      </div>
-
-      <div className="glass sticky top-[4.25rem] z-10 rounded-2xl border p-2.5 shadow-[0_10px_40px_-20px_rgb(0_0_0/80%)]">
-        <Suspense fallback={<EventFiltersFallback />}>
-          <EventFilters sources={SOURCE_META.map(({ id, name }) => ({ id, name }))} />
         </Suspense>
       </div>
 

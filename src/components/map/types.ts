@@ -1,7 +1,8 @@
+import type { Filterable } from "@/lib/events/filters";
 import type { EventCategory } from "@/lib/events/types";
 
 /** Serializable, pre-formatted event for the map (server → client). */
-export interface MapEvent {
+export interface MapEvent extends Filterable {
   id: string;
   title: string;
   category: EventCategory;

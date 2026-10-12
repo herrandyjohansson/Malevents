@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { isDay } from "@/components/map/days";
 import { PageHeader } from "@/components/layout/page-header";
 import { EventMapView } from "@/components/map/event-map-view";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,9 +12,7 @@ import { hasCoordinates } from "@/lib/events/venues";
 
 export const metadata: Metadata = { title: "Map" };
 
-type SearchParams = PageProps<"/map">["searchParams"];
-
-export default function MapPage({ searchParams }: PageProps<"/map">) {
+export default function MapPage() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-10 sm:px-6">
       {/* On phones the map takes the whole screen, so the intro is for screen readers only. */}
@@ -24,33 +21,28 @@ export default function MapPage({ searchParams }: PageProps<"/map">) {
         size="compact"
         eyebrow="Map"
         title="Where it's happening"
-        description="Drag across the calendar, say Friday to Sunday, to see where things are on those days."
+        description="Filter by day, category or price, or drag across the calendar to see where things are on those days."
       />
       <Suspense fallback={<MapSkeleton />}>
-        <MapData searchParams={searchParams} />
+        <MapData />
       </Suspense>
     </main>
   );
 }
 
-async function MapData({ searchParams }: { searchParams: SearchParams }) {
+async function MapData() {
   // Request-time: reads admin settings and filters by the current time.
   await connection();
-  const { from, to } = await searchParams;
   const { events, sources } = await getAllEvents();
   const now = new Date();
   const unplaced = events.filter((e) => isUpcoming(e, now) && !hasCoordinates(e)).length;
 
-  const today = localDay(now);
-  // ?from=yyyy-mm-dd&to=yyyy-mm-dd makes a picked range shareable.
-  const initialRange = isDay(from) && isDay(to) && from <= to && to >= today ? { from, to } : undefined;
-
   return (
     <EventMapView
       events={buildMapEvents(events, sources, now)}
-      today={today}
-      initialRange={initialRange}
+      today={localDay(now)}
       unplacedCount={unplaced}
+      sources={sources.filter((s) => s.enabled).map(({ id, name }) => ({ id, name }))}
     />
   );
 }

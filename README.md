@@ -10,17 +10,18 @@ This README is the project's summary report: what the site does, how the code is
 
 1. [At a glance](#at-a-glance)
 2. [What the site does](#what-the-site-does)
-3. [Tech stack](#tech-stack)
-4. [Project structure](#project-structure)
-5. [How event data flows](#how-event-data-flows)
-6. [Event sources](#event-sources)
-7. [Pages and components](#pages-and-components)
-8. [Styling and UI components](#styling-and-ui-components)
-9. [Configuration](#configuration)
-10. [Running it locally](#running-it-locally)
-11. [Deployment on Vercel](#deployment-on-vercel)
-12. [Development workflow](#development-workflow)
-13. [Known limits and next steps](#known-limits-and-next-steps)
+3. [Filters](#filters)
+4. [Tech stack](#tech-stack)
+5. [Project structure](#project-structure)
+6. [How event data flows](#how-event-data-flows)
+7. [Event sources](#event-sources)
+8. [Pages and components](#pages-and-components)
+9. [Styling and UI components](#styling-and-ui-components)
+10. [Configuration](#configuration)
+11. [Running it locally](#running-it-locally)
+12. [Deployment on Vercel](#deployment-on-vercel)
+13. [Development workflow](#development-workflow)
+14. [Known limits and next steps](#known-limits-and-next-steps)
 
 ## At a glance
 
@@ -37,11 +38,25 @@ This README is the project's summary report: what the site does, how the code is
 
 ## What the site does
 
-- **Discover** (`/`): a hero with "This weekend" and "Explore the map" shortcuts and a small map of the coming week, then all upcoming events as image cards with search, date ("Today", "This weekend", "Next 7 days", "Next 30 days"), category, source and "Free only" filters. Filters live in the URL, so a filtered view can be shared. Cards show image, time, venue, price, and a Tickets link or "Sold out" when the source gives one.
-- **Map** (`/map`): drag across a month calendar to pick a date range (kept in the URL as `?from=YYYY-MM-DD&to=YYYY-MM-DD`) and see where events happen, with pins colored by category. On phones the map fills the screen, with date chips on top and a swipe-up sheet listing the events.
-- **Calendar** (`/calendar`): a full-page month calendar with search highlighting, category chips, a source picker, "Free only", "Hide exhibitions & multi-day" and "Only show matches".
+- **Discover** (`/`): a hero with "This weekend" and "Explore the map" shortcuts and a small map of the coming week, then all upcoming events as image cards under the shared filter bar (see [Filters](#filters)). Cards show image, time, venue, price, and a Tickets link or "Sold out" when the source gives one.
+- **Tonight** (`/tonight`): what's on right now and an hour-by-hour timeline of what starts later today (or tomorrow, once tonight is over), with exhibitions folded into an "Open all day" section.
+- **Map** (`/map`): the same filters, plus a month calendar you drag across to pick dates, and pins colored by category. On phones the map fills the screen, with filter chips floating on top (the rest in a bottom sheet) and a swipe-up sheet listing the events.
+- **Calendar** (`/calendar`): a full-page month calendar under the same filter bar.
 - **Week** (`/week`): the next seven days. A coverflow reel of picks (one per category, with a picture) tilts as you scroll, then a planner board puts each day in its own column with a category-mix bar and a compact time-ordered list. On phones each column is a screen wide and you swipe between days; chips above jump to a day.
+- **Venues** (`/venues`): every venue with upcoming events, searchable and filterable by category; `/venues/<slug>` shows a venue's programme and location.
+- **Saved** (`/saved`): events you hearted on any card, grouped by day, with "add to calendar" (.ics) for one event or all. Kept in the browser's localStorage, no account.
 - **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Per source: health, event count, last fetch, response time and cache lifetime; refresh one source or all; switch a source off for visitors without a deploy; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location.
+
+## Filters
+
+Discover, Map and Calendar share one filter bar, and every choice is a button you can see and tap:
+
+- **When**: a segmented control (Any time, Today, Tonight, Weekend, 7 days, 30 days, Pick dates). "Pick dates" folds a drag-to-select calendar open in the bar.
+- **Categories**: chips with live counts (how many events you'd get with that category picked).
+- **Free only** and **Hide exhibitions**: chips with a small switch inside.
+- **Sources**: folds open as a row of chips with counts.
+
+Filters live in the URL (`q`, `cat`, `src`, `when` or `from`/`to`, `free`, `nolong`), so links are shareable and the Discover, Map and Calendar tabs carry them over. Discover filters on the server; Map and Calendar filter in the browser with the same functions from `src/lib/events/filters.ts`. Older `?category=`, `?source=` and map `?from=&to=` links still work. On the phone map the bar becomes a row of floating chips with the rest in a bottom sheet.
 
 ## Tech stack
 
@@ -86,12 +101,13 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   └── error.tsx         error boundary
     ├── components/
     │   ├── layout/           site-header (+ aurora Backdrop), logo, page-header, nav-config (tab list), nav-tabs (desktop pill tabs, phone tab bar, Admin mode toggle)
-    │   ├── events/           event-card, event-art (image over a category-colored placeholder), event-filters, event-results, spotlight-list, skeletons, source-status
+    │   ├── events/           event-card, event-art (image over a category-colored placeholder), event-results, spotlight-list, skeletons, source-status
     │   ├── map/              leaflet-map, event-map-view, range-calendar, week-map preview/card, legend, day helpers
+    │   ├── filters/          the shared filter bar: inline buttons (filter-bar), phone-map filter sheet (filter-panel), search box, useFilters (URL state)
     │   ├── calendar/         calendar-view
     │   ├── week/             highlight-reel (coverflow), week-board (day columns), scroll-buttons
     │   ├── admin/            source-controls, status-badge
-    │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, select, skeleton, switch, table
+    │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, segmented-control, select, sheet, skeleton, switch, table
     └── lib/
         ├── utils.ts          cn()
         ├── admin-mode.ts     per-browser Admin mode flag (localStorage)
@@ -102,7 +118,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
             ├── fetch-source.ts   the one cached entry point per source
             ├── aggregate.ts      fan-out, timeouts, failure isolation, de-duplication
             ├── settings.ts       admin on/off per source (.data/source-settings.json)
-            ├── filters.ts        URL params → filters, applied on the server; Malmö-local days
+            ├── filters.ts        the shared filter model: URL params ↔ filters, matcher, facet counts; Malmö-local days
             ├── map-data.ts       events → map pins (week preview and date ranges)
             ├── calendar-data.ts  events → calendar entries
             ├── week-data.ts      events → seven day columns and the picks reel
@@ -193,9 +209,9 @@ Sources with a live endpoint fetch it by default. Sources that only have demo fi
 
 | Route | File | Main components | Rendering |
 | --- | --- | --- | --- |
-| `/` | `app/page.tsx` | `PageHeader`, `WeekMapPreview` (7-day map), `EventFilters`, `EventResults` → `SpotlightList` + `EventCard`, `SourceStatus` | Static shell; filters read from search params and applied on the server |
-| `/map` | `app/map/page.tsx` | `EventMapView` → `RangeCalendar`, `LeafletMap`, `MapLegend` | Server prepares pins; range selection is client-side and written to the URL with `history.replaceState` |
-| `/calendar` | `app/calendar/page.tsx` | `CalendarView` | Server prepares entries; filters run in the browser |
+| `/` | `app/page.tsx` | `PageHeader`, `WeekMapPreview` (7-day map), `EventResults` → `FilterBar`, `SpotlightList` + `EventCard`, `SourceStatus` | Static shell; filters read from search params and applied on the server |
+| `/map` | `app/map/page.tsx` | `EventMapView` → `FilterBar`, `RangeCalendar`, `LeafletMap`, `MapLegend` | Server prepares pins; filters and range are client-side and written to the URL with `history.replaceState` |
+| `/calendar` | `app/calendar/page.tsx` | `CalendarView` → `FilterBar` | Server prepares entries; filters run in the browser |
 | `/week` | `app/week/page.tsx` | `HighlightReel`, `WeekBoard` | Request-time, server-rendered; the coverflow tilt is a CSS scroll-driven animation, the only client code is the arrow buttons |
 | `/admin` | `app/admin/page.tsx` | `StatusBadge`, `SourceToggle`, `RefreshSourceButton`, `RefreshAllButton`, shadcn `Table`/`Card` | Request-time; `robots: noindex` |
 | `/admin/sources/[id]` | `app/admin/sources/[id]/page.tsx` | event table for one source | Request-time |

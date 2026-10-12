@@ -1,11 +1,14 @@
 "use client";
 
-import { CalendarDays, MapPin, MapPinOff } from "lucide-react";
+import { MapPin, MapPinOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 
+import { FilterBar } from "@/components/filters/filter-bar";
+import { useFilters } from "@/components/filters/use-filters";
+import { addMonths, formatRange, rangeLength, type DayRange } from "@/lib/days";
+import { facetCounts, filtersToParams, matcher, resolveRange } from "@/lib/events/filters";
 import { cn } from "@/lib/utils";
 
-import { addDays, addMonths, formatRange, rangeLength, weekend, type DayRange } from "./days";
 import { LeafletMap } from "./leaflet-map";
 import { MapLegend } from "./map-legend";
 import { RangeCalendar } from "./range-calendar";
@@ -31,44 +34,33 @@ const SHEET_PEEK = 92;
 /** Room left above the fully open sheet so the date chips stay reachable. */
 const SHEET_TOP_GAP = 64;
 
-function overlaps(e: MapEvent, range: DayRange) {
-  return e.startDay <= range.to && e.endDay >= range.from;
-}
-
 export function EventMapView({
   events,
   today,
-  initialRange,
   unplacedCount,
+  sources,
 }: {
   events: MapEvent[];
   today: string;
-  initialRange?: DayRange;
   unplacedCount: number;
+  sources: { id: string; name: string }[];
 }) {
-  const presets = useMemo(
-    () => [
-      { label: "Today", range: { from: today, to: today } },
-      { label: "This weekend", range: weekend(today) },
-      { label: "Next 7 days", range: { from: today, to: addDays(today, 6) } },
-      { label: "This month", range: { from: today, to: addDays(addMonths(today, 1), -1) } },
-    ],
-    [today],
-  );
-  const [range, setRange] = useState<DayRange>(() =>
-    initialRange ? { from: initialRange.from < today ? today : initialRange.from, to: initialRange.to } : presets[2].range,
-  );
+  // The shared filters (in the URL) decide what's on the map; "any time" shows every upcoming event.
+  const { filters, update } = useFilters("client");
+  const range = resolveRange(filters, today);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [datesOpen, setDatesOpen] = useState(false);
   const isDesktop = useIsDesktop();
 
-  const visible = useMemo(() => events.filter((e) => overlaps(e, range)), [events, range]);
+  const filterKey = filtersToParams(filters).toString();
+  const visible = useMemo(() => events.filter(matcher(filters, today)), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const facets = useMemo(() => facetCounts(events, filters, today), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
   // Page as far as the last known event, at least next month, at most a year out.
   const lastMonth = useMemo(() => {
     const latest = events.reduce((max, e) => (e.startDay > max ? e.startDay : max), addMonths(today, 1));
     const cap = addMonths(today, 12);
     return latest > cap ? cap : latest;
   }, [events, today]);
+  const countFor = (day: string) => events.reduce((n, e) => (e.startDay <= day && e.endDay >= day ? n + 1 : n), 0);
 
   // Bottom sheet (phones only). Its height snaps between peek, half and full,
   // and follows the finger while you drag its header.
@@ -136,12 +128,8 @@ export function EventMapView({
   }
 
   function select(next: DayRange) {
-    const from = next.from < today ? today : next.from;
-    setRange({ from, to: next.to });
     setSelectedEventId(null);
-    setDatesOpen(false);
-    // Keep the pick in the URL so it survives a reload and can be shared.
-    window.history.replaceState(null, "", `?from=${from}&to=${next.to}`);
+    update({ when: "custom", from: next.from < today ? today : next.from, to: next.to });
   }
 
   function pickEvent(id: string) {
@@ -150,31 +138,9 @@ export function EventMapView({
     if (!isDesktop) setSnap("peek");
   }
 
-  const days = rangeLength(range);
-  const activePreset = presets.find((p) => p.range.from === range.from && p.range.to === range.to);
+  const days = range ? rangeLength(range) : 0;
   const sheetOpen = snap !== "peek";
-
-  const presetButtons = (floating: boolean) =>
-    presets.map((p) => {
-      const active = p === activePreset;
-      return (
-        <button
-          key={p.label}
-          type="button"
-          aria-pressed={active}
-          onClick={() => select(p.range)}
-          className={cn(
-            "hover:border-primary/50 shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
-            floating && "bg-background/80 px-3 py-1.5 shadow-lg backdrop-blur-md",
-            active && "border-primary bg-primary/15 text-foreground",
-            active && floating && "bg-primary/30",
-            !active && "text-muted-foreground",
-          )}
-        >
-          {p.label}
-        </button>
-      );
-    });
+  const filterBarProps = { mode: "client" as const, facets, sources, today, lastMonth, countFor, noun: "events on the map" };
 
   return (
     <div
@@ -182,50 +148,17 @@ export function EventMapView({
       className="flex flex-col gap-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-(--tabbar-h) max-lg:overflow-hidden"
       style={{ "--sheet-h": `${sheetHeight}px` } as React.CSSProperties}
     >
-      {/* Phone: date chips float over the top of the map. */}
-      <div className="no-scrollbar absolute inset-x-0 top-0 z-30 flex gap-1.5 overflow-x-auto px-3 py-3 lg:hidden">
-        <button
-          type="button"
-          aria-expanded={datesOpen}
-          onClick={() => setDatesOpen((o) => !o)}
-          className={cn(
-            "bg-background/80 flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap shadow-lg backdrop-blur-md transition-colors",
-            (datesOpen || !activePreset) && "border-primary bg-primary/30 text-foreground",
-            !datesOpen && activePreset && "text-muted-foreground",
-          )}
-        >
-          <CalendarDays className="size-3.5" />
-          Pick dates
-        </button>
-        {presetButtons(true)}
-      </div>
-      {datesOpen && (
-        <button
-          type="button"
-          aria-label="Close date picker"
-          tabIndex={-1}
-          className="absolute inset-0 z-20 bg-black/40 lg:hidden"
-          onClick={() => setDatesOpen(false)}
-        />
-      )}
+      <FilterBar {...filterBarProps} datePicker={false} className="max-lg:hidden" />
+      {/* Phone: filter chips float over the top of the map. */}
+      <FilterBar {...filterBarProps} variant="floating" className="absolute inset-x-0 top-0 z-30 px-3 py-3 lg:hidden" />
 
       <div className="grid gap-4 max-lg:relative max-lg:h-full lg:h-[72vh] lg:grid-cols-[340px_1fr] lg:grid-rows-[auto_minmax(0,1fr)]">
+        {/* Desktop: drag across days to set a date range. On phones the filter panel has the same calendar. */}
         <section
           aria-label="Pick dates"
-          className={cn(
-            "bg-card flex flex-col gap-3 rounded-2xl border p-3 lg:col-start-1 lg:row-start-1",
-            "max-lg:absolute max-lg:inset-x-3 max-lg:top-14 max-lg:z-30 max-lg:shadow-2xl",
-            !datesOpen && "max-lg:hidden",
-          )}
+          className="bg-card flex flex-col gap-3 rounded-2xl border p-3 max-lg:hidden lg:col-start-1 lg:row-start-1"
         >
-          <div className="flex flex-wrap gap-1.5 max-lg:hidden">{presetButtons(false)}</div>
-          <RangeCalendar
-            today={today}
-            lastMonth={lastMonth}
-            value={range}
-            onChange={select}
-            countFor={(day) => events.reduce((n, e) => (e.startDay <= day && e.endDay >= day ? n + 1 : n), 0)}
-          />
+          <RangeCalendar today={today} lastMonth={lastMonth} value={range} onChange={select} countFor={countFor} />
         </section>
 
         <div className="flex h-[60vh] min-h-[360px] flex-col gap-3 max-lg:absolute max-lg:inset-0 max-lg:h-auto max-lg:min-h-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full">
@@ -270,7 +203,7 @@ export function EventMapView({
               <span aria-hidden className="bg-muted-foreground/40 h-1 w-10 rounded-full" />
             </button>
             <h2 className="font-semibold" aria-live="polite">
-              {formatRange(range)}
+              {filters.when === "tonight" ? "Tonight" : range ? formatRange(range) : "All upcoming events"}
             </h2>
             <p className="text-muted-foreground text-sm">
               {visible.length === 1 ? "1 event" : `${visible.length} events`}
@@ -279,7 +212,7 @@ export function EventMapView({
           </div>
           {visible.length === 0 && (
             <p className="text-muted-foreground px-4 py-6 text-sm">
-              Nothing on the map for these dates. Try a wider range.
+              Nothing on the map for these filters. Try other dates or remove a filter.
             </p>
           )}
           <ul className="flex-1 overflow-y-auto overscroll-contain p-2">

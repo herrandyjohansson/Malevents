@@ -1,24 +1,58 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { Settings2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useAdminMode } from "@/lib/admin-mode";
+import { filterQuery } from "@/lib/events/filters";
+import { useSavedEvents } from "@/lib/saved";
 import { cn } from "@/lib/utils";
 
-import { isActiveTab, NAV_TABS } from "./nav-config";
+import { isActiveTab, NAV_TABS, type NavTab } from "./nav-config";
 
 function visibleTabs(adminMode: boolean) {
   return NAV_TABS.filter((t) => !t.adminOnly || adminMode);
+}
+
+/** Number of saved events, as a small badge (or a dot-sized one on the phone bar). */
+function SavedCount({ dot }: { dot?: boolean }) {
+  const count = useSavedEvents().length;
+  if (count === 0) return null;
+  return (
+    <span
+      className={cn(
+        "bg-primary text-primary-foreground flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold tabular-nums",
+        dot && "absolute -top-1 right-1.5",
+      )}
+    >
+      <span className="sr-only">(</span>
+      {count}
+      <span className="sr-only"> saved)</span>
+    </span>
+  );
+}
+
+/** Tab links keep the shared filters, so a filter set on one tab still applies on the next. */
+function useFilterQuery() {
+  const query = filterQuery(new URLSearchParams(useSearchParams()));
+  return (tab: NavTab) => (query && tab.sharesFilters ? `${tab.href}?${query}` : tab.href);
 }
 
 /**
  * Desktop tab bar. A pill springs to the active tab; until it has been
  * measured (and on the server) the active tab paints its own background.
  */
-function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMode: boolean }) {
+function DesktopTabs({
+  pathname,
+  adminMode,
+  hrefFor = (t) => t.href,
+}: {
+  pathname: string | null;
+  adminMode: boolean;
+  hrefFor?: (tab: NavTab) => string;
+}) {
   const listRef = useRef<HTMLUListElement>(null);
   const [pill, setPill] = useState<{ x: number; width: number } | null>(null);
   const tabs = visibleTabs(adminMode);
@@ -47,12 +81,13 @@ function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMo
         )}
         style={pill ? { transform: `translateX(${pill.x}px)`, width: pill.width } : undefined}
       />
-      {tabs.map(({ href, label, icon: Icon }) => {
+      {tabs.map((tab) => {
+        const { href, label, icon: Icon } = tab;
         const active = href === activeHref;
         return (
           <li key={href} className="relative">
             <Link
-              href={href}
+              href={hrefFor(tab)}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "text-muted-foreground hover:text-foreground flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
@@ -61,7 +96,8 @@ function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMo
               )}
             >
               <Icon className="size-4" />
-              {label}
+              <span className="max-lg:sr-only">{label}</span>
+              {tab.showsSavedCount && <SavedCount />}
             </Link>
           </li>
         );
@@ -71,17 +107,27 @@ function DesktopTabs({ pathname, adminMode }: { pathname: string | null; adminMo
 }
 
 /** Phone tab bar, fixed to the bottom of the screen like a native app. */
-function MobileTabBar({ pathname, adminMode }: { pathname: string | null; adminMode: boolean }) {
-  const tabs = visibleTabs(adminMode);
+function MobileTabBar({
+  pathname,
+  adminMode,
+  hrefFor = (t) => t.href,
+}: {
+  pathname: string | null;
+  adminMode: boolean;
+  hrefFor?: (tab: NavTab) => string;
+}) {
+  // Admin is reached from the header on phones, to keep the bar to six tabs.
+  const tabs = visibleTabs(adminMode).filter((t) => !t.adminOnly);
   return (
     <div className="glass fixed inset-x-0 bottom-0 z-[1000] border-t pb-[env(safe-area-inset-bottom)] md:hidden">
       <ul className="mx-auto flex h-16 max-w-md items-stretch justify-around px-2">
-        {tabs.map(({ href, label, icon: Icon }) => {
+        {tabs.map((tab) => {
+          const { href, label, icon: Icon } = tab;
           const active = pathname !== null && isActiveTab(pathname, href);
           return (
             <li key={href} className="flex flex-1">
               <Link
-                href={href}
+                href={hrefFor(tab)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "text-muted-foreground flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
@@ -90,11 +136,12 @@ function MobileTabBar({ pathname, adminMode }: { pathname: string | null; adminM
               >
                 <span
                   className={cn(
-                    "flex h-7 w-12 items-center justify-center rounded-full transition-all duration-300",
+                    "relative flex h-7 w-12 items-center justify-center rounded-full transition-all duration-300",
                     active && "bg-primary/20 text-primary shadow-[0_0_18px_-4px] shadow-primary/60",
                   )}
                 >
                   <Icon className="size-5" />
+                  {tab.showsSavedCount && <SavedCount dot />}
                 </span>
                 {label}
               </Link>
@@ -131,13 +178,24 @@ export function HeaderNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [adminMode, setAdminMode] = useAdminMode();
+  const hrefFor = useFilterQuery();
 
   return (
     <>
       <nav aria-label="Main" className="max-md:hidden">
-        <DesktopTabs pathname={pathname} adminMode={adminMode} />
+        <DesktopTabs pathname={pathname} adminMode={adminMode} hrefFor={hrefFor} />
       </nav>
       <div className="ml-auto flex items-center gap-2">
+        {adminMode && (
+          <Link
+            href="/admin"
+            aria-current={pathname?.startsWith("/admin") ? "page" : undefined}
+            className="text-muted-foreground hover:text-foreground aria-[current=page]:text-foreground flex size-9 items-center justify-center rounded-full border bg-white/[0.03] md:hidden"
+          >
+            <Settings2 className="size-4" />
+            <span className="sr-only">Admin</span>
+          </Link>
+        )}
         <AdminModeToggle
           on={adminMode}
           onChange={(on) => {
@@ -167,9 +225,10 @@ export function HeaderNavFallback() {
 export function MobileNav() {
   const pathname = usePathname();
   const [adminMode] = useAdminMode();
+  const hrefFor = useFilterQuery();
   return (
     <nav aria-label="Main" className="md:hidden">
-      <MobileTabBar pathname={pathname} adminMode={adminMode} />
+      <MobileTabBar pathname={pathname} adminMode={adminMode} hrefFor={hrefFor} />
     </nav>
   );
 }

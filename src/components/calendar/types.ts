@@ -1,7 +1,8 @@
+import type { Filterable } from "@/lib/events/filters";
 import type { EventCategory } from "@/lib/events/types";
 
 /** Serializable event shape the calendar renders on the client. */
-export interface CalendarEvent {
+export interface CalendarEvent extends Filterable {
   id: string;
   title: string;
   category: EventCategory;
