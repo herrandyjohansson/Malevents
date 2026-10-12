@@ -1,8 +1,10 @@
 import { MapPin } from "lucide-react";
 
 import { EventArt } from "@/components/events/event-art";
+import { SaveButton } from "@/components/saved/save-button";
 import { CATEGORY_COLORS, CATEGORY_LABELS, formatPrice, formatTime } from "@/lib/events/format";
 import type { MalmoEvent } from "@/lib/events/types";
+import { toSaved } from "@/lib/saved-snapshot";
 import { cn } from "@/lib/utils";
 
 /** One row on the Tonight timeline: thumbnail, title, place and price, with a tickets link. */
@@ -60,6 +62,7 @@ export function TimelineEvent({ event, live }: { event: MalmoEvent; live?: boole
       {event.soldOut && (
         <span className="text-destructive self-center text-xs font-medium max-sm:hidden">Sold out</span>
       )}
+      <SaveButton event={toSaved(event, price)} className="self-center" />
     </article>
   );
 }

@@ -1,7 +1,10 @@
-import { ArrowUpRight, Clock, MapPin } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
+
+import { SaveButton } from "@/components/saved/save-button";
 
 import { CATEGORY_COLORS, CATEGORY_LABELS, dateParts, formatEventDate, formatPrice } from "@/lib/events/format";
 import type { MalmoEvent } from "@/lib/events/types";
+import { toSaved } from "@/lib/saved-snapshot";
 
 import { EventArt } from "./event-art";
 
@@ -91,7 +94,7 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
               <span className="sr-only"> for {event.title} (opens in a new tab)</span>
             </a>
           )}
-          <ArrowUpRight className="group-hover:text-foreground size-4 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <SaveButton event={toSaved(event, price)} className="-my-1.5 -mr-1.5" />
         </span>
       </div>
     </article>

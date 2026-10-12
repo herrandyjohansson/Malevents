@@ -1,18 +1,37 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { Settings2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useAdminMode } from "@/lib/admin-mode";
 import { filterQuery } from "@/lib/events/filters";
+import { useSavedEvents } from "@/lib/saved";
 import { cn } from "@/lib/utils";
 
 import { isActiveTab, NAV_TABS, type NavTab } from "./nav-config";
 
 function visibleTabs(adminMode: boolean) {
   return NAV_TABS.filter((t) => !t.adminOnly || adminMode);
+}
+
+/** Number of saved events, as a small badge (or a dot-sized one on the phone bar). */
+function SavedCount({ dot }: { dot?: boolean }) {
+  const count = useSavedEvents().length;
+  if (count === 0) return null;
+  return (
+    <span
+      className={cn(
+        "bg-primary text-primary-foreground flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold tabular-nums",
+        dot && "absolute -top-1 right-1.5",
+      )}
+    >
+      <span className="sr-only">(</span>
+      {count}
+      <span className="sr-only"> saved)</span>
+    </span>
+  );
 }
 
 /** Tab links keep the shared filters, so a filter set on one tab still applies on the next. */
@@ -77,7 +96,8 @@ function DesktopTabs({
               )}
             >
               <Icon className="size-4" />
-              {label}
+              <span className="max-lg:sr-only">{label}</span>
+              {tab.showsSavedCount && <SavedCount />}
             </Link>
           </li>
         );
@@ -96,7 +116,8 @@ function MobileTabBar({
   adminMode: boolean;
   hrefFor?: (tab: NavTab) => string;
 }) {
-  const tabs = visibleTabs(adminMode);
+  // Admin is reached from the header on phones, to keep the bar to six tabs.
+  const tabs = visibleTabs(adminMode).filter((t) => !t.adminOnly);
   return (
     <div className="glass fixed inset-x-0 bottom-0 z-[1000] border-t pb-[env(safe-area-inset-bottom)] md:hidden">
       <ul className="mx-auto flex h-16 max-w-md items-stretch justify-around px-2">
@@ -115,11 +136,12 @@ function MobileTabBar({
               >
                 <span
                   className={cn(
-                    "flex h-7 w-12 items-center justify-center rounded-full transition-all duration-300",
+                    "relative flex h-7 w-12 items-center justify-center rounded-full transition-all duration-300",
                     active && "bg-primary/20 text-primary shadow-[0_0_18px_-4px] shadow-primary/60",
                   )}
                 >
                   <Icon className="size-5" />
+                  {tab.showsSavedCount && <SavedCount dot />}
                 </span>
                 {label}
               </Link>
@@ -164,6 +186,16 @@ export function HeaderNav() {
         <DesktopTabs pathname={pathname} adminMode={adminMode} hrefFor={hrefFor} />
       </nav>
       <div className="ml-auto flex items-center gap-2">
+        {adminMode && (
+          <Link
+            href="/admin"
+            aria-current={pathname?.startsWith("/admin") ? "page" : undefined}
+            className="text-muted-foreground hover:text-foreground aria-[current=page]:text-foreground flex size-9 items-center justify-center rounded-full border bg-white/[0.03] md:hidden"
+          >
+            <Settings2 className="size-4" />
+            <span className="sr-only">Admin</span>
+          </Link>
+        )}
         <AdminModeToggle
           on={adminMode}
           onChange={(on) => {
