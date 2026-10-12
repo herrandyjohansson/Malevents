@@ -287,7 +287,7 @@ export function LeafletMap({
 
   return (
     <div className="relative isolate size-full">
-      <div ref={containerRef} className="malevents-map size-full bg-[#11111b]" role="region" aria-label="Event map" />
+      <div ref={containerRef} className="malevents-map size-full bg-[#45516e]" role="region" aria-label="Event map" />
       {/* Soft vignette so the map's edges melt into the dark card around it. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_48px_rgb(0_0_0/45%)]" />
       <div className="absolute right-3 bottom-8 z-20 flex flex-col gap-2 max-lg:bottom-[calc(var(--sheet-h,0px)+2rem)] max-lg:transition-[bottom] max-lg:duration-300">

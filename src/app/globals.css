@@ -277,7 +277,7 @@
    rules win over leaflet.css, which loads after this file. */
 .malevents-map.leaflet-container {
   font-family: var(--font-geist-sans), sans-serif;
-  background: #11111b;
+  background: #45516e;
 }
 /* Fallback OSM raster tiles are light; invert them into a dark basemap. The
    OpenFreeMap vector basemap is already dark and skips this. */

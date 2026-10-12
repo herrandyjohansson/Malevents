@@ -3,10 +3,12 @@ import type { StyleSpecification } from "maplibre-gl";
 
 type Leaflet = typeof import("leaflet");
 
-// OpenFreeMap: free vector tiles with no API key, no sign-up and no usage cap
-// (https://openfreemap.org). Its "dark" style is a crisp dark map with readable
-// street and district labels, drawn with WebGL through MapLibre.
-const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+// OpenMapTiles' Fiord Color style (github.com/openmaptiles/fiord-color-gl-style),
+// served by OpenFreeMap: free vector tiles with no API key, no sign-up and no
+// usage cap (https://openfreemap.org). The upstream style.json points at
+// MapTiler, which needs a key, so we use OpenFreeMap's hosted copy instead.
+// Drawn with WebGL through MapLibre.
+const STYLE_URL = "https://tiles.openfreemap.org/styles/fiord";
 const VECTOR_ATTRIBUTION =
   '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
@@ -17,15 +19,6 @@ const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-/** Site palette (from globals.css) baked into the basemap so the map sits flush with the cards around it. */
-const PALETTE = {
-  land: "#11111b",
-  water: "#161d33",
-  park: "#13201c",
-  label: "#a6a6bd",
-  halo: "#0f0f17",
-};
-
 function supportsWebGL() {
   try {
     const canvas = document.createElement("canvas");
@@ -33,23 +26,6 @@ function supportsWebGL() {
   } catch {
     return false;
   }
-}
-
-/** Nudge the stock dark style toward the site's indigo palette: land, water, parks and label colours only. */
-function tint(style: StyleSpecification): StyleSpecification {
-  for (const layer of style.layers) {
-    const id = layer.id.toLowerCase();
-    if (layer.type === "background") {
-      layer.paint = { ...layer.paint, "background-color": PALETTE.land };
-    } else if (layer.type === "fill" && id.includes("water")) {
-      layer.paint = { ...layer.paint, "fill-color": PALETTE.water };
-    } else if (layer.type === "fill" && /park|grass|wood|landcover/.test(id)) {
-      layer.paint = { ...layer.paint, "fill-color": PALETTE.park };
-    } else if (layer.type === "symbol" && layer.layout?.["text-field"] && !id.includes("water")) {
-      layer.paint = { ...layer.paint, "text-color": PALETTE.label, "text-halo-color": PALETTE.halo };
-    }
-  }
-  return style;
 }
 
 /**
@@ -68,7 +44,7 @@ export async function addBasemap(L: Leaflet, map: LeafletMapInstance, isAlive: (
       ]);
       if (!isAlive()) return;
       // Leaflet owns the attribution control, so MapLibre's own is switched off.
-      maplibreGL({ style: tint(style), attributionControl: false }).addTo(map);
+      maplibreGL({ style, attributionControl: false }).addTo(map);
       map.attributionControl.addAttribution(VECTOR_ATTRIBUTION);
       return;
     } catch {
