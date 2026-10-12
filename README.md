@@ -1,6 +1,6 @@
 # Malevents
 
-What's on in Malmö: one site that gathers events from many venue sites and ticket listings, cleans them into one shape, and shows them as cards, on a map and in a calendar.
+What's on in Malmö: one site that gathers events from many venue sites and ticket listings, cleans them into one shape, and shows them across seven tabs: cards, tonight's timeline, a map, a calendar, a week planner, venues and your saved events.
 
 This README is the project's summary report: what the site does, how the code is laid out, which libraries it uses, how data flows from the venue sites to the page, how it is deployed on Vercel, and how work on it is done.
 
@@ -29,6 +29,7 @@ This README is the project's summary report: what the site does, how the code is
 | --- | --- |
 | Framework | Next.js 16.4 (App Router, Cache Components, Turbopack), React 19.3, TypeScript 5 |
 | Styling | Tailwind CSS v4, shadcn/ui components (new-york style, Radix primitives), lucide icons, dark theme only |
+| Tabs | Discover, Tonight, Map, Calendar, Week, Venues, Saved, plus Admin when Admin mode is on |
 | Map | Leaflet with the standard OpenStreetMap tiles (no API key), darkened with CSS |
 | Data | 10 source adapters (7 live venue and ticket sites, 3 demo fixtures), scraped or read from JSON, normalized into one `MalmoEvent` type |
 | Caching | `"use cache: remote"` per source (Vercel Runtime Cache), served stale while refreshing in the background |
@@ -93,7 +94,12 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── page.tsx          /            Discover
     │   ├── map/page.tsx      /map         Map
     │   ├── calendar/page.tsx /calendar    Calendar
+    │   ├── tonight/page.tsx  /tonight     Tonight
     │   ├── week/page.tsx     /week        Week
+    │   ├── venues/
+    │   │   ├── page.tsx                  /venues              venue directory
+    │   │   └── [slug]/page.tsx           /venues/:slug        one venue's programme and map
+    │   ├── saved/page.tsx    /saved       Saved
     │   ├── admin/
     │   │   ├── page.tsx                  /admin               source overview
     │   │   ├── sources/[id]/page.tsx     /admin/sources/:id   one source's events
@@ -101,16 +107,23 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   └── error.tsx         error boundary
     ├── components/
     │   ├── layout/           site-header (+ aurora Backdrop), logo, page-header, nav-config (tab list), nav-tabs (desktop pill tabs, phone tab bar, Admin mode toggle)
-    │   ├── events/           event-card, event-art (image over a category-colored placeholder), event-results, spotlight-list, skeletons, source-status
-    │   ├── map/              leaflet-map, event-map-view, range-calendar, week-map preview/card, legend, day helpers
+    │   ├── events/           event-card, event-art (image over a category-colored placeholder), remote-image (hides itself if a venue's image fails), event-results, spotlight-list, skeletons, source-status
+    │   ├── map/              leaflet-map, event-map-view, range-calendar, week-map preview/card, legend
     │   ├── filters/          the shared filter bar: inline buttons (filter-bar), phone-map filter sheet (filter-panel), search box, useFilters (URL state)
     │   ├── calendar/         calendar-view
+    │   ├── tonight/          timeline-event
     │   ├── week/             highlight-reel (coverflow), week-board (day columns), scroll-buttons
+    │   ├── venues/           venue-grid (searchable directory), venue-map
+    │   ├── saved/            save-button (the heart on cards), saved-list
     │   ├── admin/            source-controls, status-badge
     │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, segmented-control, select, sheet, skeleton, switch, table
     └── lib/
         ├── utils.ts          cn()
         ├── admin-mode.ts     per-browser Admin mode flag (localStorage)
+        ├── days.ts           YYYY-MM-DD day helpers and month grids (map, calendar, filters)
+        ├── saved.ts          hearted events in localStorage (useSyncExternalStore)
+        ├── saved-snapshot.ts the saved-event snapshot, so Saved works after an event leaves the feeds
+        ├── ics.ts            iCalendar (.ics) export for "add to calendar"
         └── events/
             ├── types.ts          MalmoEvent, EventSource, SourceStatus, categories
             ├── config.ts         EVENTS_LIVE, time zone (Europe/Stockholm), default timeout
@@ -122,6 +135,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
             ├── map-data.ts       events → map pins (week preview and date ranges)
             ├── calendar-data.ts  events → calendar entries
             ├── week-data.ts      events → seven day columns and the picks reel
+            ├── venue-data.ts     events grouped into venues with slugs, counts and categories
             ├── venues.ts         coordinates for known Malmö venues
             ├── http.ts           fetch with timeout, MaleventsBot user agent, SourceError
             ├── fetch-page.ts     cached fetch of event detail pages
@@ -212,13 +226,17 @@ Sources with a live endpoint fetch it by default. Sources that only have demo fi
 | `/` | `app/page.tsx` | `PageHeader`, `WeekMapPreview` (7-day map), `EventResults` → `FilterBar`, `SpotlightList` + `EventCard`, `SourceStatus` | Static shell; filters read from search params and applied on the server |
 | `/map` | `app/map/page.tsx` | `EventMapView` → `FilterBar`, `RangeCalendar`, `LeafletMap`, `MapLegend` | Server prepares pins; filters and range are client-side and written to the URL with `history.replaceState` |
 | `/calendar` | `app/calendar/page.tsx` | `CalendarView` → `FilterBar` | Server prepares entries; filters run in the browser |
+| `/tonight` | `app/tonight/page.tsx` | `TimelineEvent`, `SaveButton` | Request-time; anchored on the current Malmö time |
 | `/week` | `app/week/page.tsx` | `HighlightReel`, `WeekBoard` | Request-time, server-rendered; the coverflow tilt is a CSS scroll-driven animation, the only client code is the arrow buttons |
+| `/venues` | `app/venues/page.tsx` | `VenueGrid` | Request-time; search and category filter run in the browser |
+| `/venues/[slug]` | `app/venues/[slug]/page.tsx` | `VenueMap`, `EventCard` | Request-time; the venue is looked up from the live events, so unknown slugs 404 |
+| `/saved` | `app/saved/page.tsx` | `SavedList` | Static shell; the list is read from localStorage in the browser, with .ics export |
 | `/admin` | `app/admin/page.tsx` | `StatusBadge`, `SourceToggle`, `RefreshSourceButton`, `RefreshAllButton`, shadcn `Table`/`Card` | Request-time; `robots: noindex` |
 | `/admin/sources/[id]` | `app/admin/sources/[id]/page.tsx` | event table for one source | Request-time |
 
 Shared pieces:
 
-- `SiteHeader`, `Logo` and `NavTabs` (`components/layout/`) render the header, the tabs and the Admin mode button. The tab list lives in `nav-config.ts`. On desktop the tabs are a row with a sliding active pill; on phones they move to a fixed bottom tab bar like a native app (rendered outside the header, whose backdrop blur would trap a fixed child; `--tabbar-h` in `globals.css` pads the page above it). Admin mode is a `localStorage` flag read through `useSyncExternalStore` (`lib/admin-mode.ts`); it only shows or hides the tab.
+- `SiteHeader`, `Logo` and `NavTabs` (`components/layout/`) render the header, the tabs and the Admin mode button. The tab list lives in `nav-config.ts`. On desktop the tabs are a row with a sliding active pill; on phones the visitor tabs move to a fixed bottom tab bar like a native app, and Admin moves to an icon in the header (rendered outside the header, whose backdrop blur would trap a fixed child; `--tabbar-h` in `globals.css` pads the page above it). Admin mode is a `localStorage` flag read through `useSyncExternalStore` (`lib/admin-mode.ts`); it only shows or hides the tab.
 - `LeafletMap` is a client component that loads Leaflet in the browser, draws category-colored pins and keeps the OSM attribution. `globals.css` inverts `.malevents-map .leaflet-tile-pane` to make the light tiles dark.
 - `Backdrop` (in the root layout) draws the slowly drifting aurora behind every page, and `PageHeader` gives each tab the same eyebrow, title and description.
 - `EventCard` is image-led: `EventArt` shows the event's picture over a category-colored gradient with an emoji, which also covers images that fail to load. Cards have a cursor "spotlight" hover effect and skeletons a shimmer, both hand-written in Tailwind and CSS.
@@ -301,4 +319,4 @@ Conventions worth keeping:
 - **Page size.** The home page renders every upcoming event card (several hundred) and `/map` and `/calendar` send all events to the browser; paging would make them lighter.
 - **OSM tiles** are fine for a low-traffic site that shows the attribution, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Move to a hosted tile plan if traffic grows.
 - **Scrapers depend on venue sites' markup.** If a venue changes its site, its source shows as failing in `/admin`, and the other sources keep working.
-- **More of the redesign is pending.** The new look (#12) is merged and described here. Two stacked pull requests are still open: #13 (one shared, URL-backed filter bar for Discover, Map and Calendar) and #14 (Tonight, Venues and Saved tabs). This README describes `main` as it is now; update it when those merge.
+- **Saved events live in one browser.** Hearts are kept in localStorage, so they don't follow you to another device and are lost if site data is cleared.
