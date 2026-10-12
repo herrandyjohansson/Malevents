@@ -148,7 +148,7 @@ export function EventMapView({
       className="flex flex-col gap-4 max-lg:fixed max-lg:inset-x-0 max-lg:top-14 max-lg:bottom-(--tabbar-h) max-lg:overflow-hidden"
       style={{ "--sheet-h": `${sheetHeight}px` } as React.CSSProperties}
     >
-      <FilterBar {...filterBarProps} className="max-lg:hidden" />
+      <FilterBar {...filterBarProps} datePicker={false} className="max-lg:hidden" />
       {/* Phone: filter chips float over the top of the map. */}
       <FilterBar {...filterBarProps} variant="floating" className="absolute inset-x-0 top-0 z-30 px-3 py-3 lg:hidden" />
 

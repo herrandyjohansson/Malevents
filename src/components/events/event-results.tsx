@@ -37,7 +37,7 @@ export async function EventResults({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="glass sticky top-[4.25rem] z-10 rounded-2xl border p-2.5 shadow-[0_10px_40px_-20px_rgb(0_0_0/80%)]">
+      <div className="glass z-10 rounded-2xl lg:sticky lg:top-[4.25rem] border p-2.5 shadow-[0_10px_40px_-20px_rgb(0_0_0/80%)]">
         <FilterBar
           mode="server"
           facets={facets}
