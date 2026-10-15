@@ -1,7 +1,7 @@
 import "server-only";
 
 import { malmoTime } from "../demo-dates";
-import { parsePriceText, toCategory } from "../map";
+import { parsePriceText, toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
 
 const ID = "malmo-stad";

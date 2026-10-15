@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDay } from "@/lib/days";
 import { CATEGORY_COLORS, CATEGORY_LABELS, formatEventDate } from "@/lib/events/format";
-import { localDay } from "@/lib/events/filters";
+import { localDay } from "@/lib/events/malmo-time";
 import { downloadIcs, type IcsEvent } from "@/lib/ics";
 import { removeSaved, useSavedEvents, type SavedEvent } from "@/lib/saved";
 

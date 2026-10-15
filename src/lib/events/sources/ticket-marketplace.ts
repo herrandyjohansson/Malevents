@@ -1,7 +1,7 @@
 import "server-only";
 
 import { malmoTime } from "../demo-dates";
-import { toCategory } from "../map";
+import { toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
 
 const ID = "ticket-marketplace";

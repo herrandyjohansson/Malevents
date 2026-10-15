@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
 
-import { malmoLocalToIso, malmoToday } from "./demo-dates";
+import { malmoLocalToIso, malmoToday } from "./malmo-time";
 
 export type Page = cheerio.CheerioAPI;
 export const loadHtml = (html: string): Page => cheerio.load(html);

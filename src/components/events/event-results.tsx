@@ -5,7 +5,8 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { ClearFiltersButton } from "@/components/filters/clear-filters-button";
 import { addMonths } from "@/lib/days";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { facetCounts, isUpcoming, localDay, matcher, parseFilters, toFilterable } from "@/lib/events/filters";
+import { facetCounts, isUpcoming, matcher, parseFilters, toFilterable } from "@/lib/events/filters";
+import { localDay } from "@/lib/events/malmo-time";
 
 import { EventCard } from "./event-card";
 import { SourceStatusBar } from "./source-status";

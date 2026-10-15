@@ -2,7 +2,8 @@ import "server-only";
 
 import type { MapEvent } from "@/components/map/types";
 
-import { isUpcoming, localDay, toFilterable } from "./filters";
+import { isUpcoming, toFilterable } from "./filters";
+import { localDay } from "./malmo-time";
 import {
   CATEGORY_COLORS,
   CATEGORY_EMOJI,

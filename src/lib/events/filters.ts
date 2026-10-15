@@ -1,6 +1,6 @@
 import { addDays, isDay, rangeLength, weekend, type DayRange } from "@/lib/days";
 
-import { TIME_ZONE } from "./config";
+import { localDay, localTime } from "./malmo-time";
 import { EVENT_CATEGORIES, type EventCategory, type MalmoEvent } from "./types";
 
 /**
@@ -202,24 +202,6 @@ export function facetCounts(events: Filterable[], f: EventFilters, today: string
     if (anySource(e)) facets.sources[e.sourceId] = (facets.sources[e.sourceId] ?? 0) + 1;
   }
   return facets;
-}
-
-const dayFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
-const clockFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TIME_ZONE,
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
-/** yyyy-mm-dd in Malmö local time. */
-export function localDay(date: Date) {
-  return dayFormat.format(date);
-}
-
-/** HH:MM in Malmö local time. */
-export function localTime(date: Date) {
-  return clockFormat.format(date);
 }
 
 const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000;

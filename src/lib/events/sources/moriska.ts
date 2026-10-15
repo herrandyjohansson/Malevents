@@ -5,7 +5,7 @@ import { malmoTime } from "../demo-dates";
 import { fetchDetailPage } from "../fetch-page";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchJson, fetchText } from "../http";
-import { parsePriceText, toCategory } from "../map";
+import { parsePriceText, toCategory } from "../normalize";
 import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, textOf, toIso } from "../scrape";
 import type { EventSource, MalmoEvent } from "../types";
 

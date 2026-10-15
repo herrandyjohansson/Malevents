@@ -4,7 +4,7 @@ import { LIVE_MODE } from "../config";
 import { malmoTime } from "../demo-dates";
 import { fetchDetailPage } from "../fetch-page";
 import { fetchText } from "../http";
-import { parsePriceText, toCategory } from "../map";
+import { parsePriceText, toCategory } from "../normalize";
 import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, type ParsedDate, textOf, toIso } from "../scrape";
 import type { EventSource, MalmoEvent } from "../types";
 

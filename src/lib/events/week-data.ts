@@ -1,6 +1,7 @@
 import "server-only";
 
-import { isUpcoming, localDay } from "./filters";
+import { isUpcoming } from "./filters";
+import { localDay } from "./malmo-time";
 import type { EventCategory, MalmoEvent } from "./types";
 
 const DAY_MS = 86_400_000;

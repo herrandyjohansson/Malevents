@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAllEvents } from "@/lib/events/aggregate";
 import { buildCalendarEvents } from "@/lib/events/calendar-data";
-import { localDay } from "@/lib/events/filters";
+import { localDay } from "@/lib/events/malmo-time";
 
 export const metadata: Metadata = { title: "Calendar" };
 

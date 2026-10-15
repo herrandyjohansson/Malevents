@@ -1,10 +1,11 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoLocalToIso, malmoTime } from "../demo-dates";
+import { malmoTime } from "../demo-dates";
+import { malmoLocalToIso } from "../malmo-time";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchJson } from "../http";
-import { parsePriceText, toCategory } from "../map";
+import { parsePriceText, toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
 
 const ID = "slagthuset";

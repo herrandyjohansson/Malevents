@@ -6,7 +6,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EventMapView } from "@/components/map/event-map-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { isUpcoming, localDay } from "@/lib/events/filters";
+import { isUpcoming } from "@/lib/events/filters";
+import { localDay } from "@/lib/events/malmo-time";
 import { buildMapEvents } from "@/lib/events/map-data";
 import { hasCoordinates } from "@/lib/events/venues";
 

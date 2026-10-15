@@ -2,7 +2,8 @@ import "server-only";
 
 import type { CalendarEvent } from "@/components/calendar/types";
 
-import { localDay, toFilterable } from "./filters";
+import { toFilterable } from "./filters";
+import { localDay } from "./malmo-time";
 import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS, formatEventDate, formatPrice, formatTime } from "./format";
 import type { MalmoEvent, SourceStatus } from "./types";
 

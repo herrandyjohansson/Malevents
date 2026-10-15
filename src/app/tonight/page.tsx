@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, formatDay } from "@/lib/days";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { isLongRunning, localDay, localTime, toFilterable } from "@/lib/events/filters";
+import { isLongRunning, toFilterable } from "@/lib/events/filters";
+import { localDay, localTime } from "@/lib/events/malmo-time";
 import type { MalmoEvent } from "@/lib/events/types";
 
 export const metadata: Metadata = { title: "Tonight" };

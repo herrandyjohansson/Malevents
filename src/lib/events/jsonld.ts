@@ -1,7 +1,7 @@
 import "server-only";
 
 import { SourceError } from "./http";
-import { toCategory } from "./map";
+import { toCategory } from "./normalize";
 import type { MalmoEvent } from "./types";
 
 /** The subset of schema.org/Event we read. */

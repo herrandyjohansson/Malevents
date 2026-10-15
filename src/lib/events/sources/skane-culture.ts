@@ -2,7 +2,7 @@ import "server-only";
 
 import { malmoTime } from "../demo-dates";
 import { SourceError } from "../http";
-import { toCategory } from "../map";
+import { toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
 
 const ID = "skane-culture";

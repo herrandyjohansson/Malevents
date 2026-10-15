@@ -1,10 +1,11 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime, malmoToday } from "../demo-dates";
+import { malmoTime } from "../demo-dates";
+import { malmoToday } from "../malmo-time";
 import { fetchDetailPage } from "../fetch-page";
 import { fetchText } from "../http";
-import { parsePriceText, toCategory } from "../map";
+import { parsePriceText, toCategory } from "../normalize";
 import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, textOf, toIso } from "../scrape";
 import type { EventSource, MalmoEvent } from "../types";
 
