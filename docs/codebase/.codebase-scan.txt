@@ -1,0 +1,381 @@
+
+=== DIRECTORY TREE (max depth 3, source files only) ===
+.agents
+.agents/skills
+.agents/skills/acquire-codebase-knowledge
+.agents/skills/acquire-codebase-knowledge/SKILL.md
+.agents/skills/acquire-codebase-knowledge/assets
+.agents/skills/acquire-codebase-knowledge/references
+.agents/skills/acquire-codebase-knowledge/scripts
+.gitignore
+AGENTS.md
+ASSIGNMENT_2.md
+CLAUDE.md
+README.md
+components.json
+docs
+docs/codebase
+docs/codebase/.codebase-scan.txt
+eslint.config.mjs
+next.config.ts
+package-lock.json
+package.json
+public
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+src
+src/app
+src/app/admin
+src/app/admin/actions.ts
+src/app/admin/page.tsx
+src/app/admin/sources
+src/app/calendar
+src/app/calendar/page.tsx
+src/app/error.tsx
+src/app/favicon.ico
+src/app/globals.css
+src/app/layout.tsx
+src/app/map
+src/app/map/page.tsx
+src/app/page.tsx
+src/app/saved
+src/app/saved/page.tsx
+src/app/tonight
+src/app/tonight/page.tsx
+src/app/venues
+src/app/venues/[slug]
+src/app/venues/page.tsx
+src/app/week
+src/app/week/page.tsx
+src/components
+src/components/admin
+src/components/admin/source-controls.tsx
+src/components/admin/status-badge.tsx
+src/components/calendar
+src/components/calendar/calendar-view.tsx
+src/components/calendar/types.ts
+src/components/events
+src/components/events/event-art.tsx
+src/components/events/event-card.tsx
+src/components/events/event-grid-skeleton.tsx
+src/components/events/event-results.tsx
+src/components/events/remote-image.tsx
+src/components/events/source-status.tsx
+src/components/events/spotlight-list.tsx
+src/components/filters
+src/components/filters/clear-filters-button.tsx
+src/components/filters/filter-bar.tsx
+src/components/filters/filter-panel.tsx
+src/components/filters/search-box.tsx
+src/components/filters/types.ts
+src/components/filters/use-filters.ts
+src/components/layout
+src/components/layout/logo.tsx
+src/components/layout/nav-config.ts
+src/components/layout/nav-tabs.tsx
+src/components/layout/page-header.tsx
+src/components/layout/site-header.tsx
+src/components/map
+src/components/map/basemap.ts
+src/components/map/event-map-view.tsx
+src/components/map/leaflet-map.tsx
+src/components/map/map-legend.tsx
+src/components/map/range-calendar.tsx
+src/components/map/types.ts
+src/components/map/week-map-card.tsx
+src/components/map/week-map-preview.tsx
+src/components/saved
+src/components/saved/save-button.tsx
+src/components/saved/saved-list.tsx
+src/components/tonight
+src/components/tonight/timeline-event.tsx
+src/components/ui
+src/components/ui/alert.tsx
+src/components/ui/badge.tsx
+src/components/ui/button.tsx
+src/components/ui/card.tsx
+src/components/ui/dialog.tsx
+src/components/ui/input.tsx
+src/components/ui/segmented-control.tsx
+src/components/ui/select.tsx
+src/components/ui/sheet.tsx
+src/components/ui/skeleton.tsx
+src/components/ui/switch.tsx
+src/components/ui/table.tsx
+src/components/venues
+src/components/venues/venue-grid.tsx
+src/components/venues/venue-map.tsx
+src/components/week
+src/components/week/highlight-reel.tsx
+src/components/week/scroll-buttons.tsx
+src/components/week/week-board.tsx
+src/lib
+src/lib/admin-mode.ts
+src/lib/days.ts
+src/lib/events
+src/lib/events/aggregate.ts
+src/lib/events/calendar-data.ts
+src/lib/events/config.ts
+src/lib/events/demo-dates.ts
+src/lib/events/fetch-page.ts
+src/lib/events/fetch-source.ts
+src/lib/events/filters.ts
+src/lib/events/format.ts
+src/lib/events/html.ts
+src/lib/events/http.ts
+src/lib/events/jsonld.ts
+src/lib/events/map-data.ts
+src/lib/events/map.ts
+src/lib/events/scrape.ts
+src/lib/events/settings.ts
+src/lib/events/sources
+src/lib/events/types.ts
+src/lib/events/venue-data.ts
+src/lib/events/venues.ts
+src/lib/events/week-data.ts
+src/lib/ics.ts
+src/lib/saved-snapshot.ts
+src/lib/saved.ts
+src/lib/utils.ts
+tsconfig.json
+
+=== STACK DETECTION (manifest files) ===
+
+--- package-lock.json ---
+{
+  "name": "malevents",
+  "version": "0.1.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "malevents",
+      "version": "0.1.0",
+      "dependencies": {
+        "@maplibre/maplibre-gl-leaflet": "^0.1.4",
+        "cheerio": "^1.2.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "leaflet": "^1.9.4",
+        "leaflet.markercluster": "^1.5.3",
+        "lucide-react": "^1.53.0",
+        "maplibre-gl": "^6.14.0",
+        "next": "16.4.0",
+        "radix-ui": "^1.7.0",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "server-only": "^0.0.1",
+        "tailwind-merge": "^3.7.0"
+      },
+      "devDependencies": {
+        "@tailwindcss/turbopack": "^4",
+        "@types/leaflet": "^1.9.22",
+        "@types/leaflet.markercluster": "^1.5.6",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "eslint": "^9",
+        "eslint-config-next": "16.4.0",
+        "tailwindcss": "^4",
+        "tw-animate-css": "^1.4.0",
+        "typescript": "^5"
+      }
+    },
+    "node_modules/@alloc/quick-lru": {
+      "version": "5.3.0",
+      "resolved": "https://registry.npmjs.org/@alloc/quick-lru/-/quick-lru-5.3.0.tgz",
+      "integrity": "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==",
+      "dev": true,
+      "license": "MIT",
+      "engines": {
+        "node": ">=10"
+      },
+      "funding": {
+        "url": "https://github.com/sponsors/sindresorhus"
+      }
+    },
+    "node_modules/@babel/code-frame": {
+      "version": "7.29.7",
+      "resolved": "https://registry.npmjs.org/@babel/code-frame/-/code-frame-7.29.7.tgz",
+      "integrity": "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "@babel/helper-validator-identifier": "^7.29.7",
+        "js-tokens": "^4.0.0",
+        "picocolors": "^1.1.1"
+      },
+      "engines": {
+        "node": ">=6.9.0"
+      }
+    },
+    "node_modules/@babel/compat-data": {
+      "version": "7.29.7",
+      "resolved": "https://registry.npmjs.org/@babel/compat-data/-/compat-data-7.29.7.tgz",
+      "integrity": "sha512-locTkQyKvwIEgBzVrn8693ebc97F2U8ZHjbXwDXJ5Fn2TCpNwTlKcaKLkdHop5c/icOFE7qt7Q9JC5hnKNa6Gg==",
+      "dev": true,
+      "license": "MIT",
+      "engines": {
+        "node": ">=6.9.0"
+      }
+    },
+    "node_modules/@babel/core": {
+      "version": "7.29.7",
+      "resolved": "https://registry.npmjs.org/@babel/core/-/core-7.29.7.tgz",
+
+[TRUNCATED] Showing first 80 of 9140 lines.
+--- package.json ---
+{
+  "name": "malevents",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@maplibre/maplibre-gl-leaflet": "^0.1.4",
+    "cheerio": "^1.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
+    "lucide-react": "^1.53.0",
+    "maplibre-gl": "^6.14.0",
+    "next": "16.4.0",
+    "radix-ui": "^1.7.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/leaflet": "^1.9.22",
+    "@types/leaflet.markercluster": "^1.5.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5"
+  }
+}
+
+
+=== ENTRY POINTS ===
+No common entry points found. Check 'main' or 'scripts.start' in manifest files above.
+
+=== LINTING AND FORMATTING CONFIG ===
+Found: eslint.config.mjs
+Found: tsconfig.json
+
+=== ENVIRONMENT VARIABLE TEMPLATES ===
+No .env.example or .env.template found. Identify required environment variables by searching the code and config for environment variable reads.
+
+=== TODO / FIXME / HACK (production code only, test dirs excluded) ===
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:28: TODO_LIMIT = 60
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:291: """Search for TODO/FIXME/HACK comments."""
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:291: """Search for TODO/FIXME/HACK comments."""
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:291: """Search for TODO/FIXME/HACK comments."""
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:293: patterns = ["TODO", "FIXME", "HACK"]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:293: patterns = ["TODO", "FIXME", "HACK"]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:293: patterns = ["TODO", "FIXME", "HACK"]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:320: return todos[:TODO_LIMIT]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:617: # TODOs
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:620: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:620: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:620: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:622: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:622: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:622: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+
+=== GIT RECENT COMMITS (last 20) ===
+df836d3 Merge pull request #21 from herrandyjohansson/claude/add-claude-md-v2inbo
+08ef1dd Add CLAUDE.md with commands, architecture and conventions
+9ac5ffb Merge pull request #20 from herrandyjohansson/claude/map-design-refresh-yukvze
+5da67e7 Use the Fiord Color style for the map basemap
+4c5630b Refresh the map: dark vector basemap, clustered pins, card popups
+f4a13b8 Merge pull request #19 from herrandyjohansson/claude/readme-docs-6fwm98
+87b13c7 README: document the merged redesign tabs
+ae3a841 Merge pull request #13 from herrandyjohansson/claude/project-thread-6sv6tp-filters
+ab294e2 Merge Tonight, Venues and Saved into the filters branch
+77a6839 Merge main into the filters branch
+e930c12 Merge pull request #14 from herrandyjohansson/claude/project-thread-6sv6tp-tabs
+3cb3262 Merge pull request #17 from herrandyjohansson/claude/project-thread-6sv6tp-chips
+4e219d7 Merge pull request #18 from herrandyjohansson/claude/new-view-tab-akdhy8
+f38836a Add Week tab: coverflow picks reel and a seven-day planner board
+0a2da2c Discover filters as inline buttons instead of dropdowns and pop-ups
+828a62f Merge pull request #16 from herrandyjohansson/claude/readme-docs-6fwm98
+0dc7cc4 Rewrite README as a full project report
+271e6ca Merge pull request #12 from herrandyjohansson/claude/project-thread-6sv6tp
+7b59ecf Merge pull request #15 from herrandyjohansson/claude/project-thread-6sv6tp-saved
+746479a Add a Saved tab: heart any event, see your plans by day, export to calendar
+
+=== HIGH-CHURN FILES (last 90 days, top 20) ===
+  16 README.md
+  12 src/app/globals.css
+   7 src/components/map/event-map-view.tsx
+   6 src/components/map/leaflet-map.tsx
+   6 src/components/events/event-results.tsx
+   6 src/components/events/event-card.tsx
+   6 src/components/layout/nav-tabs.tsx
+   6 src/app/map/page.tsx
+   6 src/app/page.tsx
+   5 package-lock.json
+   5 package.json
+   5 src/components/layout/nav-config.ts
+   5 src/lib/events/sources/index.ts
+   4 src/lib/events/format.ts
+   4 src/components/events/event-grid-skeleton.tsx
+   4 src/components/map/types.ts
+   4 src/app/layout.tsx
+   4 src/lib/events/aggregate.ts
+   4 src/lib/events/sources/moriska.ts
+   4 src/lib/events/venues.ts
+
+=== MONOREPO SIGNALS ===
+No monorepo signals detected.
+
+=== CODE METRICS ===
+Total files scanned: 129
+Total lines of code: 18664
+
+Files by language:
+  TypeScript/React: 56
+  TypeScript: 45
+  Other: 27
+  Python: 1
+
+Top 10 largest files:
+package-lock.json: 318.4KB
+README.md: 28.0KB
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py: 23.2KB
+src/app/globals.css: 16.8KB
+src/app/favicon.ico: 14.7KB
+src/components/filters/filter-bar.tsx: 13.6KB
+src/components/map/leaflet-map.tsx: 13.0KB
+src/components/calendar/calendar-view.tsx: 11.3KB
+src/components/map/event-map-view.tsx: 11.1KB
+src/lib/events/sources/moriska.ts: 10.3KB
+
+=== CI/CD PIPELINES ===
+No CI/CD pipelines detected.
+
+=== CONTAINERS & ORCHESTRATION ===
+No containerization configs detected.
+
+=== SECURITY & COMPLIANCE ===
+No security configs detected.
+
+=== PERFORMANCE & TESTING ===
+No performance testing configs detected.
+
+=== SCAN COMPLETE ===
