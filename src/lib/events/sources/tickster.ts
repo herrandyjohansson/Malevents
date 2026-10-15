@@ -1,7 +1,7 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
+import { malmoTime, malmoToday } from "../demo-dates";
 import { fetchDetailPage } from "../fetch-page";
 import { fetchText } from "../http";
 import { parsePriceText, toCategory } from "../map";
@@ -141,7 +141,7 @@ export function ticksterSource(options: TicksterSourceOptions): EventSource {
     const listings = (fixtures ? parseTicksterListing(fixtures.listingHtml) : await fetchListings(options.organizerUrl, id, options)).filter(
       (l) => !options.placeFilter || !l.place || options.placeFilter.test(l.place),
     );
-    const today = malmoTime(0, "00:00").slice(0, 10);
+    const today = malmoToday();
     const upcoming = listings.filter((l) => l.ymd >= today).sort((a, b) => a.ymd.localeCompare(b.ymd));
     const details = fixtures
       ? upcoming.map((l) => parseTicksterDetail(fixtures.detailHtml(l)))

@@ -79,6 +79,8 @@ export function weekend(today: string): DayRange {
 // Hand-rolled rather than Intl so server and browser render identical text
 // (ICU versions differ, e.g. "Fri 9 Oct" vs "Fri, 9 Oct", which breaks hydration).
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+/** Column headings for Monday-first month grids. */
+export const WEEKDAYS_SHORT = WEEKDAYS.map((d) => d.slice(0, 3));
 const MONTHS = [
   "January",
   "February",

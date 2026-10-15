@@ -16,10 +16,9 @@ import {
   monthStart,
   toRange,
   weekday,
+  WEEKDAYS_SHORT,
   type DayRange,
 } from "@/lib/days";
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function dayAt(x: number, y: number) {
   const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-day]");
@@ -127,7 +126,7 @@ export function RangeCalendar({
       </div>
 
       <div className="text-muted-foreground grid grid-cols-7 text-center text-[11px] font-medium uppercase" aria-hidden>
-        {WEEKDAYS.map((d) => (
+        {WEEKDAYS_SHORT.map((d) => (
           <span key={d}>{d}</span>
         ))}
       </div>

@@ -7,55 +7,15 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { useFilters } from "@/components/filters/use-filters";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { addDays, addMonths, formatDay, formatMonth, monthGrid, monthStart, WEEKDAYS_SHORT } from "@/lib/days";
 import { facetCounts, filtersToParams, isLongRunning, matcher } from "@/lib/events/filters";
 import { cn } from "@/lib/utils";
 
 import type { CalendarEvent } from "./types";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** Pills shown per day cell before collapsing into "+N more". */
 const MAX_PILLS = 3;
 const MAX_MONTHS_AHEAD = 12;
-
-// Day math on yyyy-mm-dd strings, done in UTC so it never shifts a day.
-function toDate(day: string) {
-  return new Date(`${day}T00:00:00Z`);
-}
-function toDay(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-function addDays(day: string, n: number) {
-  const d = toDate(day);
-  d.setUTCDate(d.getUTCDate() + n);
-  return toDay(d);
-}
-function addMonths(month: string, n: number) {
-  const d = toDate(`${month}-01`);
-  d.setUTCMonth(d.getUTCMonth() + n);
-  return toDay(d).slice(0, 7);
-}
-function daysBetween(from: string, to: string) {
-  return Math.round((toDate(to).getTime() - toDate(from).getTime()) / 86_400_000);
-}
-
-/** Monday-first weeks that cover the whole month. */
-function monthGrid(month: string) {
-  const first = `${month}-01`;
-  const offset = (toDate(first).getUTCDay() + 6) % 7;
-  const start = addDays(first, -offset);
-  const last = addDays(addMonths(month, 1) + "-01", -1);
-  const weeks = Math.ceil((offset + daysBetween(first, last) + 1) / 7);
-  return Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
-}
-
-const monthLabel = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", month: "long", year: "numeric" });
-const dayLabel = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "UTC",
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-});
-
 
 /** Single-day events by start time first, long-running ones after. */
 function byDisplayOrder(a: CalendarEvent, b: CalendarEvent) {
@@ -85,7 +45,8 @@ export function CalendarView({
   today: string;
   sources: { id: string; name: string }[];
 }) {
-  const currentMonth = today.slice(0, 7);
+  // The first day of the shown month, yyyy-mm-01.
+  const currentMonth = monthStart(today);
   const [month, setMonth] = useState(currentMonth);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   // The shared filters (in the URL), applied in the browser.
@@ -93,11 +54,12 @@ export function CalendarView({
   const filterKey = filtersToParams(filters).toString();
   const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const facets = useMemo(() => facetCounts(events, filters, today), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lastMonth = `${addMonths(currentMonth, MAX_MONTHS_AHEAD)}-01`;
+  const lastMonth = addMonths(currentMonth, MAX_MONTHS_AHEAD);
 
   const days = monthGrid(month);
   const eventsByDay = groupByDay(filtered, days);
-  const inMonth = filtered.filter((e) => e.startDay.slice(0, 7) <= month && e.endDay.slice(0, 7) >= month);
+  const monthKey = month.slice(0, 7);
+  const inMonth = filtered.filter((e) => e.startDay.slice(0, 7) <= monthKey && e.endDay.slice(0, 7) >= monthKey);
   const selectedEvents = selectedDay ? (eventsByDay.get(selectedDay) ?? []) : [];
 
   return (
@@ -116,7 +78,7 @@ export function CalendarView({
       {/* Month navigation */}
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="mr-auto text-xl font-semibold tracking-tight sm:text-2xl">
-          {monthLabel.format(toDate(`${month}-01`))}
+          {formatMonth(month)}
         </h2>
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {inMonth.length === 1 ? "1 event" : `${inMonth.length} events`} this month
@@ -138,7 +100,7 @@ export function CalendarView({
             variant="outline"
             size="icon"
             aria-label="Next month"
-            disabled={month >= addMonths(currentMonth, MAX_MONTHS_AHEAD)}
+            disabled={month >= lastMonth}
             onClick={() => setMonth((m) => addMonths(m, 1))}
           >
             <ChevronRight />
@@ -149,7 +111,7 @@ export function CalendarView({
       {/* Month grid */}
       <div className="bg-card/80 flex min-h-[32rem] flex-1 flex-col overflow-hidden rounded-2xl border">
         <div className="grid grid-cols-7 border-b">
-          {WEEKDAYS.map((d) => (
+          {WEEKDAYS_SHORT.map((d) => (
             <div key={d} className="text-muted-foreground px-2 py-2 text-center text-xs font-medium uppercase">
               {d}
             </div>
@@ -158,7 +120,7 @@ export function CalendarView({
         <div className="grid flex-1 auto-rows-fr grid-cols-7">
           {days.map((day) => {
             const list = eventsByDay.get(day) ?? [];
-            const outside = day.slice(0, 7) !== month;
+            const outside = day.slice(0, 7) !== monthKey;
             const isToday = day === today;
             const isPast = day < today;
             const shown = list.slice(0, MAX_PILLS);
@@ -173,7 +135,7 @@ export function CalendarView({
                 <button
                   type="button"
                   onClick={() => setSelectedDay(day)}
-                  aria-label={`${dayLabel.format(toDate(day))}, ${list.length} events`}
+                  aria-label={`${formatDay(day)}, ${list.length} events`}
                   className="absolute inset-0 rounded-none outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset"
                 />
                 <span
@@ -225,7 +187,7 @@ export function CalendarView({
       <Dialog open={selectedDay !== null} onOpenChange={(open) => !open && setSelectedDay(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedDay && dayLabel.format(toDate(selectedDay))}</DialogTitle>
+            <DialogTitle>{selectedDay && formatDay(selectedDay)}</DialogTitle>
             <DialogDescription>
               {selectedEvents.length === 0
                 ? "Nothing on this day with the current filters."

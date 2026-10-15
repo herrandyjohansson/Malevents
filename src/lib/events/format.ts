@@ -89,16 +89,6 @@ export function formatTime(iso: string) {
   return timeFormat.format(new Date(iso));
 }
 
-/** Long label for a yyyy-mm-dd Malmö day, e.g. "Friday 9 October". */
-export function formatDayLabel(day: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC",
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date(`${day}T00:00:00Z`));
-}
-
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 export function formatRelative(iso: string, now: Date) {
