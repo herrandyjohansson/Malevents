@@ -68,3 +68,14 @@ En rättning i en adapter (t.ex. loggning enligt #1) måste göras på 4–5 st�
 - **#1 + #2 tillsammans** (mest värde): logga och räkna svalda fel per källa så att admin ser "ok, 12 detaljsidor misslyckades", och markera tid okänd i stället för 00:00.
 - **#4, delvis** (litet och avgränsat): låt Tonight använda `endOf`/`isUpcoming` från `filters.ts` i stället för egen kopia, och samla `DEFAULT_DURATION_MS` på ett ställe.
 - **#5, delvis** (minst risk): kommentarer och namngivna konstanter för `moriska.ts:82-86`.
+
+## Åtgärdat (commit `6440374`)
+
+| # | Åtgärd |
+|---|---|
+| 1 | `fetchEvents(report)` får en `SourceReport`. Misslyckade detaljsidor, senare listningssidor, Moriskas REST-API och sidor bortom taket blir varningar som cachas, loggas och visas i admin. Första körningen mot riktiga data visade direkt "Only the first 150 of 272 detail pages are read" för Tickster. |
+| 2 | `MalmoEvent.timeUnknown` sätts av Tickster, Slagthuset och Malmö Live. Sådana event visas som "TBA"/utan tid, varar dagen ut (`endOf`) i stället för att försvinna 03:00, och exporteras som heldag i .ics. |
+| 3 | Ny `crawl.ts` (`crawlListing`, `fetchDetails`, `fetchPageMeta`) ersätter de kopierade loopar- och berikningsblocken; adaptrarnas huvudfunktioner orkestrerar bara och mappningen ligger i egna funktioner. |
+| 4 | Tonight-logiken ligger i `tonight-data.ts` och använder `endOf` från `filters.ts`. De två betydelserna av "tonight" dokumenteras bredvid varandra, och en gemensam `DEFAULT_DURATION_MS` används (.ics antar nu 3 h i stället för 2 h). |
+| 5 | Namngivna konstanter och kommentarer i Moriska (`PRICE_TEXT`, `YEAR_WINDOW`, `roomOf`) och Tickster (`TICKET_BUTTON`). `toCategory` matchar ord på högst fyra bokstäver bara i början av ord: "Mozart", "party" och "start" blir inte längre konst och "format" inte mat, medan "julkonsert" och "barnteater" fortfarande matchar. |
+| Övrigt | `daysFromTodayAt`, `filledFieldCount` och `textBeforeDate` ersätter de otydliga namnen; en `SWEDISH_MONTHS`; inga `!` på tolkade datum och länkar; inget "Slutsålt."-prefix bredvid `soldOut`. |

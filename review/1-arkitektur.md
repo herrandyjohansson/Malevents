@@ -25,3 +25,14 @@ Endast granskning, inga ändringar gjorda.
 6. **Hand-formateringen följs bara av en slump.** `src/lib/events/format.ts:42-92` bygger på `Intl` men är inte markerad som enbart server. Klientkomponenter importerar redan från den (`filter-bar.tsx:23`, `saved-list.tsx:11`). `saved-list` klarar sig bara för att den renderar efter hydrering. Ett `formatEventDate` i en ny klientkomponent ger en hydreringsbugg. `src/components/week/week-board.tsx:9-10` formaterar med `Intl` det som `days.ts` redan gör för hand.
 
 **Kandidater att åtgärda:** punkt 1 eller 5 är små och avgränsade. Punkt 2–3 är större designfrågor.
+
+## Åtgärdat (commit `a22138b`)
+
+| # | Åtgärd |
+|---|---|
+| 1 | `fetch-page.ts` använder `"use cache: remote"` (nästling remote-i-remote är tillåten enligt Next-dokumentationen). CLAUDE.md och README nämner den som andra cachade funktion. |
+| 2 | Ej åtgärdat (valt bort): admin-inställningar och skydd av `/admin`. |
+| 3 | Ej åtgärdat: streaming per källa blir en separat uppgift (kräver omdesign av sammanslagning och filter). |
+| 4 | Kalenderns månad och öppna dag (`?month=`, `?day=`) och Venues sök/kategori/sortering (`?q=`, `?cat=`, `?sort=`) ligger i URL:en via `src/lib/use-url-param.ts`. |
+| 5 | `jsonld.ts` behölls (README rekommenderar den för nya källor) men går nu via `fetchText` med samma timeout, User-Agent och felformat. |
+| 6 | `format.ts`, `week-board.tsx` och `venues/[slug]` bygger etiketter för hand utifrån `localDay`/`localTime` och `lib/days`. Jämfört över ett år var enda skillnaden "Sept" → "Sep", just den ICU-variation regeln skyddar mot. |

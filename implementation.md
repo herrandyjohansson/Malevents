@@ -75,5 +75,15 @@ Den föreslår att göra fokusera på göra en mer enhetlig namnstandard för pr
 
 ## 4 Åtgärder och commits
 
+Alla fynd åtgärdades utom de jag valde bort: skydd av `/admin` och lagring av admin-inställningar (medvetet öppet under utveckling), samt streaming per källa som blir en separat uppgift. Detaljer finns under "Åtgärdat" i varje granskningsfil.
+
+| Kategori | Commit | Granskning |
+|---|---|---|
+| Arkitektur | `a22138b` Align the code with the architecture rules in CLAUDE.md | [review/1-arkitektur.md](review/1-arkitektur.md) |
+| Säkerhet | `ddeeadd` Harden input, links, headers and upstream reads | [review/2-sakerhet.md](review/2-sakerhet.md) |
+| Kodkvalitet | `6440374` Report partial source failures, mark unknown times, split up adapters | [review/3-kodkvalitet.md](review/3-kodkvalitet.md) |
+
+Verifiering efter varje commit: `npm run lint`, `npx tsc --noEmit`, `EVENTS_LIVE=false npm run build` och `npm run build`, därefter `npm run start` med fixtures och mot riktiga källor. Alla sidor svarade 200 och alla live-källor var friska i admin.
+
 # Del B
 

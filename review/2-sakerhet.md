@@ -29,3 +29,16 @@ Endast granskning, inga ändringar gjorda. Appen har ingen databas, inga konton 
 - **Beroenden**: `npm audit --omit=dev` → 0 sårbarheter (2026-10-15).
 
 **Kandidater att åtgärda:** 3 (validera `enabled`) och 4 (tillåt bara `http(s):`-länkar) är små och avgränsade. 1–2 kräver ett beslut om autentisering, vilket CLAUDE.md redan flaggar inför publik lansering.
+
+## Åtgärdat (commit `ddeeadd`)
+
+| # | Åtgärd |
+|---|---|
+| 1–2 | Ej åtgärdat (valt bort): admin är medvetet öppet under utveckling. |
+| 3 | `setSourceEnabledAction` avvisar annat än boolean. |
+| 4 | `withSafeLinks` i `normalize.ts`, anropad från `fetchSource`, behåller bara `http(s):` för `url`, `ticketUrl` och `imageUrl`; osäker eventlänk ersätts med källans hemsida. |
+| 5 | `next.config.ts` skickar `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy` och `Permissions-Policy`. Ingen `script-src`-CSP (skulle kräva nonces). |
+| 6 | `http.ts` läser högst 10 MB per svar och rapporterar ogiltig JSON som källfel. |
+| 7 | `ics.ts` escapar `\r` i textfält och rensar kontrolltecken ur `URL:`. |
+| 8 | Besökarnas tooltip visar inte längre råa felmeddelanden; admin visar dem som förut. |
+| 9 | Ej åtgärdat (valt bort, samma som arkitektur 2). |
