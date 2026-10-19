@@ -163,7 +163,7 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
 ```
 
 1. **Adapters.** Each file in `src/lib/events/sources/` knows one upstream. Its `fetchEvents()` fetches JSON or HTML and maps it into `MalmoEvent` (id `<source>:<upstream id>`, title, start and end as ISO strings, category, venue, price, `isFree`, image, URL, ticket URL, sold out, notes). The rest of the app only sees that shape.
-2. **Caching.** `fetch-source.ts` is the only cached function. Each source has its own entry and the tags `events` and `events:<id>`. Lifetimes come from the source's `cacheProfile`:
+2. **Caching.** `fetch-source.ts` is the cached entry point for each source (`fetch-page.ts` additionally caches event detail pages for days, also in the remote cache). Each source has its own entry and the tags `events` and `events:<id>`. Lifetimes come from the source's `cacheProfile`:
 
    | Profile | Refreshes in the background every | Stale copy may be served for |
    | --- | --- | --- |

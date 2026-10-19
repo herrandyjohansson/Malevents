@@ -1,4 +1,6 @@
-import { TIME_ZONE } from "./config";
+import { dayNames, formatShort } from "@/lib/days";
+
+import { localDay, localTime } from "./malmo-time";
 import type { EventCategory, MalmoEvent } from "./types";
 
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
@@ -39,27 +41,23 @@ export const CATEGORY_EMOJI: Record<EventCategory, string> = {
   other: "📍",
 };
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TIME_ZONE,
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
+// Labels are built by hand from Malmö day and clock strings rather than with
+// Intl's text formats, so server and browser always render the same text
+// (see lib/days.ts). That keeps these helpers safe in client components too.
 
-const timeFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TIME_ZONE,
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-export function formatEventDate(event: Pick<MalmoEvent, "startsAt" | "endsAt">) {
+function startAndEnd(event: Pick<MalmoEvent, "startsAt" | "endsAt">) {
   const start = new Date(event.startsAt);
-  const end = event.endsAt ? new Date(event.endsAt) : undefined;
-  const startDay = dateFormat.format(start);
-  if (end && dateFormat.format(end) !== startDay) {
-    return `${startDay} – ${dateFormat.format(end)}`;
+  return { start, end: event.endsAt ? new Date(event.endsAt) : undefined };
+}
+
+/** "Fri 9 Oct · 19:00", "Fri 9 Oct · 19:00–21:00" or "Fri 9 Oct – Sun 11 Oct". */
+export function formatEventDate(event: Pick<MalmoEvent, "startsAt" | "endsAt">) {
+  const { start, end } = startAndEnd(event);
+  const startDay = formatShort(localDay(start));
+  if (end && localDay(end) !== localDay(start)) {
+    return `${startDay} – ${formatShort(localDay(end))}`;
   }
-  return `${startDay} · ${timeFormat.format(start)}${end ? `–${timeFormat.format(end)}` : ""}`;
+  return `${startDay} · ${localTime(start)}${end ? `–${localTime(end)}` : ""}`;
 }
 
 export function formatPrice(event: MalmoEvent) {
@@ -71,31 +69,31 @@ export function formatPrice(event: MalmoEvent) {
   return `${min ?? max} ${unit}`;
 }
 
-const partsFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TIME_ZONE,
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
-
-/** Pieces for a calendar-style date tile. */
+/** Pieces for a calendar-style date tile: "Fri", "9", "Oct". */
 export function dateParts(iso: string) {
-  const parts = partsFormat.formatToParts(new Date(iso));
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return { weekday: get("weekday"), day: get("day"), month: get("month") };
+  const names = dayNames(localDay(new Date(iso)));
+  return { weekday: names.weekday.slice(0, 3), day: String(names.day), month: names.month.slice(0, 3) };
 }
 
+/** "19:00" in Malmö time. */
 export function formatTime(iso: string) {
-  return timeFormat.format(new Date(iso));
+  return localTime(new Date(iso));
 }
 
-const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const UNITS = [
+  { unit: "second", seconds: 1, below: 60 },
+  { unit: "minute", seconds: 60, below: 3600 },
+  { unit: "hour", seconds: 3600, below: 86400 },
+  { unit: "day", seconds: 86400, below: Infinity },
+] as const;
 
+/** "now", "in 5 minutes", "2 hours ago", "yesterday", "tomorrow" … */
 export function formatRelative(iso: string, now: Date) {
   const seconds = Math.round((Date.parse(iso) - now.getTime()) / 1000);
-  const abs = Math.abs(seconds);
-  if (abs < 60) return relative.format(seconds, "second");
-  if (abs < 3600) return relative.format(Math.round(seconds / 60), "minute");
-  if (abs < 86400) return relative.format(Math.round(seconds / 3600), "hour");
-  return relative.format(Math.round(seconds / 86400), "day");
+  const { unit, seconds: size } = UNITS.find((u) => Math.abs(seconds) < u.below)!;
+  const n = Math.round(seconds / size);
+  if (n === 0) return unit === "second" ? "now" : unit === "day" ? "today" : `this ${unit}`;
+  if (unit === "day" && Math.abs(n) === 1) return n > 0 ? "tomorrow" : "yesterday";
+  const label = `${Math.abs(n)} ${unit}${Math.abs(n) === 1 ? "" : "s"}`;
+  return n > 0 ? `in ${label}` : `${label} ago`;
 }

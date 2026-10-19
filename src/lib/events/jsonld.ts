@@ -1,6 +1,6 @@
 import "server-only";
 
-import { SourceError } from "./http";
+import { fetchText } from "./http";
 import { toCategory } from "./normalize";
 import type { MalmoEvent } from "./types";
 
@@ -66,15 +66,12 @@ export function extractJsonLdEvents(html: string): JsonLdEvent[] {
   return events;
 }
 
+/**
+ * Fetch a page and return its JSON-LD events. Goes through `fetchText`, so it
+ * gets the same timeout, User-Agent and source-named errors as other adapters.
+ */
 export async function fetchJsonLdEvents(sourceId: string, pageUrl: string, timeoutMs = 8000) {
-  let res: Response;
-  try {
-    res = await fetch(pageUrl, { signal: AbortSignal.timeout(timeoutMs) });
-  } catch (err) {
-    throw new SourceError(sourceId, err instanceof Error ? err.message : "Network error");
-  }
-  if (!res.ok) throw new SourceError(sourceId, `HTTP ${res.status} from ${new URL(pageUrl).host}`);
-  return extractJsonLdEvents(await res.text());
+  return extractJsonLdEvents(await fetchText(sourceId, pageUrl, { timeoutMs }));
 }
 
 function toNumber(value: number | string | undefined) {

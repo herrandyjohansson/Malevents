@@ -96,17 +96,25 @@ const MONTHS = [
   "December",
 ];
 
-function parts(day: string) {
+/** Full English weekday and month names of a day, plus the day of the month. */
+export function dayNames(day: string) {
   return { weekday: WEEKDAYS[weekday(day)], day: Number(day.slice(8)), month: MONTHS[Number(day.slice(5, 7)) - 1] };
 }
 
 export function formatMonth(day: string) {
-  return `${parts(day).month} ${day.slice(0, 4)}`;
+  return `${dayNames(day).month} ${day.slice(0, 4)}`;
 }
 
-function formatShort(day: string) {
-  const p = parts(day);
+/** "Fri 9 Oct". */
+export function formatShort(day: string) {
+  const p = dayNames(day);
   return `${p.weekday.slice(0, 3)} ${p.day} ${p.month.slice(0, 3)}`;
+}
+
+/** "9 Oct". */
+export function formatDayMonth(day: string) {
+  const p = dayNames(day);
+  return `${p.day} ${p.month.slice(0, 3)}`;
 }
 
 /** "Friday 9 October" for one day, "Fri 9 Oct – Sun 11 Oct" for a range. */
@@ -116,6 +124,6 @@ export function formatRange(range: DayRange) {
 }
 
 export function formatDay(day: string) {
-  const p = parts(day);
+  const p = dayNames(day);
   return `${p.weekday} ${p.day} ${p.month}`;
 }

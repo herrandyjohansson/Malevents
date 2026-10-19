@@ -10,9 +10,10 @@ import { EventGridSkeleton } from "@/components/events/event-grid-skeleton";
 import { SpotlightList } from "@/components/events/spotlight-list";
 import { PageHeader } from "@/components/layout/page-header";
 import { VenueMap } from "@/components/venues/venue-map";
+import { formatDayMonth } from "@/lib/days";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { TIME_ZONE } from "@/lib/events/config";
 import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/events/format";
+import { localDay } from "@/lib/events/malmo-time";
 import { buildMapEvents } from "@/lib/events/map-data";
 import { buildVenues } from "@/lib/events/venue-data";
 
@@ -99,8 +100,6 @@ function Stat({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
   );
 }
 
-const shortFormat = new Intl.DateTimeFormat("en-GB", { timeZone: TIME_ZONE, day: "numeric", month: "short" });
-
 function shortDate(iso: string) {
-  return shortFormat.format(new Date(iso));
+  return formatDayMonth(localDay(new Date(iso)));
 }

@@ -1,3 +1,4 @@
+import { dayNames, formatDayMonth } from "@/lib/days";
 import { CATEGORY_COLORS, CATEGORY_LABELS, formatPrice, formatTime } from "@/lib/events/format";
 import type { WeekDay } from "@/lib/events/week-data";
 import { cn } from "@/lib/utils";
@@ -6,16 +7,12 @@ import { ScrollButtons } from "./scroll-buttons";
 
 const BOARD_ID = "week-board";
 
-const weekdayFormat = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "long" });
-const dateFormat = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short" });
-
 function dayLabels(day: string, index: number) {
-  const date = new Date(`${day}T00:00:00Z`);
-  const weekday = weekdayFormat.format(date);
+  const { weekday } = dayNames(day);
   return {
     name: index === 0 ? "Today" : index === 1 ? "Tomorrow" : weekday,
     short: index === 0 ? "Today" : weekday.slice(0, 3),
-    date: dateFormat.format(date),
+    date: formatDayMonth(day),
   };
 }
 

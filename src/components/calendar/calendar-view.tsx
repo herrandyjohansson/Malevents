@@ -1,14 +1,15 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { FilterBar } from "@/components/filters/filter-bar";
 import { useFilters } from "@/components/filters/use-filters";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { addDays, addMonths, formatDay, formatMonth, monthGrid, monthStart, WEEKDAYS_SHORT } from "@/lib/days";
+import { addDays, addMonths, formatDay, formatMonth, isDay, monthGrid, monthStart, WEEKDAYS_SHORT } from "@/lib/days";
 import { facetCounts, filtersToParams, isLongRunning, matcher } from "@/lib/events/filters";
+import { useUrlParam } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
 
 import type { CalendarEvent } from "./types";
@@ -36,6 +37,13 @@ function groupByDay(events: CalendarEvent[], days: string[]) {
   return map;
 }
 
+/** First day of the month named by ?month=yyyy-mm, kept within the months the calendar offers. */
+function shownMonth(param: string | null, first: string, last: string) {
+  const day = `${param}-01`;
+  if (!param || !/^\d{4}-\d{2}$/.test(param) || !isDay(day)) return first;
+  return day < first ? first : day > last ? last : day;
+}
+
 export function CalendarView({
   events,
   today,
@@ -45,16 +53,20 @@ export function CalendarView({
   today: string;
   sources: { id: string; name: string }[];
 }) {
-  // The first day of the shown month, yyyy-mm-01.
+  // The shown month and the open day live in the URL (?month=yyyy-mm&day=yyyy-mm-dd) so they can be shared.
   const currentMonth = monthStart(today);
-  const [month, setMonth] = useState(currentMonth);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const lastMonth = addMonths(currentMonth, MAX_MONTHS_AHEAD);
+  const [monthParam, setMonthParam] = useUrlParam("month");
+  const [dayParam, setDayParam] = useUrlParam("day");
+  const month = shownMonth(monthParam, currentMonth, lastMonth);
+  const setMonth = (next: string) => setMonthParam(next === currentMonth ? null : next.slice(0, 7));
+  const selectedDay = isDay(dayParam) ? dayParam : null;
+  const setSelectedDay = (day: string | null) => setDayParam(day);
   // The shared filters (in the URL), applied in the browser.
   const { filters } = useFilters("client");
   const filterKey = filtersToParams(filters).toString();
   const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const facets = useMemo(() => facetCounts(events, filters, today), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lastMonth = addMonths(currentMonth, MAX_MONTHS_AHEAD);
 
   const days = monthGrid(month);
   const eventsByDay = groupByDay(filtered, days);
@@ -89,7 +101,7 @@ export function CalendarView({
             size="icon"
             aria-label="Previous month"
             disabled={month <= currentMonth}
-            onClick={() => setMonth((m) => addMonths(m, -1))}
+            onClick={() => setMonth(addMonths(month, -1))}
           >
             <ChevronLeft />
           </Button>
@@ -101,7 +113,7 @@ export function CalendarView({
             size="icon"
             aria-label="Next month"
             disabled={month >= lastMonth}
-            onClick={() => setMonth((m) => addMonths(m, 1))}
+            onClick={() => setMonth(addMonths(month, 1))}
           >
             <ChevronRight />
           </Button>

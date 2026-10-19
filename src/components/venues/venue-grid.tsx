@@ -2,11 +2,11 @@
 
 import { ArrowUpRight, MapPin, Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 import { RemoteImage } from "@/components/events/remote-image";
 import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/events/format";
-import type { EventCategory } from "@/lib/events/types";
+import { EVENT_CATEGORIES, type EventCategory } from "@/lib/events/types";
+import { useUrlParam } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
 
 export interface VenueSummary {
@@ -22,9 +22,15 @@ export interface VenueSummary {
 type Sort = "busiest" | "name";
 
 export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("busiest");
-  const [category, setCategory] = useState<EventCategory | null>(null);
+  // Search, category and sort live in the URL (?q=&cat=&sort=name) so a view can be shared.
+  const [queryParam, setQuery] = useUrlParam("q");
+  const [catParam, setCatParam] = useUrlParam("cat");
+  const [sortParam, setSortParam] = useUrlParam("sort");
+  const query = queryParam ?? "";
+  const category = (EVENT_CATEGORIES as readonly string[]).includes(catParam ?? "") ? (catParam as EventCategory) : null;
+  const setCategory = (c: EventCategory | null) => setCatParam(c);
+  const sort: Sort = sortParam === "name" ? "name" : "busiest";
+  const setSort = (s: Sort) => setSortParam(s === "busiest" ? null : s);
   const q = query.trim().toLowerCase();
 
   const shown = venues
