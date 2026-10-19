@@ -1,6 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 
+import { withSafeLinks } from "./normalize";
 import { getSource } from "./sources";
 import type { MalmoEvent } from "./types";
 import { withCoordinates } from "./venues";
@@ -48,7 +49,7 @@ export async function fetchSource(id: string): Promise<SourceResult> {
 
   let events: MalmoEvent[];
   try {
-    events = (await source.fetchEvents()).map(withCoordinates);
+    events = (await source.fetchEvents()).map((e) => withSafeLinks(withCoordinates(e), source.homepage));
   } catch (err) {
     cacheLife("seconds");
     return { ok: false, error: err instanceof Error ? err.message : String(err), fetchedAt: new Date().toISOString() };

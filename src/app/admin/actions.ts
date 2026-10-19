@@ -13,6 +13,8 @@ function assertSource(id: string) {
 
 export async function setSourceEnabledAction(id: string, enabled: boolean) {
   assertSource(id);
+  // Server Actions are public endpoints: the type above is not checked at runtime.
+  if (typeof enabled !== "boolean") throw new Error("`enabled` must be true or false");
   try {
     await setSourceEnabled(id, enabled);
   } catch {

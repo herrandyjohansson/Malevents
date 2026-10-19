@@ -14,8 +14,14 @@ function stamp(date: Date) {
   return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+/** TEXT value (RFC 5545 3.3.11). Any line break, CR included, becomes "\n" so it can't start a new property. */
 function escape(text: string) {
-  return text.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/([,;])/g, "\\$1");
+  return text.replace(/\\/g, "\\\\").replace(/\r\n|\r|\n/g, "\\n").replace(/([,;])/g, "\\$1");
+}
+
+/** URI value: not escaped like TEXT, but control characters must not reach the file. */
+function uri(url: string) {
+  return url.replace(/[\u0000-\u001f\u007f]/g, "");
 }
 
 /** Lines may be at most 75 octets; longer ones continue on lines starting with a space. */
@@ -45,7 +51,7 @@ export function buildIcs(events: IcsEvent[], now = new Date()) {
       `DTEND:${stamp(end)}`,
       `SUMMARY:${escape(e.title)}`,
       ...(e.location ? [`LOCATION:${escape(e.location)}`] : []),
-      `URL:${e.url}`,
+      `URL:${uri(e.url)}`,
       `DESCRIPTION:${escape(e.url)}`,
       "END:VEVENT",
     );

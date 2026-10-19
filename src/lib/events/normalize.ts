@@ -1,4 +1,4 @@
-import { EVENT_CATEGORIES, type EventCategory } from "./types";
+import { EVENT_CATEGORIES, type EventCategory, type MalmoEvent } from "./types";
 
 const CATEGORY_KEYWORDS: Record<Exclude<EventCategory, "other">, string[]> = {
   music: ["music", "musik", "konsert", "concert", "jazz", "rock", "pop", "klassisk", "opera", "dj"],
@@ -30,5 +30,30 @@ export function parsePriceText(text: string | undefined) {
   return {
     isFree: false,
     price: { min: Math.min(...numbers), max: Math.max(...numbers), currency: "SEK" },
+  };
+}
+
+/** The value if it is an absolute http(s) URL, otherwise undefined. */
+export function httpUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "http:" ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Upstream links end up in href and src attributes, so only http(s) URLs are
+ * kept: a scraped "javascript:" or "data:" link is dropped (the event link
+ * falls back to the source's homepage) instead of relying on React to block it.
+ */
+export function withSafeLinks(event: MalmoEvent, fallbackUrl: string): MalmoEvent {
+  return {
+    ...event,
+    url: httpUrl(event.url) ?? fallbackUrl,
+    ticketUrl: httpUrl(event.ticketUrl),
+    imageUrl: httpUrl(event.imageUrl),
   };
 }
