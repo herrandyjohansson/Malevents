@@ -23,6 +23,7 @@ function toIcs(e: SavedEvent): IcsEvent {
     title: e.title,
     startsAt: e.startsAt,
     endsAt: e.endsAt,
+    allDay: e.timeUnknown,
     location: [e.venueName, e.venueAddress].filter(Boolean).join(", ") || undefined,
     url: e.url,
   };

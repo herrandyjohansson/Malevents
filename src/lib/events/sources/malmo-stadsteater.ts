@@ -1,12 +1,12 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
-import { fetchDetailPage } from "../fetch-page";
+import { daysFromTodayAt } from "../demo-dates";
+import { fetchPageMeta, type PageMeta } from "../crawl";
 import { fetchText } from "../http";
 import { parsePriceText, toCategory } from "../normalize";
-import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, type ParsedDate, textOf, toIso } from "../scrape";
-import type { EventSource, MalmoEvent } from "../types";
+import { findCards, loadHtml, parseSwedishDate, type ParsedDate, textOf, toIso } from "../scrape";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "malmo-stadsteater";
 const SITE = "https://www.malmostadsteater.se";
@@ -63,19 +63,21 @@ export function parseStadsteaterCalendar(html: string, today?: string): Stadstea
     if (!date || !time) continue;
 
     const stageLink = card.el.find(STAGE_LINK).first();
+    // The title links to the production: a page on this site other than the start page or a stage.
     const titleLink = card.el
       .find("a[href]")
       .filter((_, a) => {
-        const href = new URL($(a).attr("href")!, SITE);
+        const href = new URL($(a).attr("href") ?? "", SITE);
         return href.host === new URL(SITE).host && href.pathname.length > 1 && !href.pathname.startsWith("/vara-scener");
       })
       .first();
+    const titleHref = titleLink.attr("href");
     const title = titleLink.text().replace(/\s+/g, " ").trim();
-    if (!title) continue;
+    if (!title || !titleHref) continue;
     const ticketUrl = card.el.find('a[href*="biljetter.malmostadsteater.se"]').first().attr("href");
 
     rows.push({
-      url: new URL(titleLink.attr("href")!, SITE).toString(),
+      url: new URL(titleHref, SITE).toString(),
       title,
       stage: textOf($, stageLink),
       startsAt: toIso({ ymd: date.ymd, time: `${time[1].padStart(2, "0")}:${time[2]}` }),
@@ -88,50 +90,43 @@ export function parseStadsteaterCalendar(html: string, today?: string): Stadstea
   return rows;
 }
 
+function stadsteaterToEvent(row: StadsteaterRow, meta: PageMeta | undefined): MalmoEvent {
+  const stage = STAGES[row.stage.toLowerCase()];
+  const category = toCategory(row.title, meta?.description);
+  return {
+    id: `${ID}:${new URL(row.url).pathname.slice(1)}@${row.startsAt.slice(0, 16)}`,
+    sourceId: ID,
+    title: row.title,
+    description: meta?.description,
+    startsAt: row.startsAt,
+    // It's a theatre: keyword hits like "konsert" or "familj" win, otherwise theatre.
+    category: category === "other" || category === "art" ? "theatre" : category,
+    venue: {
+      name: row.stage ? `${row.stage}, Malmö Stadsteater` : "Malmö Stadsteater",
+      address: stage?.address,
+      city: "Malmö",
+      lat: stage?.lat,
+      lng: stage?.lng,
+    },
+    ...parsePriceText(row.priceText),
+    imageUrl: meta?.image,
+    url: row.url,
+    ticketUrl: row.ticketUrl,
+    soldOut: row.soldOut || undefined,
+    notes: row.fewLeft ? ["Få platser kvar"] : undefined,
+  };
+}
+
 /**
  * Malmö Stadsteater (Hippodromen, Intiman, Studion, Verkstan). Drupal 11
  * with no public feed, so the calendar page is read with cheerio and each
  * production page adds its image and blurb (one cached fetch per production).
  */
-async function getStadsteaterEvents(): Promise<MalmoEvent[]> {
-  const rows = LIVE_MODE ? parseStadsteaterCalendar(await fetchText(ID, CALENDAR_URL)) : parseStadsteaterCalendar(demoHtml());
-  const productions = [...new Set(rows.map((r) => r.url))];
-  const metas = LIVE_MODE
-    ? await mapLimit(productions, DETAIL_CONCURRENCY, (url) =>
-        fetchDetailPage(ID, url)
-          .then((html) => pageMeta(loadHtml(html)))
-          .catch(() => ({ title: undefined, description: undefined, image: undefined })),
-      )
-    : productions.map(() => ({ title: undefined, description: undefined, image: undefined }));
-  const metaByUrl = new Map(productions.map((url, i) => [url, metas[i]]));
-
-  return rows.map((r): MalmoEvent => {
-    const meta = metaByUrl.get(r.url);
-    const stage = STAGES[r.stage.toLowerCase()];
-    const category = toCategory(r.title, meta?.description);
-    return {
-      id: `${ID}:${new URL(r.url).pathname.slice(1)}@${r.startsAt.slice(0, 16)}`,
-      sourceId: ID,
-      title: r.title,
-      description: meta?.description,
-      startsAt: r.startsAt,
-      // It's a theatre: keyword hits like "konsert" or "familj" win, otherwise theatre.
-      category: category === "other" || category === "art" ? "theatre" : category,
-      venue: {
-        name: r.stage ? `${r.stage}, Malmö Stadsteater` : "Malmö Stadsteater",
-        address: stage?.address,
-        city: "Malmö",
-        lat: stage?.lat,
-        lng: stage?.lng,
-      },
-      ...parsePriceText(r.priceText),
-      imageUrl: meta?.image,
-      url: r.url,
-      ticketUrl: r.ticketUrl,
-      soldOut: r.soldOut || undefined,
-      notes: r.fewLeft ? ["Få platser kvar"] : undefined,
-    };
-  });
+async function getStadsteaterEvents(report: SourceReport): Promise<MalmoEvent[]> {
+  const rows = parseStadsteaterCalendar(LIVE_MODE ? await fetchText(ID, CALENDAR_URL) : demoHtml());
+  const productions = [...new Set(rows.map((row) => row.url))];
+  const metaByUrl = LIVE_MODE ? await fetchPageMeta(ID, report, productions, DETAIL_CONCURRENCY) : new Map<string, PageMeta>();
+  return rows.map((row) => stadsteaterToEvent(row, metaByUrl.get(row.url)));
 }
 
 export const malmoStadsteater: EventSource = {
@@ -151,7 +146,7 @@ function demoHtml() {
   const days = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
   const months = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
   const heading = (day: number) => {
-    const iso = malmoTime(day, "12:00");
+    const iso = daysFromTodayAt(day, "12:00");
     const [, m, d] = iso.slice(0, 10).split("-").map(Number);
     return `<h3>${days[new Date(iso).getUTCDay()]} ${d} ${months[m - 1]}</h3>`;
   };

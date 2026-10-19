@@ -4,7 +4,7 @@ import type { CalendarEvent } from "@/components/calendar/types";
 
 import { toFilterable } from "./filters";
 import { localDay } from "./malmo-time";
-import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS, formatEventDate, formatPrice, formatTime } from "./format";
+import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS, formatEventDate, formatPrice, formatStartTime } from "./format";
 import type { MalmoEvent, SourceStatus } from "./types";
 
 /**
@@ -26,7 +26,7 @@ export function buildCalendarEvents(events: MalmoEvent[], sources: SourceStatus[
         categoryLabel: CATEGORY_LABELS[e.category],
         color: CATEGORY_COLORS[e.category],
         emoji: CATEGORY_EMOJI[e.category],
-        timeLabel: formatTime(e.startsAt),
+        timeLabel: formatStartTime(e),
         dateLabel: formatEventDate(e),
         venueName: e.venue?.name,
         priceLabel: formatPrice(e),

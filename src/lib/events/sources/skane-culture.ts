@@ -1,6 +1,6 @@
 import "server-only";
 
-import { malmoTime } from "../demo-dates";
+import { daysFromTodayAt } from "../demo-dates";
 import { SourceError } from "../http";
 import { toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
@@ -22,8 +22,8 @@ async function getSkaneCultureEvents(): Promise<MalmoEvent[]> {
       id: "mm-1",
       title: "Utställning: Nordiskt ljus",
       text: "Måleri och fotografi från 1900-talets Norden.",
-      from: malmoTime(0, "11:00"),
-      to: malmoTime(30, "17:00"),
+      from: daysFromTodayAt(0, "11:00"),
+      to: daysFromTodayAt(30, "17:00"),
       venue: "Moderna Museet Malmö",
       address: "Ola Billgrens plats 2–4",
       tags: ["Konst", "Utställning"],
@@ -33,7 +33,7 @@ async function getSkaneCultureEvents(): Promise<MalmoEvent[]> {
       id: "mm-2",
       title: "Artist talk med årets stipendiat",
       text: "Samtal om process och material.",
-      from: malmoTime(4, "18:00"),
+      from: daysFromTodayAt(4, "18:00"),
       venue: "Moderna Museet Malmö",
       address: "Ola Billgrens plats 2–4",
       tags: ["Samtal"],
@@ -43,7 +43,7 @@ async function getSkaneCultureEvents(): Promise<MalmoEvent[]> {
       id: "pan-1",
       title: "Filmklubb: Bergman på stor duk",
       text: "Smultronstället i nyrestaurerad version.",
-      from: malmoTime(6, "18:30"),
+      from: daysFromTodayAt(6, "18:30"),
       venue: "Panora",
       address: "Friisgatan 19",
       tags: ["Film"],

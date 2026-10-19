@@ -1,7 +1,7 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
+import { daysFromTodayAt } from "../demo-dates";
 import { malmoLocalToIso } from "../malmo-time";
 import { decodeEntities, truncate } from "../html";
 import { fetchJson } from "../http";
@@ -53,7 +53,7 @@ function price(value: string) {
 }
 
 export function malmoLiveRowToEvent(row: MalmoLiveRow): MalmoEvent {
-  const [ymd, hms = "00:00"] = row.field_date_time.split("T");
+  const [ymd, hms] = row.field_date_time.split("T");
   const low = price(row.price_low);
   const high = price(row.price_high) ?? low;
   const description = truncate(decodeEntities(row.field_text_plain_long ?? "").trim());
@@ -63,8 +63,9 @@ export function malmoLiveRowToEvent(row: MalmoLiveRow): MalmoEvent {
     id: `${ID}:${row.tessitura_instance_id || `${row.view_node}#${row.field_date_time}`}`,
     sourceId: ID,
     title: decodeEntities(row.title).trim(),
-    description: row.sold_out === "1" ? `Slutsålt. ${description ?? ""}`.trim() : description,
-    startsAt: malmoLocalToIso(ymd, hms.slice(0, 5)),
+    description,
+    startsAt: malmoLocalToIso(ymd, hms ? hms.slice(0, 5) : "00:00"),
+    timeUnknown: hms ? undefined : true,
     category: toCategory(row.field_keywords_target_id, row.title),
     venue: {
       name: VENUE.name,
@@ -119,7 +120,7 @@ function demoRows(): MalmoLiveRow[] {
     r: Pick<MalmoLiveRow, "title" | "field_text_plain_long" | "field_venue" | "view_node" | "field_keywords_target_id"> &
       Partial<MalmoLiveRow> & { low: string; high: string; event: string; instance: string },
   ): MalmoLiveRow => ({
-    field_date_time: malmoTime(day, time).slice(0, 19),
+    field_date_time: daysFromTodayAt(day, time).slice(0, 19),
     price_low: r.low,
     price_high: r.high,
     price_currency: "SEK",

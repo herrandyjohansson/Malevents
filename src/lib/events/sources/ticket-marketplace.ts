@@ -1,6 +1,6 @@
 import "server-only";
 
-import { malmoTime } from "../demo-dates";
+import { daysFromTodayAt } from "../demo-dates";
 import { toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
 
@@ -87,7 +87,7 @@ function demoResponse(): TicketMarketplaceResponse {
           name: "Malmö Redhawks – Frölunda HC",
           info: "SHL, grundserien.",
           url,
-          dates: { start: { dateTime: malmoTime(2, "19:00") } },
+          dates: { start: { dateTime: daysFromTodayAt(2, "19:00") } },
           classifications: [{ segment: { name: "Sports" }, genre: { name: "Hockey" } }],
           priceRanges: [{ min: 195, max: 545, currency: "SEK" }],
           _embedded: { venues: [arena] },
@@ -97,7 +97,7 @@ function demoResponse(): TicketMarketplaceResponse {
           name: "Arena Pop Tour 2026",
           info: "Stor popkonsert med specialgäster.",
           url,
-          dates: { start: { dateTime: malmoTime(8, "20:00") } },
+          dates: { start: { dateTime: daysFromTodayAt(8, "20:00") } },
           classifications: [{ segment: { name: "Music" }, genre: { name: "Pop" } }],
           priceRanges: [{ min: 495, max: 1295, currency: "SEK" }],
           _embedded: { venues: [arena] },
@@ -107,7 +107,7 @@ function demoResponse(): TicketMarketplaceResponse {
           name: "Malmö FF – IFK Göteborg",
           info: "Allsvenskan.",
           url: "https://www.mff.se/",
-          dates: { start: { dateTime: malmoTime(3, "15:00") } },
+          dates: { start: { dateTime: daysFromTodayAt(3, "15:00") } },
           classifications: [{ segment: { name: "Sports" }, genre: { name: "Football" } }],
           priceRanges: [{ min: 160, max: 450, currency: "SEK" }],
           _embedded: {
@@ -118,7 +118,7 @@ function demoResponse(): TicketMarketplaceResponse {
           id: "tm-04",
           name: "Musikalen Mamma Mia!",
           url: "https://www.malmoopera.se/",
-          dates: { start: { dateTime: malmoTime(5, "19:00") } },
+          dates: { start: { dateTime: daysFromTodayAt(5, "19:00") } },
           classifications: [{ segment: { name: "Arts & Theatre" }, genre: { name: "Musical" } }],
           priceRanges: [{ min: 395, max: 895, currency: "SEK" }],
           _embedded: {
@@ -129,7 +129,7 @@ function demoResponse(): TicketMarketplaceResponse {
           id: "tm-05",
           name: "Big Band-kväll med Malmö Jazz Orchestra",
           url,
-          dates: { start: { dateTime: malmoTime(11, "19:30") } },
+          dates: { start: { dateTime: daysFromTodayAt(11, "19:30") } },
           classifications: [{ segment: { name: "Music" }, genre: { name: "Jazz" } }],
           priceRanges: [{ min: 200, max: 350, currency: "SEK" }],
           _embedded: {

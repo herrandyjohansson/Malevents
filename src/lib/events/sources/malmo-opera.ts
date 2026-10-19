@@ -1,12 +1,11 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
-import { fetchDetailPage } from "../fetch-page";
-import { fetchText } from "../http";
+import { daysFromTodayAt } from "../demo-dates";
+import { crawlListing, fetchPageMeta, type PageMeta } from "../crawl";
 import { toCategory } from "../normalize";
-import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, toIso } from "../scrape";
-import type { EventSource, MalmoEvent } from "../types";
+import { findCards, loadHtml, parseSwedishDate, SWEDISH_MONTHS, toIso } from "../scrape";
+import type { EventCategory, EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "malmo-opera";
 const SITE = "https://www.malmoopera.se";
@@ -36,7 +35,8 @@ export function parseOperaCalendar(html: string, today?: string): OperaRow[] {
   const $ = loadHtml(html);
   const rows: OperaRow[] = [];
   for (const card of findCards($, 'a[href*="/forestallningar/"]', SITE, (t) => parseSwedishDate(t)?.time !== undefined)) {
-    const date = parseSwedishDate(card.text, today)!;
+    const date = parseSwedishDate(card.text, today);
+    if (!date) continue;
     const titleLink = card.el.find('a[href*="/forestallningar/"]').first();
     const title = (titleLink.length ? titleLink.text() : card.text).replace(/\s+/g, " ").trim();
     const ticketUrl = card.el.find('a[href*="biljett"], a[href*="riksteatern"], a[href*="tickster"]').first().attr("href");
@@ -50,22 +50,44 @@ export function parseOperaCalendar(html: string, today?: string): OperaRow[] {
   return rows;
 }
 
-async function fetchCalendar(): Promise<OperaRow[]> {
-  const rows: OperaRow[] = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
-    let html: string;
-    try {
-      html = await fetchText(ID, page === 0 ? CALENDAR_URL : `${CALENDAR_URL}?page=${page}`);
-    } catch (err) {
-      if (page === 0) throw err;
-      break;
-    }
-    const found = parseOperaCalendar(html);
-    if (found.length === 0) break;
-    rows.push(...found);
-    if (!html.includes(`page=${page + 1}`)) break;
-  }
-  return rows;
+function fetchCalendar(report: SourceReport): Promise<OperaRow[]> {
+  return crawlListing({
+    sourceId: ID,
+    report,
+    maxPages: MAX_PAGES,
+    pageUrl: (page) => (page === 0 ? CALENDAR_URL : `${CALENDAR_URL}?page=${page}`),
+    parse: (html) => parseOperaCalendar(html),
+    hasNextPage: (html, page) => html.includes(`page=${page + 1}`),
+  });
+}
+
+/**
+ * Everything at the opera is music unless the keywords clearly say family,
+ * theatre (musicals) or talks; guided tours ("visning") are "other".
+ */
+function operaCategory(row: OperaRow, description: string | undefined): EventCategory {
+  const category = toCategory(row.title, description);
+  if (category === "family" || category === "theatre" || category === "talks") return category;
+  return /visning|guid/i.test(row.title) ? "other" : "music";
+}
+
+function operaToEvent(row: OperaRow, meta: PageMeta | undefined): MalmoEvent {
+  const soldOut = /slutsål|utsål/i.test(row.status);
+  return {
+    id: `${ID}:${new URL(row.url).pathname.split("/").pop()}@${row.startsAt.slice(0, 16)}`,
+    sourceId: ID,
+    title: row.title,
+    description: meta?.description,
+    startsAt: row.startsAt,
+    category: operaCategory(row, meta?.description),
+    venue: VENUE,
+    isFree: /gratis|fri entré/i.test(`${row.status} ${meta?.description ?? ""}`),
+    imageUrl: meta?.image,
+    url: row.url,
+    ticketUrl: row.ticketUrl,
+    soldOut: soldOut || undefined,
+    notes: row.status && !soldOut ? [row.status] : undefined,
+  };
 }
 
 /**
@@ -73,44 +95,11 @@ async function fetchCalendar(): Promise<OperaRow[]> {
  * this reads the server-rendered calendar with cheerio and takes the image
  * and blurb from each production's page (one cached fetch per production).
  */
-async function getOperaEvents(): Promise<MalmoEvent[]> {
-  const rows = LIVE_MODE ? await fetchCalendar() : parseOperaCalendar(demoCalendarHtml());
-  const productions = [...new Set(rows.map((r) => r.url))];
-  const metas = LIVE_MODE
-    ? await mapLimit(productions, DETAIL_CONCURRENCY, (url) =>
-        fetchDetailPage(ID, url)
-          .then((html) => pageMeta(loadHtml(html)))
-          .catch(() => ({ title: undefined, description: undefined, image: undefined })),
-      )
-    : productions.map(() => ({ title: undefined, description: undefined, image: undefined }));
-  const metaByUrl = new Map(productions.map((url, i) => [url, metas[i]]));
-
-  return rows.map((r): MalmoEvent => {
-    const meta = metaByUrl.get(r.url);
-    const soldOut = /slutsål|utsål/i.test(r.status);
-    const category = toCategory(r.title, meta?.description);
-    return {
-      id: `${ID}:${new URL(r.url).pathname.split("/").pop()}@${r.startsAt.slice(0, 16)}`,
-      sourceId: ID,
-      title: r.title,
-      description: meta?.description,
-      startsAt: r.startsAt,
-      // Everything at the opera is music unless it is clearly for kids, a musical or a talk;
-      // guided tours stay "other". (Keyword matching alone reads "Mozart" as art.)
-      category: ["family", "theatre", "talks"].includes(category)
-        ? category
-        : /visning|guid/i.test(r.title)
-          ? "other"
-          : "music",
-      venue: VENUE,
-      isFree: /gratis|fri entré/i.test(`${r.status} ${meta?.description ?? ""}`),
-      imageUrl: meta?.image,
-      url: r.url,
-      ticketUrl: r.ticketUrl,
-      soldOut: soldOut || undefined,
-      notes: r.status && !soldOut ? [r.status] : undefined,
-    };
-  });
+async function getOperaEvents(report: SourceReport): Promise<MalmoEvent[]> {
+  const rows = LIVE_MODE ? await fetchCalendar(report) : parseOperaCalendar(demoCalendarHtml());
+  const productions = [...new Set(rows.map((row) => row.url))];
+  const metaByUrl = LIVE_MODE ? await fetchPageMeta(ID, report, productions, DETAIL_CONCURRENCY) : new Map<string, PageMeta>();
+  return rows.map((row) => operaToEvent(row, metaByUrl.get(row.url)));
 }
 
 export const malmoOpera: EventSource = {
@@ -127,13 +116,12 @@ export const malmoOpera: EventSource = {
 
 function demoCalendarHtml() {
   const days = ["sön", "mån", "tis", "ons", "tors", "fre", "lör"];
-  const months = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
   const row = (day: number, time: string, slug: string, title: string, status: string, ticket: string) => {
-    const iso = malmoTime(day, time);
+    const iso = daysFromTodayAt(day, time);
     const date = new Date(iso);
     const [, m, d] = iso.slice(0, 10).split("-").map(Number);
     return `<div class="calendar-row">
-      <span>${days[date.getUTCDay()]} ${d} ${months[m - 1]} ${time.replace(":", ".")}</span>
+      <span>${days[date.getUTCDay()]} ${d} ${SWEDISH_MONTHS[m - 1].slice(0, 3)} ${time.replace(":", ".")}</span>
       <a href="/forestallningar/${slug}">${title}</a>
       <span>${status}</span>
       <a href="${ticket}">Köp</a>

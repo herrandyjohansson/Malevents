@@ -6,7 +6,22 @@ import { malmoLocalToIso, malmoToday } from "./malmo-time";
 export type Page = cheerio.CheerioAPI;
 export const loadHtml = (html: string): Page => cheerio.load(html);
 
-const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+/** Swedish month names; their first three letters are the short forms listings use ("okt"). */
+export const SWEDISH_MONTHS = [
+  "januari",
+  "februari",
+  "mars",
+  "april",
+  "maj",
+  "juni",
+  "juli",
+  "augusti",
+  "september",
+  "oktober",
+  "november",
+  "december",
+];
+const MONTHS = SWEDISH_MONTHS.map((m) => m.slice(0, 3));
 /** English spellings some sites mix in, mapped onto MONTHS. */
 const ENGLISH_MONTHS: Record<string, string> = { may: "maj", oct: "okt" };
 const MONTH_WORD =

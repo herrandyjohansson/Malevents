@@ -46,9 +46,24 @@ export interface MalmoEvent {
   soldOut?: boolean;
   /** Free-text extras from the upstream, e.g. age limit or doors time. */
   notes?: string[];
+  /**
+   * The upstream gave a date but no start time, so `startsAt` is midnight
+   * Malmö time. Show the day without a time, and treat the event as lasting
+   * the whole day.
+   */
+  timeUnknown?: true;
 }
 
 export type CacheProfile = "minutes" | "hours" | "days";
+
+/**
+ * Passed to `fetchEvents` for problems that don't fail the source, such as a
+ * detail page or a secondary API that couldn't be read. Warnings are cached
+ * with the events and shown in the admin.
+ */
+export interface SourceReport {
+  warn(message: string): void;
+}
 
 /**
  * One adapter per upstream API. `fetchEvents` fetches and normalizes and may
@@ -71,7 +86,7 @@ export interface EventSource {
   cacheProfile?: CacheProfile;
   /** Per-source budget before the aggregator gives up on it. */
   timeoutMs?: number;
-  fetchEvents: () => Promise<MalmoEvent[]>;
+  fetchEvents: (report: SourceReport) => Promise<MalmoEvent[]>;
 }
 
 export interface SourceStatus {
@@ -82,6 +97,8 @@ export interface SourceStatus {
   state: "ok" | "error" | "disabled";
   count: number;
   error?: string;
+  /** Partial failures while fetching, e.g. detail pages that couldn't be read. */
+  warnings?: string[];
   /** When the cached response was fetched from the upstream. */
   fetchedAt?: string;
   /** Time this request spent waiting on the source (cache hits are fast). */

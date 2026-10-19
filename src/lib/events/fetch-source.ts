@@ -7,7 +7,7 @@ import type { MalmoEvent } from "./types";
 import { withCoordinates } from "./venues";
 
 export type SourceResult =
-  | { ok: true; events: MalmoEvent[]; fetchedAt: string }
+  | { ok: true; events: MalmoEvent[]; warnings: string[]; fetchedAt: string }
   | { ok: false; error: string; fetchedAt: string };
 
 const MINUTE = 60;
@@ -47,14 +47,17 @@ export async function fetchSource(id: string): Promise<SourceResult> {
   if (!source) throw new Error(`Unknown source "${id}"`);
   cacheTag("events", `events:${id}`);
 
+  const warnings: string[] = [];
+  const report = { warn: (message: string) => warnings.push(message) };
   let events: MalmoEvent[];
   try {
-    events = (await source.fetchEvents()).map((e) => withSafeLinks(withCoordinates(e), source.homepage));
+    events = (await source.fetchEvents(report)).map((e) => withSafeLinks(withCoordinates(e), source.homepage));
   } catch (err) {
     cacheLife("seconds");
     return { ok: false, error: err instanceof Error ? err.message : String(err), fetchedAt: new Date().toISOString() };
   }
 
   cacheLife(LIFETIMES[source.cacheProfile ?? "hours"]);
-  return { ok: true, events, fetchedAt: new Date().toISOString() };
+  if (warnings.length > 0) console.warn(`Event source "${id}" had problems:`, warnings);
+  return { ok: true, events, warnings, fetchedAt: new Date().toISOString() };
 }

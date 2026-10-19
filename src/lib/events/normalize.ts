@@ -11,14 +11,34 @@ const CATEGORY_KEYWORDS: Record<Exclude<EventCategory, "other">, string[]> = {
   talks: ["talk", "föreläsning", "lecture", "seminar", "samtal", "workshop"],
 };
 
-/** Map free-text upstream categories onto our fixed set. */
+/**
+ * Keywords this short only match at the start of a word, so "art" doesn't hit
+ * "Mozart", "party" or "start", nor "mat" "format". Longer keywords match
+ * anywhere, which catches Swedish compounds such as "julkonsert" or "barnteater".
+ */
+const SHORT_KEYWORD_LENGTH = 4;
+
+function keywordMatcher(word: string) {
+  if (word.length > SHORT_KEYWORD_LENGTH) return (text: string) => text.includes(word);
+  const atWordStart = new RegExp(`(?:^|[^\\p{L}\\p{N}])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u");
+  return (text: string) => atWordStart.test(text);
+}
+
+const CATEGORY_MATCHERS = Object.entries(CATEGORY_KEYWORDS).map(([category, words]) => ({
+  category: category as EventCategory,
+  matchers: words.map(keywordMatcher),
+}));
+
+/**
+ * Map free-text upstream categories onto our fixed set: an exact category
+ * name, otherwise the first category (in CATEGORY_KEYWORDS order) with a
+ * keyword in the text, otherwise "other".
+ */
 export function toCategory(...labels: (string | undefined)[]): EventCategory {
   const haystack = labels.filter(Boolean).join(" ").toLowerCase();
   if ((EVENT_CATEGORIES as readonly string[]).includes(haystack)) return haystack as EventCategory;
-  for (const [category, words] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (words.some((w) => haystack.includes(w))) return category as EventCategory;
-  }
-  return "other";
+  const hit = CATEGORY_MATCHERS.find(({ matchers }) => matchers.some((matches) => matches(haystack)));
+  return hit?.category ?? "other";
 }
 
 /** Parse Swedish-style price text such as "Gratis", "120 kr" or "150–350 kr". */

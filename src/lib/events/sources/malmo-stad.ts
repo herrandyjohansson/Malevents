@@ -1,6 +1,6 @@
 import "server-only";
 
-import { malmoTime } from "../demo-dates";
+import { daysFromTodayAt } from "../demo-dates";
 import { parsePriceText, toCategory } from "../normalize";
 import type { EventSource, MalmoEvent } from "../types";
 
@@ -62,8 +62,8 @@ function demoResponse(): MalmoStadResponse {
         id: "1001",
         rubrik: "Sagostund på Stadsbiblioteket",
         ingress: "Högläsning för barn 3–6 år i Barnens bibliotek.",
-        startdatum: malmoTime(0, "10:30"),
-        slutdatum: malmoTime(0, "11:15"),
+        startdatum: daysFromTodayAt(0, "10:30"),
+        slutdatum: daysFromTodayAt(0, "11:15"),
         plats: { namn: "Malmö stadsbibliotek", adress: "Kung Oscars väg 11" },
         kategorier: ["Barn & familj"],
         kostnad: "Gratis",
@@ -73,8 +73,8 @@ function demoResponse(): MalmoStadResponse {
         id: "1002",
         rubrik: "Bondemarknad på Möllevångstorget",
         ingress: "Lokala odlare och producenter från hela Skåne.",
-        startdatum: malmoTime(2, "09:00"),
-        slutdatum: malmoTime(2, "14:00"),
+        startdatum: daysFromTodayAt(2, "09:00"),
+        slutdatum: daysFromTodayAt(2, "14:00"),
         plats: { namn: "Möllevångstorget" },
         kategorier: ["Mat & dryck", "Marknad"],
         kostnad: "Fri entré",
@@ -84,8 +84,8 @@ function demoResponse(): MalmoStadResponse {
         id: "1003",
         rubrik: "Stadsvandring: Västra hamnen förr och nu",
         ingress: "Guidad promenad från varvsepoken till Turning Torso.",
-        startdatum: malmoTime(3, "13:00"),
-        slutdatum: malmoTime(3, "14:30"),
+        startdatum: daysFromTodayAt(3, "13:00"),
+        slutdatum: daysFromTodayAt(3, "14:30"),
         plats: { namn: "Turning Torso", adress: "Lilla Varvsgatan 14" },
         kategorier: ["Föreläsning", "Stadsvandring"],
         kostnad: "100 kr",
@@ -95,8 +95,8 @@ function demoResponse(): MalmoStadResponse {
         id: "1004",
         rubrik: "Jazz i Folkets park",
         ingress: "Sommarscenens höstavslutning med lokala jazzband.",
-        startdatum: malmoTime(5, "18:00"),
-        slutdatum: malmoTime(5, "21:00"),
+        startdatum: daysFromTodayAt(5, "18:00"),
+        slutdatum: daysFromTodayAt(5, "21:00"),
         plats: { namn: "Folkets park", adress: "Amiralsgatan 35" },
         kategorier: ["Musik"],
         kostnad: "Gratis",
@@ -106,7 +106,7 @@ function demoResponse(): MalmoStadResponse {
         id: "1005",
         rubrik: "Malmö stadslopp",
         ingress: "5 och 10 km genom centrala Malmö.",
-        startdatum: malmoTime(9, "10:00"),
+        startdatum: daysFromTodayAt(9, "10:00"),
         plats: { namn: "Stortorget" },
         kategorier: ["Idrott", "Löpning"],
         kostnad: "250–350 kr",
@@ -116,7 +116,7 @@ function demoResponse(): MalmoStadResponse {
         id: "1006",
         rubrik: "Workshop: Laga din cykel",
         ingress: "Lär dig byta slang och justera växlar.",
-        startdatum: malmoTime(12, "17:00"),
+        startdatum: daysFromTodayAt(12, "17:00"),
         plats: { namn: "Garaget", adress: "Lönngatan 30" },
         kategorier: ["Workshop"],
         kostnad: "Gratis",

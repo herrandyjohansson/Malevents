@@ -1,5 +1,5 @@
 import { dayNames, formatDayMonth } from "@/lib/days";
-import { CATEGORY_COLORS, CATEGORY_LABELS, formatPrice, formatTime } from "@/lib/events/format";
+import { CATEGORY_COLORS, CATEGORY_LABELS, formatPrice, formatStartTime } from "@/lib/events/format";
 import type { WeekDay } from "@/lib/events/week-data";
 import { cn } from "@/lib/utils";
 
@@ -119,7 +119,7 @@ function DayColumn({ day, index }: { day: WeekDay; index: number }) {
                     dateTime={event.startsAt}
                     className="text-muted-foreground w-11 shrink-0 pt-0.5 text-xs font-medium tabular-nums"
                   >
-                    {formatTime(event.startsAt)}
+                    {formatStartTime(event)}
                   </time>
                   <span aria-hidden className="mt-1 w-0.5 shrink-0 self-stretch rounded-full" style={{ background: color }} />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">

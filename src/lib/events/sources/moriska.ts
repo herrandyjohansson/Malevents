@@ -1,13 +1,13 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
-import { fetchDetailPage } from "../fetch-page";
+import { crawlListing, fetchDetails } from "../crawl";
+import { daysFromTodayAt } from "../demo-dates";
 import { decodeEntities, htmlToText, truncate } from "../html";
-import { fetchJson, fetchText } from "../http";
+import { fetchJson } from "../http";
 import { parsePriceText, toCategory } from "../normalize";
-import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, textOf, toIso } from "../scrape";
-import type { EventSource, MalmoEvent } from "../types";
+import { findCards, loadHtml, pageMeta, parseSwedishDate, SWEDISH_MONTHS, textOf, toIso } from "../scrape";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "moriska";
 const SITE = "https://moriskapaviljongen.se";
@@ -20,14 +20,19 @@ const DETAIL_CONCURRENCY = 4;
 /** Event pages read per refresh; later events keep the listing's data until they move up. */
 const MAX_DETAILS = 150;
 
+/** "595 kr + serviceavgift", "150–250 kr", "200:-", "Fri entré": the number(s) and up to 30 characters after. */
+const PRICE_TEXT = /(?:fri entré|gratis|\d[\d\s]*(?:[–-]\s*\d+)?\s*(?:kr|:-|sek)\b[^.|]{0,30})/i;
+/** How far after the date to look for a year ("26 november 2026 | 18:30" fits). */
+const YEAR_WINDOW = 25;
+
 const VENUE = { name: "Moriska Paviljongen", address: "Norra Parkgatan 2", city: "Malmö", lat: 55.5932, lng: 13.0096 };
 
 /** One card in the programme listing: link, text and the parsed date. */
 export interface MoriskaListing {
   url: string;
   text: string;
-  /** Text before the date: title plus the room label, e.g. "… Jazzklubb". */
-  heading: string;
+  /** Card text before the date: the title, then the room label if any, e.g. "… Jazzklubb". */
+  textBeforeDate: string;
   startsAt: string;
 }
 
@@ -61,13 +66,14 @@ export function parseMoriskaProgram(html: string, today?: string): MoriskaListin
   const $ = loadHtml(html);
   const byKey = new Map<string, MoriskaListing>();
   for (const card of findCards($, 'a[href*="/program/"]', SITE, (t) => parseSwedishDate(t)?.time !== undefined)) {
-    const date = parseSwedishDate(card.text, today)!;
+    const date = parseSwedishDate(card.text, today);
+    if (!date) continue;
     const startsAt = toIso(date);
     // The same slug is sometimes reused for two dates, so key on both.
     byKey.set(`${normalizeUrl(card.href)}|${startsAt}`, {
       url: card.href,
       text: card.text,
-      heading: card.text.slice(0, date.index).trim(),
+      textBeforeDate: card.text.slice(0, date.index).trim(),
       startsAt,
     });
   }
@@ -79,11 +85,14 @@ export function parseMoriskaDetail(html: string): MoriskaDetail {
   const $ = loadHtml(html);
   const text = textOf($, $("main").length ? $("main") : $("body"));
   const date = parseSwedishDate(text);
-  const price = text.match(/(?:fri entré|gratis|\d[\d\s]*(?:[–-]\s*\d+)?\s*(?:kr|:-|sek)\b[^.|]{0,30})/i)?.[0];
+  const price = text.match(PRICE_TEXT)?.[0];
   const ticket = $('a[href*="nortic.se"], a[href*="tickster.com"], a[href*="ticketmaster."]').first().attr("href");
   const meta = pageMeta($);
+  // Only trust the page's date when it has both a time and an explicit year; otherwise the
+  // listing's date (with an inferred year) is used.
+  const hasYear = date !== undefined && /\d{4}/.test(text.slice(date.index, date.index + YEAR_WINDOW));
   return {
-    startsAt: date?.time && /\d{4}/.test(text.slice(date.index, date.index + 25)) ? toIso(date) : undefined,
+    startsAt: date?.time && hasYear ? toIso(date) : undefined,
     priceText: price?.trim(),
     ticketUrl: ticket,
     image: meta.image,
@@ -96,17 +105,25 @@ export function hasNextPage(html: string, page: number) {
   return html.includes(`/page/${page + 1}/`);
 }
 
+/**
+ * The card shows "<title> <room>" before the date (room: Jazzklubb, RedRoom,
+ * GrandFloor …). With the real title from the REST API, the room is whatever
+ * follows it; without one the two can't be told apart.
+ */
+function roomOf(textBeforeDate: string, title: string | undefined) {
+  if (!title || !textBeforeDate.toLowerCase().startsWith(title.toLowerCase())) return undefined;
+  return textBeforeDate.slice(title.length).trim() || undefined;
+}
+
 export function moriskaToEvent(
   listing: MoriskaListing,
   post: MoriskaPost | undefined,
   detail: MoriskaDetail = {},
 ): MalmoEvent {
-  const title = post ? decodeEntities(post.title.rendered).trim() : listing.heading || listing.text;
+  const title = post ? decodeEntities(post.title.rendered).trim() : listing.textBeforeDate || listing.text;
   const excerpt = (post?.excerpt ? htmlToText(post.excerpt.rendered) : undefined) || detail.description;
   const price = parsePriceText(detail.priceText);
-  // What the card shows besides the title is the room (Jazzklubb, RedRoom, GrandFloor …).
-  const heading = listing.heading.toLowerCase();
-  const room = post && heading.startsWith(title.toLowerCase()) ? listing.heading.slice(title.length).trim() || undefined : undefined;
+  const room = roomOf(listing.textBeforeDate, post ? title : undefined);
   return {
     id: `${ID}:${new URL(listing.url).pathname.replace(/^\/program\/|\/$/g, "")}@${listing.startsAt.slice(0, 16)}`,
     sourceId: ID,
@@ -124,32 +141,34 @@ export function moriskaToEvent(
   };
 }
 
-async function fetchProgram(): Promise<MoriskaListing[]> {
-  const listings: MoriskaListing[] = [];
+function fetchProgram(report: SourceReport): Promise<MoriskaListing[]> {
   const seen = new Set<string>();
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = page === 1 ? PROGRAM_URL : `${PROGRAM_URL}page/${page}/`;
-    let html: string;
-    try {
-      html = await fetchText(ID, url);
-    } catch (err) {
-      // Only the first page is required; a later one failing just shortens the window.
-      if (page === 1) throw err;
-      break;
-    }
+  return crawlListing({
+    sourceId: ID,
+    report,
+    maxPages: MAX_PAGES,
+    pageUrl: (page) => (page === 0 ? PROGRAM_URL : `${PROGRAM_URL}page/${page + 1}/`),
     // Later pages can repeat the upcoming list (the theme's "Older Entries" isn't strictly
-    // paged), so keep only cards not seen yet and stop once a page adds nothing.
-    const fresh = parseMoriskaProgram(html).filter((l) => {
-      const key = `${normalizeUrl(l.url)}|${l.startsAt}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    if (fresh.length === 0) break;
-    listings.push(...fresh);
-    if (!hasNextPage(html, page)) break;
+    // paged), so keep only cards not seen yet; a page that adds nothing ends the crawl.
+    parse: (html) =>
+      parseMoriskaProgram(html).filter((listing) => {
+        const key = `${normalizeUrl(listing.url)}|${listing.startsAt}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+    hasNextPage: (html, page) => hasNextPage(html, page + 1),
+  });
+}
+
+/** Titles, excerpts and images from the REST API. Optional: without them the listing's text is used. */
+async function fetchPosts(report: SourceReport): Promise<MoriskaPost[]> {
+  try {
+    return await fetchJson<MoriskaPost[]>(ID, API);
+  } catch (err) {
+    report.warn(`WordPress API failed, so titles and images come from the listing only: ${err instanceof Error ? err.message : err}`);
+    return [];
   }
-  return listings;
 }
 
 /**
@@ -157,21 +176,23 @@ async function fetchProgram(): Promise<MoriskaListing[]> {
  * events (title, text, image) but not their dates, so dates come from the
  * public programme pages and the two are joined on the event link.
  */
-async function getMoriskaEvents(): Promise<MalmoEvent[]> {
+async function getMoriskaEvents(report: SourceReport): Promise<MalmoEvent[]> {
   const [listings, posts] = LIVE_MODE
-    ? await Promise.all([fetchProgram(), fetchJson<MoriskaPost[]>(ID, API).catch(() => [])])
+    ? await Promise.all([fetchProgram(report), fetchPosts(report)])
     : [parseMoriskaProgram(demoProgramHtml()), demoPosts()];
-  const postsByUrl = new Map(posts.map((p) => [normalizeUrl(p.link), p]));
+  const postsByUrl = new Map(posts.map((post) => [normalizeUrl(post.link), post]));
   const details = LIVE_MODE
-    ? await mapLimit(listings, DETAIL_CONCURRENCY, (l, i) =>
-        i >= MAX_DETAILS
-          ? Promise.resolve<MoriskaDetail>({})
-          : fetchDetailPage(ID, l.url)
-          .then(parseMoriskaDetail)
-          .catch((): MoriskaDetail => ({})),
-      )
-    : listings.map((l) => parseMoriskaDetail(demoDetailHtml(l)));
-  return listings.map((l, i) => moriskaToEvent(l, postsByUrl.get(normalizeUrl(l.url)), details[i]));
+    ? await fetchDetails<MoriskaDetail>({
+        sourceId: ID,
+        report,
+        urls: listings.map((listing) => listing.url),
+        parse: parseMoriskaDetail,
+        fallback: {},
+        concurrency: DETAIL_CONCURRENCY,
+        max: MAX_DETAILS,
+      })
+    : listings.map((listing) => parseMoriskaDetail(demoDetailHtml(listing)));
+  return listings.map((listing, i) => moriskaToEvent(listing, postsByUrl.get(normalizeUrl(listing.url)), details[i]));
 }
 
 export const moriska: EventSource = {
@@ -188,9 +209,8 @@ export const moriska: EventSource = {
 };
 
 function swedishDate(day: number) {
-  const [, m, d] = malmoTime(day, "12:00").slice(0, 10).split("-").map(Number);
-  const names = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
-  return `${String(d).padStart(2, "0")} ${names[m - 1]}`;
+  const [, m, d] = daysFromTodayAt(day, "12:00").slice(0, 10).split("-").map(Number);
+  return `${String(d).padStart(2, "0")} ${SWEDISH_MONTHS[m - 1]}`;
 }
 
 /** A programme page as the theme renders it (card per event, date without year). */
@@ -216,10 +236,9 @@ function demoProgramHtml() {
 function demoDetailHtml(listing: MoriskaListing) {
   const [ymd, time] = listing.startsAt.split("T");
   const [y, m, d] = ymd.split("-").map(Number);
-  const months = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
   return `<html><head><meta property="og:image" content="${SITE}/wp-content/uploads/demo.jpg"></head><body><main>
-    <h1>${listing.heading}</h1>
-    <p>${d} ${months[m - 1]} ${y} | ${time.slice(0, 5)}</p>
+    <h1>${listing.textBeforeDate}</h1>
+    <p>${d} ${SWEDISH_MONTHS[m - 1]} ${y} | ${time.slice(0, 5)}</p>
     <p>Pris: 295 kr + serviceavgift</p>
     <a href="https://nortic.se/ticket/event/81534">Köp biljett</a>
   </main></body></html>`;

@@ -10,15 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, formatDay } from "@/lib/days";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { isLongRunning, toFilterable } from "@/lib/events/filters";
 import { localDay, localTime } from "@/lib/events/malmo-time";
+import { groupTonight } from "@/lib/events/tonight-data";
 import type { MalmoEvent } from "@/lib/events/types";
 
 export const metadata: Metadata = { title: "Tonight" };
-
-/** Late shows after midnight still count as tonight. */
-const NIGHT_ENDS = "04:00";
-const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000;
 
 export default function TonightPage() {
   return (
@@ -38,33 +34,12 @@ async function Tonight() {
   const today = localDay(now);
   const tomorrow = addDays(today, 1);
 
-  const live: MalmoEvent[] = [];
-  const later: MalmoEvent[] = [];
-  const allDay: MalmoEvent[] = [];
-  const tomorrowList: MalmoEvent[] = [];
-  for (const e of events) {
-    const f = toFilterable(e);
-    const start = new Date(e.startsAt);
-    const end = e.endsAt ? new Date(e.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_MS);
-    if (end < now) continue;
-    if (isLongRunning(f)) {
-      if (f.startDay <= today && f.endDay >= today) allDay.push(e);
-      continue;
-    }
-    const tonight = f.startDay === today || (f.startDay === tomorrow && f.startTime < NIGHT_ENDS);
-    if (start <= now && tonight) live.push(e);
-    else if (start > now && tonight) later.push(e);
-    else if (f.startDay === tomorrow) tomorrowList.push(e);
-  }
-  const byStart = (a: MalmoEvent, b: MalmoEvent) => a.startsAt.localeCompare(b.startsAt);
-  live.sort(byStart);
-  later.sort(byStart);
-  tomorrowList.sort(byStart);
+  const { live, later, allDay, tomorrow: tomorrowEvents } = groupTonight(events, now);
 
   const nothingLeft = live.length === 0 && later.length === 0;
   // Once nothing else starts tonight, look ahead to tomorrow instead.
   const showTomorrow = later.length === 0;
-  const timeline = showTomorrow ? tomorrowList : later;
+  const timeline = showTomorrow ? tomorrowEvents : later;
 
   return (
     <>
@@ -81,13 +56,7 @@ async function Tonight() {
             </>
           )
         }
-        description={
-          nothingLeft
-            ? "Everything on today has started or finished. Here is what's coming up tomorrow."
-            : later.length === 0
-              ? `${live.length === 1 ? "1 thing is" : `${live.length} things are`} on right now. Nothing else starts later today.`
-              : `${later.length === 1 ? "1 thing" : `${later.length} things`} still to come today${live.length ? `, and ${live.length} on right now` : ""}.`
-        }
+        description={summary(live.length, later.length)}
       />
 
       {live.length > 0 && (
@@ -156,11 +125,23 @@ async function Tonight() {
   );
 }
 
+/** The line under the heading: what is on now and what is still to come. */
+function summary(liveCount: number, laterCount: number) {
+  if (liveCount === 0 && laterCount === 0) {
+    return "Everything on today has started or finished. Here is what's coming up tomorrow.";
+  }
+  if (laterCount === 0) {
+    return `${liveCount === 1 ? "1 thing is" : `${liveCount} things are`} on right now. Nothing else starts later today.`;
+  }
+  const onNow = liveCount ? `, and ${liveCount} on right now` : "";
+  return `${laterCount === 1 ? "1 thing" : `${laterCount} things`} still to come today${onNow}.`;
+}
+
 /** Events grouped under their starting hour, on a glowing vertical line. */
 function Timeline({ events }: { events: MalmoEvent[] }) {
   const groups = new Map<string, MalmoEvent[]>();
   for (const e of events) {
-    const hour = `${localTime(new Date(e.startsAt)).slice(0, 2)}:00`;
+    const hour = e.timeUnknown ? "TBA" : `${localTime(new Date(e.startsAt)).slice(0, 2)}:00`;
     groups.set(hour, [...(groups.get(hour) ?? []), e]);
   }
   return (

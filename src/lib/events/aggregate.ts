@@ -33,8 +33,8 @@ function dedupeKey(event: MalmoEvent) {
   return `${title}|${new Date(event.startsAt).toISOString().slice(0, 16)}`;
 }
 
-/** Keep the richer of two records describing the same event. */
-function score(event: MalmoEvent) {
+/** How many fields a record has filled in; of two duplicates, the richer one is kept. */
+function filledFieldCount(event: MalmoEvent) {
   return Object.values(event).filter((v) => v !== undefined && v !== "").length;
 }
 
@@ -54,8 +54,10 @@ export async function loadSource(
     const result = await withTimeout(source, fetchSource(source.id));
     const durationMs = Math.round(performance.now() - started);
     if (!result.ok) throw new Error(result.error);
-    const { events, fetchedAt } = result;
-    return { status: { ...base, state: "ok", count: events.length, fetchedAt, durationMs }, events };
+    const { events, warnings, fetchedAt } = result;
+    const status: SourceStatus = { ...base, state: "ok", count: events.length, fetchedAt, durationMs };
+    if (warnings.length > 0) status.warnings = warnings;
+    return { status, events };
   } catch (err) {
     console.error(`Event source "${source.id}" failed:`, err);
     const durationMs = Math.round(performance.now() - started);
@@ -81,7 +83,7 @@ export const getAllEvents = cache(async (): Promise<{ events: MalmoEvent[]; sour
     for (const event of events) {
       const key = dedupeKey(event);
       const existing = byKey.get(key);
-      if (!existing || score(event) > score(existing)) byKey.set(key, event);
+      if (!existing || filledFieldCount(event) > filledFieldCount(existing)) byKey.set(key, event);
     }
   }
 

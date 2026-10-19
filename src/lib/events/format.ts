@@ -45,18 +45,15 @@ export const CATEGORY_EMOJI: Record<EventCategory, string> = {
 // Intl's text formats, so server and browser always render the same text
 // (see lib/days.ts). That keeps these helpers safe in client components too.
 
-function startAndEnd(event: Pick<MalmoEvent, "startsAt" | "endsAt">) {
+/** "Fri 9 Oct · 19:00", "Fri 9 Oct · 19:00–21:00", "Fri 9 Oct – Sun 11 Oct", or "Fri 9 Oct" without a known time. */
+export function formatEventDate(event: Pick<MalmoEvent, "startsAt" | "endsAt" | "timeUnknown">) {
   const start = new Date(event.startsAt);
-  return { start, end: event.endsAt ? new Date(event.endsAt) : undefined };
-}
-
-/** "Fri 9 Oct · 19:00", "Fri 9 Oct · 19:00–21:00" or "Fri 9 Oct – Sun 11 Oct". */
-export function formatEventDate(event: Pick<MalmoEvent, "startsAt" | "endsAt">) {
-  const { start, end } = startAndEnd(event);
+  const end = event.endsAt ? new Date(event.endsAt) : undefined;
   const startDay = formatShort(localDay(start));
   if (end && localDay(end) !== localDay(start)) {
     return `${startDay} – ${formatShort(localDay(end))}`;
   }
+  if (event.timeUnknown) return startDay;
   return `${startDay} · ${localTime(start)}${end ? `–${localTime(end)}` : ""}`;
 }
 
@@ -75,9 +72,9 @@ export function dateParts(iso: string) {
   return { weekday: names.weekday.slice(0, 3), day: String(names.day), month: names.month.slice(0, 3) };
 }
 
-/** "19:00" in Malmö time. */
-export function formatTime(iso: string) {
-  return localTime(new Date(iso));
+/** "19:00" in Malmö time, or "TBA" when the upstream gave no start time. */
+export function formatStartTime(event: Pick<MalmoEvent, "startsAt" | "timeUnknown">) {
+  return event.timeUnknown ? "TBA" : localTime(new Date(event.startsAt));
 }
 
 const UNITS = [

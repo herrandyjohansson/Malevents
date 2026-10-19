@@ -2,7 +2,7 @@ import { MapPin } from "lucide-react";
 
 import { EventArt } from "@/components/events/event-art";
 import { SaveButton } from "@/components/saved/save-button";
-import { CATEGORY_COLORS, CATEGORY_LABELS, formatPrice, formatTime } from "@/lib/events/format";
+import { CATEGORY_COLORS, CATEGORY_LABELS, formatPrice, formatStartTime } from "@/lib/events/format";
 import type { MalmoEvent } from "@/lib/events/types";
 import { toSaved } from "@/lib/saved-snapshot";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ export function TimelineEvent({ event, live }: { event: MalmoEvent; live?: boole
               Live
             </span>
           )}
-          {formatTime(event.startsAt)} · {CATEGORY_LABELS[event.category]}
+          {formatStartTime(event)} · {CATEGORY_LABELS[event.category]}
         </span>
         <h3 className="line-clamp-2 leading-snug font-semibold">
           <a href={event.url} target="_blank" rel="noopener noreferrer" className="after:absolute after:inset-0">

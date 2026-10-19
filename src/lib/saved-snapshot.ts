@@ -10,6 +10,7 @@ export interface SavedEvent {
   title: string;
   startsAt: string;
   endsAt?: string;
+  timeUnknown?: true;
   category: EventCategory;
   venueName?: string;
   venueAddress?: string;
@@ -28,6 +29,7 @@ export function toSaved(e: MalmoEvent, priceLabel?: string): Omit<SavedEvent, "s
     title: e.title,
     startsAt: e.startsAt,
     endsAt: e.endsAt,
+    timeUnknown: e.timeUnknown,
     category: e.category,
     venueName: e.venue?.name,
     venueAddress: [e.venue?.address, e.venue?.city].filter(Boolean).join(", ") || undefined,

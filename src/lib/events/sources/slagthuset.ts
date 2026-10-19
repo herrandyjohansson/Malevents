@@ -1,7 +1,7 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
+import { daysFromTodayAt } from "../demo-dates";
 import { malmoLocalToIso } from "../malmo-time";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchJson } from "../http";
@@ -72,6 +72,7 @@ export function slagthusetPostToEvent(post: SlagthusetPost): MalmoEvent | undefi
   const endTime = hm(acf.slutar);
   const room = acf.plats ? acf.plats[0]?.name : undefined;
   const type = acf.typ_av_evenemang ? acf.typ_av_evenemang.name : undefined;
+  const startTime = hm(acf.borjar) ?? hm(acf.oppnar);
   const title = decodeEntities(post.title.rendered).trim();
   const subtitle = acf.underrubrik ? decodeEntities(acf.underrubrik).trim() : "";
   const body = acf.lang_info ? htmlToText(acf.lang_info) : "";
@@ -81,8 +82,9 @@ export function slagthusetPostToEvent(post: SlagthusetPost): MalmoEvent | undefi
     id: `${ID}:${post.id}`,
     sourceId: ID,
     title,
-    description: /utsål|slutsål/i.test(status) ? `Slutsålt. ${description ?? ""}`.trim() : description,
-    startsAt: malmoLocalToIso(startDay, hm(acf.borjar) ?? hm(acf.oppnar) ?? "00:00"),
+    description,
+    startsAt: malmoLocalToIso(startDay, startTime ?? "00:00"),
+    timeUnknown: startTime ? undefined : true,
     endsAt: endTime ? malmoLocalToIso(endDay, endTime) : undefined,
     category: toCategory(type, title),
     venue: { ...VENUE, address: room ? `${room}, ${VENUE.address}` : VENUE.address },
@@ -138,7 +140,7 @@ export const slagthuset: EventSource = {
 
 /** Posts in the shape the API returns, with dates kept upcoming. */
 function demoPosts(): SlagthusetPost[] {
-  const compact = (day: number) => malmoTime(day, "12:00").slice(0, 10).replaceAll("-", "");
+  const compact = (day: number) => daysFromTodayAt(day, "12:00").slice(0, 10).replaceAll("-", "");
   const term = (name: string): Term => ({ name, slug: name.toLowerCase() });
   const post = (id: number, slug: string, title: string, day: number, acf: Partial<SlagthusetPost["acf"]>): SlagthusetPost => ({
     id,

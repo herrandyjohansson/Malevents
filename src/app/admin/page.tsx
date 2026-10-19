@@ -118,6 +118,11 @@ async function AdminOverview() {
                           {s.error}
                         </span>
                       )}
+                      {s.warnings && (
+                        <span className="text-warning text-xs" title={s.warnings.join("\n")}>
+                          {s.warnings.length === 1 ? "1 warning" : `${s.warnings.length} warnings`}
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{s.state === "ok" ? s.count : "–"}</TableCell>

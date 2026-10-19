@@ -99,6 +99,20 @@ async function SourceDetail({ params }: { params: Promise<{ id: string }> }) {
         </Alert>
       )}
 
+      {status.warnings && (
+        <Alert className="border-warning/30 bg-warning/5">
+          <CircleAlert className="text-warning" />
+          <AlertTitle>Fetched, but some data is missing</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 font-mono text-xs">
+              {status.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {facts.map((f) => (
           <div key={f.label} className="bg-card rounded-lg border px-4 py-3">

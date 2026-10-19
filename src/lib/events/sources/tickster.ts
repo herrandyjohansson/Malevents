@@ -1,13 +1,12 @@
 import "server-only";
 
 import { LIVE_MODE } from "../config";
-import { malmoTime } from "../demo-dates";
+import { daysFromTodayAt } from "../demo-dates";
+import { crawlListing, fetchDetails } from "../crawl";
 import { malmoToday } from "../malmo-time";
-import { fetchDetailPage } from "../fetch-page";
-import { fetchText } from "../http";
 import { parsePriceText, toCategory } from "../normalize";
-import { findCards, loadHtml, mapLimit, pageMeta, parseSwedishDate, textOf, toIso } from "../scrape";
-import type { EventSource, MalmoEvent } from "../types";
+import { findCards, loadHtml, pageMeta, parseSwedishDate, SWEDISH_MONTHS, textOf, toIso } from "../scrape";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const TICKSTER = "https://www.tickster.com";
 /** Event links carry the date: /se/sv/events/{eventId}/{YYYY-MM-DD}/{slug}. */
@@ -20,6 +19,8 @@ const DETAIL_CONCURRENCY = 4;
 const MAX_DETAILS = 150;
 /** Passes, gift cards and memberships are listed like events but aren't ones. */
 const NOT_AN_EVENT = /season pass|säsongskort|presentkort|gift ?card|medlemskap|membership/i;
+/** Labels of the buy / sold-out button that follows the place on a listing card. */
+const TICKET_BUTTON = /\s+(?:Köp|Buy|Försäljning|Slutsål|Utsål|Sold)\b/i;
 
 export interface TicksterListing {
   ticksterId: string;
@@ -59,9 +60,12 @@ export function parseTicksterListing(html: string): TicksterListing[] {
     const titleLink = card.el.find(EVENT_LINK).filter((_, a) => $(a).text().trim() !== "").first();
     const title = (heading.length ? textOf($, heading) : textOf($, titleLink)).trim();
     if (!title || NOT_AN_EVENT.test(title)) continue;
-    const date = parseSwedishDate(card.text)!;
-    const after = card.text.slice(date.index).replace(/^[^,]*,\s*/, "");
-    const place = after.split(/\s+(?:Köp|Buy|Försäljning|Slutsål|Utsål|Sold)\b/i)[0].trim() || undefined;
+    const date = parseSwedishDate(card.text);
+    if (!date) continue;
+    // The card reads "<title> 10 okt 2026, Inkonst, Malmö Köp": skip the date up to its
+    // comma, then cut at the ticket button to keep "Inkonst, Malmö".
+    const afterDate = card.text.slice(date.index).replace(/^[^,]*,\s*/, "");
+    const place = afterDate.split(TICKET_BUTTON)[0].trim() || undefined;
     const ticketUrl = card.el.find('a[href*="secure.tickster.com"]').first().attr("href");
     byId.set(`${ticksterId}|${ymd}`, { ticksterId, url: card.href, ymd, title, place, ticketUrl });
   }
@@ -106,26 +110,48 @@ interface TicksterSourceOptions {
   demo: () => { listingHtml: string; detailHtml: (l: TicksterListing) => string };
 }
 
-async function fetchListings(
-  organizerUrl: string,
+function fetchListings(options: TicksterSourceOptions, report: SourceReport) {
+  const { organizerUrl, pageSize = PAGE_SIZE, maxPages = MAX_PAGES, query } = options;
+  return crawlListing({
+    sourceId: options.id,
+    report,
+    maxPages,
+    pageUrl: (page) => `${organizerUrl}?skip=${page * pageSize}&take=${pageSize}${query ? `&${query}` : ""}`,
+    parse: parseTicksterListing,
+    hasNextPage: (html, page) => html.includes(`skip=${(page + 1) * pageSize}`),
+  });
+}
+
+/** Listings from today on, soonest first, keeping only those whose place matches `placeFilter`. */
+function upcomingListings(listings: TicksterListing[], placeFilter?: RegExp) {
+  const today = malmoToday();
+  return listings
+    .filter((listing) => listing.ymd >= today && (!placeFilter || !listing.place || placeFilter.test(listing.place)))
+    .sort((a, b) => a.ymd.localeCompare(b.ymd));
+}
+
+function ticksterToEvent(
   sourceId: string,
-  { pageSize = PAGE_SIZE, maxPages = MAX_PAGES, query }: { pageSize?: number; maxPages?: number; query?: string },
-) {
-  const listings: TicksterListing[] = [];
-  for (let page = 0; page < maxPages; page++) {
-    const url = `${organizerUrl}?skip=${page * pageSize}&take=${pageSize}${query ? `&${query}` : ""}`;
-    let html: string;
-    try {
-      html = await fetchText(sourceId, url);
-    } catch (err) {
-      if (page === 0) throw err;
-      break;
-    }
-    const found = parseTicksterListing(html);
-    listings.push(...found);
-    if (found.length === 0 || !html.includes(`skip=${(page + 1) * pageSize}`)) break;
-  }
-  return listings;
+  venue: TicksterSourceOptions["venue"],
+  listing: TicksterListing,
+  detail: TicksterDetail,
+): MalmoEvent {
+  return {
+    id: `${sourceId}:${listing.ticksterId}@${listing.ymd}`,
+    sourceId,
+    title: listing.title,
+    description: detail.description,
+    // The listing only has the date; the time comes from the event page.
+    startsAt: toIso({ ymd: listing.ymd, time: detail.time }),
+    timeUnknown: detail.time ? undefined : true,
+    category: toCategory(listing.title, detail.description),
+    venue: venue ?? placeToVenue(listing.place),
+    ...parsePriceText(detail.priceText),
+    imageUrl: detail.image,
+    url: listing.url,
+    ticketUrl: listing.ticketUrl,
+    soldOut: detail.soldOut || undefined,
+  };
 }
 
 /**
@@ -137,41 +163,22 @@ async function fetchListings(
 export function ticksterSource(options: TicksterSourceOptions): EventSource {
   const { id, venue } = options;
 
-  async function getEvents(): Promise<MalmoEvent[]> {
+  async function getEvents(report: SourceReport): Promise<MalmoEvent[]> {
     const fixtures = LIVE_MODE ? undefined : options.demo();
-    const listings = (fixtures ? parseTicksterListing(fixtures.listingHtml) : await fetchListings(options.organizerUrl, id, options)).filter(
-      (l) => !options.placeFilter || !l.place || options.placeFilter.test(l.place),
-    );
-    const today = malmoToday();
-    const upcoming = listings.filter((l) => l.ymd >= today).sort((a, b) => a.ymd.localeCompare(b.ymd));
+    const listings = fixtures ? parseTicksterListing(fixtures.listingHtml) : await fetchListings(options, report);
+    const upcoming = upcomingListings(listings, options.placeFilter);
     const details = fixtures
-      ? upcoming.map((l) => parseTicksterDetail(fixtures.detailHtml(l)))
-      : await mapLimit(upcoming, DETAIL_CONCURRENCY, (l, i) =>
-          i >= MAX_DETAILS
-            ? Promise.resolve<TicksterDetail>({})
-            : fetchDetailPage(id, l.url)
-            .then(parseTicksterDetail)
-            .catch((): TicksterDetail => ({})),
-        );
-
-    return upcoming.map((l, i): MalmoEvent => {
-      const d = details[i];
-      const price = parsePriceText(d.priceText);
-      return {
-        id: `${id}:${l.ticksterId}@${l.ymd}`,
-        sourceId: id,
-        title: l.title,
-        description: d.description,
-        startsAt: toIso({ ymd: l.ymd, time: d.time }),
-        category: toCategory(l.title, d.description),
-        venue: venue ?? placeToVenue(l.place),
-        ...price,
-        imageUrl: d.image,
-        url: l.url,
-        ticketUrl: l.ticketUrl,
-        soldOut: d.soldOut || undefined,
-      };
-    });
+      ? upcoming.map((listing) => parseTicksterDetail(fixtures.detailHtml(listing)))
+      : await fetchDetails<TicksterDetail>({
+          sourceId: id,
+          report,
+          urls: upcoming.map((listing) => listing.url),
+          parse: parseTicksterDetail,
+          fallback: {},
+          concurrency: DETAIL_CONCURRENCY,
+          max: MAX_DETAILS,
+        });
+    return upcoming.map((listing, i) => ticksterToEvent(id, venue, listing, details[i]));
   }
 
   return {
@@ -189,13 +196,12 @@ export function ticksterSource(options: TicksterSourceOptions): EventSource {
 
 /** Fixture helpers shared by Tickster-based sources: markup as Tickster renders it. */
 export function ticksterDemoListing(organizer: string, events: { id: string; slug: string; title: string; day: number }[]) {
-  const months = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
   const cards = events.map((e) => {
-    const ymd = malmoTime(e.day, "12:00").slice(0, 10);
+    const ymd = daysFromTodayAt(e.day, "12:00").slice(0, 10);
     const [y, m, d] = ymd.split("-").map(Number);
     return `<li class="c-event-card">
       <h2><a href="/se/sv/events/${e.id}/${ymd}/${e.slug}">${e.title}</a></h2>
-      <p>${d} ${months[m - 1]} ${y}, ${organizer}, Malmö</p>
+      <p>${d} ${SWEDISH_MONTHS[m - 1].slice(0, 3)} ${y}, ${organizer}, Malmö</p>
       <a href="https://secure.tickster.com/sv/${e.id}" title="Köp biljett till ${e.title}">Köp</a>
     </li>`;
   });

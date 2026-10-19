@@ -1,14 +1,30 @@
+import { addDays } from "@/lib/days";
+import { DEFAULT_DURATION_MS } from "@/lib/events/filters";
+import { localDay } from "@/lib/events/malmo-time";
+
 /** Build an iCalendar file (RFC 5545) so saved events can go into any calendar app. */
 export interface IcsEvent {
   id: string;
   title: string;
   startsAt: string;
   endsAt?: string;
+  /** No known start time: written as an all-day event on its Malmö day. */
+  allDay?: boolean;
   location?: string;
   url: string;
 }
 
-const DEFAULT_DURATION_MS = 2 * 60 * 60 * 1000;
+/** DTSTART and DTEND lines: timed in UTC, or whole Malmö days for all-day events. */
+function times(e: IcsEvent) {
+  if (e.allDay && !e.endsAt) {
+    const day = localDay(new Date(e.startsAt));
+    const compact = (d: string) => d.replace(/-/g, "");
+    return [`DTSTART;VALUE=DATE:${compact(day)}`, `DTEND;VALUE=DATE:${compact(addDays(day, 1))}`];
+  }
+  const start = new Date(e.startsAt);
+  const end = e.endsAt ? new Date(e.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_MS);
+  return [`DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`];
+}
 
 function stamp(date: Date) {
   return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -41,14 +57,11 @@ function fold(line: string) {
 export function buildIcs(events: IcsEvent[], now = new Date()) {
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Malevents//Saved events//EN", "CALSCALE:GREGORIAN"];
   for (const e of events) {
-    const start = new Date(e.startsAt);
-    const end = e.endsAt ? new Date(e.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_MS);
     lines.push(
       "BEGIN:VEVENT",
       `UID:${escape(e.id)}@malevents`,
       `DTSTAMP:${stamp(now)}`,
-      `DTSTART:${stamp(start)}`,
-      `DTEND:${stamp(end)}`,
+      ...times(e),
       `SUMMARY:${escape(e.title)}`,
       ...(e.location ? [`LOCATION:${escape(e.location)}`] : []),
       `URL:${uri(e.url)}`,

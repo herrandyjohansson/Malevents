@@ -48,8 +48,19 @@ export const DEFAULT_FILTERS: EventFilters = {
 /** Search params owned by the filters; anything else in the URL is left alone. */
 export const FILTER_PARAMS = ["q", "cat", "src", "when", "from", "to", "free", "nolong", "category", "source"];
 
-/** "Tonight" means starting from this time, Malmö time. */
+/*
+ * "Tonight" has two meanings, on purpose:
+ * - the `when=tonight` filter (Discover, Map, Calendar) is "starts this
+ *   evening": today from EVENING_FROM on;
+ * - the Tonight tab (tonight-data.ts) is "still on tonight": anything today,
+ *   including what has already started, plus shows until NIGHT_ENDS.
+ */
+/** The `when=tonight` filter: starting from this time today, Malmö time. */
 const EVENING_FROM = "17:00";
+/** The Tonight tab: shows starting after midnight but before this still count as tonight. */
+export const NIGHT_ENDS = "04:00";
+/** Assumed length of an event without an end time. */
+export const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000;
 /** Events covering more days than this count as long-running (exhibitions etc.). */
 export const LONG_RUNNING_DAYS = 2;
 
@@ -204,11 +215,17 @@ export function facetCounts(events: Filterable[], f: EventFilters, today: string
   return facets;
 }
 
-const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function endOf(event: MalmoEvent) {
+/**
+ * When an event ends: its end time, or DEFAULT_DURATION_MS after the start.
+ * Without a known start time it runs to the end of its day, so it doesn't
+ * vanish at 03:00 just because `startsAt` is midnight.
+ */
+export function endOf(event: Pick<MalmoEvent, "startsAt" | "endsAt" | "timeUnknown">) {
   const start = new Date(event.startsAt);
-  return event.endsAt ? new Date(event.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_MS);
+  if (event.endsAt) return new Date(event.endsAt);
+  return new Date(start.getTime() + (event.timeUnknown ? DAY_MS : DEFAULT_DURATION_MS));
 }
 
 /** The fields the filters look at, from a full event. */
