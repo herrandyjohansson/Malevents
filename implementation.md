@@ -37,17 +37,13 @@ Be Claude Code granska kodbasen utifrån tre perspektiv. Kör var och en som en 
 
 Dokumentera vad agenten hittade i varje kategori. Om det är din egen kodbas, åtgärda minst en punkt från varje kategori och committa ändringarna. Dokumentationen kan ligga i commiten till förändringen.
 
-- [ ] Dokumentera fynden: arkitektur
-- [ ] Dokumentera fynden: säkerhet
-- [ ] Dokumentera fynden: kodkvalitet
-- [ ] Åtgärda minst en punkt per kategori och committa
-
 ## 1 Arkitektur – fynd
 Åtta principer som efterföljs från `CLAUDE.md` filen
 
 Sex principer som inte följer.
 
 Det är några ställen där cache principerna som inte helt efterföljs men det som är mest intressant är precis som jag nämnde i A delen "vad missade den". Såhär ser den punkten ut:
+
 `Den långsammaste källan blockerar allt. aggregate.ts:77 väntar med Promise.all på alla källor. Sidan streamar först när den långsammaste källan är klar eller har nått sin timeout på upp till 8 s. Streamingprincipen följs alltså per sida men inte per källa. Det är samma problem som du noterade i Del A §3.`. 
 
 Precis som jag nämnde att jag tyckte att det var något som jag förväntade bör dykt upp i den första planen och implementeringen. Utöver detta så hittade kod som inte längre nyttjas och att viss formatering av kod som inte efterföljs helt och hållet.
