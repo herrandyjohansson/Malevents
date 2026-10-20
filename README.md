@@ -19,9 +19,10 @@ This README is the project's summary report: what the site does, how the code is
 9. [Styling and UI components](#styling-and-ui-components)
 10. [Configuration](#configuration)
 11. [Running it locally](#running-it-locally)
-12. [Deployment on Vercel](#deployment-on-vercel)
-13. [Development workflow](#development-workflow)
-14. [Known limits and next steps](#known-limits-and-next-steps)
+12. [Logs](#logs)
+13. [Deployment on Vercel](#deployment-on-vercel)
+14. [Development workflow](#development-workflow)
+15. [Known limits and next steps](#known-limits-and-next-steps)
 
 ## At a glance
 
@@ -119,6 +120,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, segmented-control, select, sheet, skeleton, switch, table
     └── lib/
         ├── utils.ts          cn()
+        ├── log.ts            structured JSON server logs (LOG_LEVEL)
         ├── admin-mode.ts     per-browser Admin mode flag (localStorage)
         ├── days.ts           YYYY-MM-DD day helpers and month grids (map, calendar, filters)
         ├── saved.ts          hearted events in localStorage (useSyncExternalStore)
@@ -253,6 +255,7 @@ Shared pieces:
 | Setting | Where | Effect |
 | --- | --- | --- |
 | `EVENTS_LIVE=false` | env var | Every adapter serves its fixtures instead of calling the live site (for offline work or sandboxes that can't reach the venue sites). Unset means live. |
+| `LOG_LEVEL` | env var | Lowest server log level written: `debug`, `info` (default), `warn` or `error`. `debug` adds a line per upstream request. See [Logs](#logs). |
 | `DEMO_SOURCE_FAILURE=true` | env var | Makes the Skåne culture source fail, to see how the page degrades. |
 | `cacheComponents: true` | `next.config.ts` | Turns on `"use cache"`, `cacheLife`, `cacheTag` and partial prerendering. |
 | `partialPrefetching: true` | `next.config.ts` | Prefetches only the static part of linked pages. |
@@ -281,6 +284,38 @@ npx tsc --noEmit     # type check (run `npx next typegen` first after adding rou
 ```
 
 The first request with live data is slow because every venue site is scraped; after that the cache answers.
+
+## Logs
+
+The server writes one JSON object per line (`src/lib/log.ts`), with `ts`, `level`, `event` and fields for that event. `LOG_LEVEL` sets the lowest level written (default `info`).
+
+| Event | Level | When | Main fields |
+| --- | --- | --- | --- |
+| `server.started` | info | Server start (`src/instrumentation.ts`) | `liveMode`, `logLevel` |
+| `events.loaded` | info | Every request that loads events | `durationMs`, `events`, `duplicates`, `ok`/`failed`/`disabled`, `slowest`, and per source `state`, `count`, `ms`, `cache` (hit/miss), `ageS` |
+| `source.fetched` | info | A source fetched from its upstream (a cache miss) | `source`, `durationMs`, `events`, `unplaced`, `timeUnknown`, `cacheProfile`, `warnings` |
+| `source.fetch_failed` | warn | A source's fetch failed | `source`, `reason`, `durationMs`, `error` |
+| `source.unavailable` | warn | A request got no events from a source (failure or timeout) | `source`, `durationMs`, `error` |
+| `crawl.listing` | info | A paged listing was read | `source`, `pages`, `maxPages`, `items`, `stop` (`last_page`, `empty_page`, `page_failed`, `max_pages`) |
+| `crawl.details` | info | Detail pages were read | `source`, `urls`, `attempted`, `failed`, `skipped`, `durationMs` |
+| `http.response` | debug | Each upstream request that succeeded | `source`, `url`, `status`, `bytes`, `durationMs` |
+| `http.failed` | warn | Each upstream request that failed | `source`, `url`, `status`, `reason` (`timeout`, `network`, `http`, `too_large`, `invalid_json`), `error` |
+| `admin.source_toggled`, `admin.cache_refreshed` | info | Admin actions (the admin has no login) | `source`, `enabled` |
+| `request.failed` | error | A server error while rendering or in an action | `path` (without query), `route`, `routeType`, `digest`, `error` |
+
+Logs hold events and numbers, never visitor input: request paths are logged without their query string.
+
+Locally, save and query them with `jq`:
+
+```bash
+LOG_LEVEL=debug npm run start 2>&1 | grep --line-buffered '^{' | tee logs.jsonl   # JSON lines only, warnings included
+jq -c 'select(.event == "events.loaded") | {durationMs, slowest}' logs.jsonl
+jq -c 'select(.event == "source.fetched") | {source, durationMs, events, unplaced}' logs.jsonl
+jq -r 'select(.event == "http.response") | .source' logs.jsonl | sort | uniq -c   # requests per source
+jq -c 'select(.level == "warn" or .level == "error")' logs.jsonl
+```
+
+On Vercel the same lines appear under the project's Logs, searchable by text (e.g. `source.fetched`); set `LOG_LEVEL` in the project's environment variables.
 
 ## Deployment on Vercel
 

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { log, since } from "@/lib/log";
+
 import { fetchDetailPage } from "./fetch-page";
 import { fetchText } from "./http";
 import { loadHtml, mapLimit, pageMeta } from "./scrape";
@@ -28,7 +30,10 @@ interface ListingCrawl<T> {
  * in the admin instead of passing as "the site has no more pages".
  */
 export async function crawlListing<T>({ sourceId, report, maxPages, pageUrl, parse, hasNextPage }: ListingCrawl<T>) {
+  const started = performance.now();
   const items: T[] = [];
+  let pages = 0;
+  let stop: "last_page" | "empty_page" | "page_failed" | "max_pages" = "max_pages";
   for (let page = 0; page < maxPages; page++) {
     let html: string;
     try {
@@ -36,13 +41,22 @@ export async function crawlListing<T>({ sourceId, report, maxPages, pageUrl, par
     } catch (err) {
       if (page === 0) throw err;
       report.warn(`Listing page ${page + 1} failed, so the listing stops there: ${message(err)}`);
+      stop = "page_failed";
       break;
     }
+    pages++;
     const found = parse(html);
-    if (found.length === 0) break;
+    if (found.length === 0) {
+      stop = "empty_page";
+      break;
+    }
     items.push(...found);
-    if (!hasNextPage(html, page)) break;
+    if (!hasNextPage(html, page)) {
+      stop = "last_page";
+      break;
+    }
   }
+  log.info("crawl.listing", { source: sourceId, pages, maxPages, items: items.length, stop, durationMs: since(started) });
   return items;
 }
 
@@ -64,6 +78,7 @@ interface DetailFetch<T> {
  * gets `fallback`, and the failures are summed up in one report warning.
  */
 export async function fetchDetails<T>({ sourceId, report, urls, parse, fallback, concurrency, max = Infinity }: DetailFetch<T>) {
+  const started = performance.now();
   const errors: string[] = [];
   const results = await mapLimit(urls, concurrency, async (url, index) => {
     if (index >= max) return fallback;
@@ -75,6 +90,15 @@ export async function fetchDetails<T>({ sourceId, report, urls, parse, fallback,
     }
   });
   const attempted = Math.min(urls.length, max);
+  // Detail pages have their own cache, so durationMs shows how many were fetched fresh.
+  log.info("crawl.details", {
+    source: sourceId,
+    urls: urls.length,
+    attempted,
+    failed: errors.length,
+    skipped: urls.length - attempted,
+    durationMs: since(started),
+  });
   if (errors.length > 0) {
     report.warn(`${errors.length} of ${attempted} detail pages failed and lack their details (first: ${errors[0]})`);
   }

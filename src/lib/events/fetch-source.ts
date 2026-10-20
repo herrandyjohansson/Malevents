@@ -1,6 +1,9 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 
+import { errorMessage, log, since } from "@/lib/log";
+
+import { SourceError } from "./http";
 import { withSafeLinks } from "./normalize";
 import { getSource } from "./sources";
 import type { MalmoEvent } from "./types";
@@ -47,6 +50,8 @@ export async function fetchSource(id: string): Promise<SourceResult> {
   if (!source) throw new Error(`Unknown source "${id}"`);
   cacheTag("events", `events:${id}`);
 
+  // Only runs on a cache miss, so each line below is one real fetch from the upstream.
+  const started = performance.now();
   const warnings: string[] = [];
   const report = { warn: (message: string) => warnings.push(message) };
   let events: MalmoEvent[];
@@ -54,10 +59,23 @@ export async function fetchSource(id: string): Promise<SourceResult> {
     events = (await source.fetchEvents(report)).map((e) => withSafeLinks(withCoordinates(e), source.homepage));
   } catch (err) {
     cacheLife("seconds");
-    return { ok: false, error: err instanceof Error ? err.message : String(err), fetchedAt: new Date().toISOString() };
+    const error = errorMessage(err);
+    const reason = err instanceof SourceError ? err.reason : "other";
+    log.warn("source.fetch_failed", { source: id, reason, durationMs: since(started), error });
+    return { ok: false, error, fetchedAt: new Date().toISOString() };
   }
 
-  cacheLife(LIFETIMES[source.cacheProfile ?? "hours"]);
-  if (warnings.length > 0) console.warn(`Event source "${id}" had problems:`, warnings);
+  const profile = source.cacheProfile ?? "hours";
+  cacheLife(LIFETIMES[profile]);
+  const unplaced = events.filter((e) => e.venue?.lat === undefined).length;
+  log.info("source.fetched", {
+    source: id,
+    durationMs: since(started),
+    events: events.length,
+    unplaced,
+    timeUnknown: events.filter((e) => e.timeUnknown).length,
+    cacheProfile: profile,
+    warnings,
+  });
   return { ok: true, events, warnings, fetchedAt: new Date().toISOString() };
 }

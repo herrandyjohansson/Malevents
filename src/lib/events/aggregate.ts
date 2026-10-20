@@ -1,6 +1,8 @@
 import "server-only";
 import { cache } from "react";
 
+import { errorMessage, log, since } from "@/lib/log";
+
 import { DEFAULT_SOURCE_TIMEOUT_MS } from "./config";
 import { fetchSource } from "./fetch-source";
 import { SourceError } from "./http";
@@ -11,7 +13,7 @@ import type { EventSource, MalmoEvent, SourceStatus } from "./types";
 function withTimeout<T>(source: EventSource, promise: Promise<T>): Promise<T> {
   const ms = source.timeoutMs ?? DEFAULT_SOURCE_TIMEOUT_MS;
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new SourceError(source.id, `Timed out after ${ms} ms`)), ms);
+    const timer = setTimeout(() => reject(new SourceError(source.id, `Timed out after ${ms} ms`, "timeout")), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);
@@ -52,16 +54,17 @@ export async function loadSource(
   const started = performance.now();
   try {
     const result = await withTimeout(source, fetchSource(source.id));
-    const durationMs = Math.round(performance.now() - started);
+    const durationMs = since(started);
     if (!result.ok) throw new Error(result.error);
     const { events, warnings, fetchedAt } = result;
     const status: SourceStatus = { ...base, state: "ok", count: events.length, fetchedAt, durationMs };
     if (warnings.length > 0) status.warnings = warnings;
     return { status, events };
   } catch (err) {
-    console.error(`Event source "${source.id}" failed:`, err);
-    const durationMs = Math.round(performance.now() - started);
-    const error = err instanceof Error ? err.message : String(err);
+    const durationMs = since(started);
+    const error = errorMessage(err);
+    // A failed fetch is already logged by fetchSource on its cache miss; this line is per request.
+    log.warn("source.unavailable", { source: source.id, durationMs, error });
     return { status: { ...base, state: "error", count: 0, error, durationMs }, events: [] };
   }
 }
@@ -75,11 +78,15 @@ export async function loadSource(
  * week map and event list) share one lookup and merge per request.
  */
 export const getAllEvents = cache(async (): Promise<{ events: MalmoEvent[]; sources: SourceStatus[] }> => {
+  const started = performance.now();
+  const startedAt = Date.now();
   const settings = await getSourceSettings();
   const results = await Promise.all(SOURCES.map((s) => loadSource(s, settings[s.id]?.enabled ?? isEnabledByDefault(s))));
 
+  let merged = 0;
   const byKey = new Map<string, MalmoEvent>();
   for (const { events } of results) {
+    merged += events.length;
     for (const event of events) {
       const key = dedupeKey(event);
       const existing = byKey.get(key);
@@ -88,5 +95,40 @@ export const getAllEvents = cache(async (): Promise<{ events: MalmoEvent[]; sour
   }
 
   const events = [...byKey.values()].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
-  return { events, sources: results.map((r) => r.status) };
+  const sources = results.map((r) => r.status);
+  logAggregate(sources, startedAt, merged, events.length, since(started));
+  return { events, sources };
 });
+
+/**
+ * One line per request that loads events: totals, and per source its state,
+ * wait time and the age of the cached copy. A copy fetched after the request
+ * started came from the upstream during it (a cache miss).
+ */
+function logAggregate(sources: SourceStatus[], startedAt: number, merged: number, kept: number, durationMs: number) {
+  const now = Date.now();
+  const perSource = Object.fromEntries(
+    sources
+      .filter((s) => s.state !== "disabled")
+      .map((s) => {
+        const fetchedAt = s.fetchedAt ? Date.parse(s.fetchedAt) : undefined;
+        const cache = fetchedAt === undefined ? undefined : fetchedAt >= startedAt ? "miss" : "hit";
+        const ageS = fetchedAt === undefined ? undefined : Math.round((now - fetchedAt) / 1000);
+        return [s.id, { state: s.state, count: s.count, ms: s.durationMs, cache, ageS }];
+      }),
+  );
+  const slowest = sources.reduce<SourceStatus | undefined>(
+    (max, s) => ((s.durationMs ?? 0) > (max?.durationMs ?? 0) ? s : max),
+    undefined,
+  );
+  log.info("events.loaded", {
+    durationMs,
+    events: kept,
+    duplicates: merged - kept,
+    ok: sources.filter((s) => s.state === "ok").length,
+    failed: sources.filter((s) => s.state === "error").length,
+    disabled: sources.filter((s) => s.state === "disabled").length,
+    slowest: slowest?.id,
+    sources: perSource,
+  });
+}

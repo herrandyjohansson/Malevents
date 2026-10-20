@@ -52,6 +52,7 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 ## Conventions
 
 - Adapters and anything touching settings or secrets import `server-only`.
+- Server logging goes through `log` in `src/lib/log.ts` (JSON lines, `LOG_LEVEL`), not `console`. Name events `area.what_happened`, log numbers and ids rather than content, and never log visitor input or request headers. The events are listed in README → Logs.
 - Request-time data functions use `"use cache: remote"` with explicit `cacheLife` and `cacheTag`.
 - Dates are ISO strings in data and shown in Malmö time. Labels rendered on both server and client are formatted by hand (not `Intl`) to avoid hydration mismatches.
 - Shareable state (filters, date ranges) lives in the URL.

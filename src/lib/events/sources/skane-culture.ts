@@ -13,7 +13,7 @@ const ID = "skane-culture";
  */
 async function getSkaneCultureEvents(): Promise<MalmoEvent[]> {
   if (process.env.DEMO_SOURCE_FAILURE === "true") {
-    throw new SourceError(ID, "HTTP 503 from demo upstream");
+    throw new SourceError(ID, "HTTP 503 from demo upstream", "http");
   }
 
   const url = "https://www.modernamuseet.se/malmo/";
