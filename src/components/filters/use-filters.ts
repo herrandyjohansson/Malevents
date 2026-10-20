@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 
 import { filtersToParams, parseFilters, type EventFilters } from "@/lib/events/filters";
 
@@ -18,7 +18,10 @@ export function useFilters(mode: "server" | "client") {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const filters = parseFilters(searchParams);
+  // Same object until the filters change (not on other params such as ?month=),
+  // so views can memoize their filtering on it.
+  const key = filtersToParams(parseFilters(searchParams)).toString();
+  const filters = useMemo(() => parseFilters(new URLSearchParams(key)), [key]);
 
   function setFilters(next: EventFilters) {
     const qs = filtersToParams(next, new URLSearchParams(searchParams)).toString();

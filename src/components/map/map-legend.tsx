@@ -1,4 +1,4 @@
-import type { MapEvent } from "./types";
+import type { MapEvent } from "@/lib/events/view-types";
 
 /** Categories present in `events`, as emoji + colour swatches. */
 export function MapLegend({ events }: { events: MapEvent[] }) {

@@ -1,4 +1,4 @@
-import { addDays, isDay, rangeLength, weekend, type DayRange } from "@/lib/days";
+import { addDays, addMonths, isDay, rangeLength, weekend, type DayRange } from "@/lib/days";
 
 import { localDay, localTime } from "./malmo-time";
 import { EVENT_CATEGORIES, type EventCategory, type MalmoEvent } from "./types";
@@ -213,6 +213,20 @@ export function facetCounts(events: Filterable[], f: EventFilters, today: string
     if (anySource(e)) facets.sources[e.sourceId] = (facets.sources[e.sourceId] ?? 0) + 1;
   }
   return facets;
+}
+
+/** How many events cover `day`, for the date picker's per-day counts. */
+export function countOnDay(events: Pick<Filterable, "startDay" | "endDay">[], day: string) {
+  let n = 0;
+  for (const e of events) if (e.startDay <= day && e.endDay >= day) n++;
+  return n;
+}
+
+/** How far the date picker pages: the latest event's day, at least next month, at most a year out. */
+export function lastEventDay(events: Pick<Filterable, "startDay">[], today: string) {
+  const latest = events.reduce((max, e) => (e.startDay > max ? e.startDay : max), addMonths(today, 1));
+  const cap = addMonths(today, 12);
+  return latest > cap ? cap : latest;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

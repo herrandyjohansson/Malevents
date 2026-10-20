@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { addBasemap } from "./basemap";
-import type { MapEvent } from "./types";
+import type { MapEvent } from "@/lib/events/view-types";
 
 const MALMO_CENTER: [number, number] = [55.6, 13.0];
 /** From this zoom up every venue has its own pin; below it nearby venues merge into a bubble. */

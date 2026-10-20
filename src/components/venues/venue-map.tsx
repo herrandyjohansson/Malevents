@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { LeafletMap } from "@/components/map/leaflet-map";
-import type { MapEvent } from "@/components/map/types";
+import type { MapEvent } from "@/lib/events/view-types";
 
 export function VenueMap({ events }: { events: MapEvent[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);

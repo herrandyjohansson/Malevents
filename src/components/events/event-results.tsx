@@ -3,9 +3,8 @@ import { connection } from "next/server";
 
 import { FilterBar } from "@/components/filters/filter-bar";
 import { ClearFiltersButton } from "@/components/filters/clear-filters-button";
-import { addMonths } from "@/lib/days";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { facetCounts, isUpcoming, matcher, parseFilters, toFilterable } from "@/lib/events/filters";
+import { facetCounts, isUpcoming, lastEventDay, matcher, parseFilters, toFilterable } from "@/lib/events/filters";
 import { localDay } from "@/lib/events/malmo-time";
 
 import { EventCard } from "./event-card";
@@ -25,16 +24,12 @@ export async function EventResults({
   const now = new Date();
   const today = localDay(now);
   const upcoming = events.filter((e) => isUpcoming(e, now)).map((e) => ({ event: e, f: toFilterable(e) }));
-  const facets = facetCounts(
-    upcoming.map((u) => u.f),
-    filters,
-    today,
-  );
+  const filterables = upcoming.map((u) => u.f);
+  const facets = facetCounts(filterables, filters, today);
   const matches = matcher(filters, today);
   const visible = upcoming.filter((u) => matches(u.f)).map((u) => u.event);
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
-  const latest = upcoming.reduce((max, u) => (u.f.startDay > max ? u.f.startDay : max), addMonths(today, 1));
-  const lastMonth = latest > addMonths(today, 12) ? addMonths(today, 12) : latest;
+  const lastMonth = lastEventDay(filterables, today);
 
   return (
     <div className="flex flex-col gap-6">

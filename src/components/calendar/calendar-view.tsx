@@ -8,11 +8,11 @@ import { useFilters } from "@/components/filters/use-filters";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { addDays, addMonths, formatDay, formatMonth, isDay, monthGrid, monthStart, WEEKDAYS_SHORT } from "@/lib/days";
-import { facetCounts, filtersToParams, isLongRunning, matcher } from "@/lib/events/filters";
+import { countOnDay, facetCounts, isLongRunning, matcher } from "@/lib/events/filters";
 import { useUrlParam } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
 
-import type { CalendarEvent } from "./types";
+import type { CalendarEvent } from "@/lib/events/view-types";
 
 /** Pills shown per day cell before collapsing into "+N more". */
 const MAX_PILLS = 3;
@@ -64,9 +64,8 @@ export function CalendarView({
   const setSelectedDay = (day: string | null) => setDayParam(day);
   // The shared filters (in the URL), applied in the browser.
   const { filters } = useFilters("client");
-  const filterKey = filtersToParams(filters).toString();
-  const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const facets = useMemo(() => facetCounts(events, filters, today), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filters, today]);
+  const facets = useMemo(() => facetCounts(events, filters, today), [events, filters, today]);
 
   const days = monthGrid(month);
   const eventsByDay = groupByDay(filtered, days);
@@ -83,7 +82,7 @@ export function CalendarView({
           sources={sources}
           today={today}
           lastMonth={lastMonth}
-          countFor={(day) => events.reduce((n, e) => (e.startDay <= day && e.endDay >= day ? n + 1 : n), 0)}
+          countFor={(day) => countOnDay(events, day)}
         />
       </div>
 

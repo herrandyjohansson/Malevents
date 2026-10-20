@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { LeafletMap } from "./leaflet-map";
 import { MapLegend } from "./map-legend";
-import type { MapEvent } from "./types";
+import type { MapEvent } from "@/lib/events/view-types";
 
 export function WeekMapCard({ events }: { events: MapEvent[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);

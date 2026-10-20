@@ -5,14 +5,14 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Pointe
 
 import { FilterBar } from "@/components/filters/filter-bar";
 import { useFilters } from "@/components/filters/use-filters";
-import { addMonths, formatRange, rangeLength, type DayRange } from "@/lib/days";
-import { facetCounts, filtersToParams, matcher, resolveRange } from "@/lib/events/filters";
+import { formatRange, rangeLength, type DayRange } from "@/lib/days";
+import { countOnDay, facetCounts, lastEventDay, matcher, resolveRange } from "@/lib/events/filters";
 import { cn } from "@/lib/utils";
 
 import { LeafletMap } from "./leaflet-map";
 import { MapLegend } from "./map-legend";
 import { RangeCalendar } from "./range-calendar";
-import type { MapEvent } from "./types";
+import type { MapEvent } from "@/lib/events/view-types";
 
 // Tailwind's `lg` breakpoint. Below it the map fills the screen and the list
 // becomes a bottom sheet you drag up.
@@ -51,16 +51,10 @@ export function EventMapView({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const isDesktop = useIsDesktop();
 
-  const filterKey = filtersToParams(filters).toString();
-  const visible = useMemo(() => events.filter(matcher(filters, today)), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const facets = useMemo(() => facetCounts(events, filters, today), [events, filterKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Page as far as the last known event, at least next month, at most a year out.
-  const lastMonth = useMemo(() => {
-    const latest = events.reduce((max, e) => (e.startDay > max ? e.startDay : max), addMonths(today, 1));
-    const cap = addMonths(today, 12);
-    return latest > cap ? cap : latest;
-  }, [events, today]);
-  const countFor = (day: string) => events.reduce((n, e) => (e.startDay <= day && e.endDay >= day ? n + 1 : n), 0);
+  const visible = useMemo(() => events.filter(matcher(filters, today)), [events, filters, today]);
+  const facets = useMemo(() => facetCounts(events, filters, today), [events, filters, today]);
+  const lastMonth = useMemo(() => lastEventDay(events, today), [events, today]);
+  const countFor = (day: string) => countOnDay(events, day);
 
   // Bottom sheet (phones only). Its height snaps between peek, half and full,
   // and follows the finger while you drag its header.

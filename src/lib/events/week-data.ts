@@ -1,10 +1,10 @@
 import "server-only";
 
+import { addDays } from "@/lib/days";
+
 import { isUpcoming } from "./filters";
 import { localDay } from "./malmo-time";
 import type { EventCategory, MalmoEvent } from "./types";
-
-const DAY_MS = 86_400_000;
 
 export interface WeekDay {
   /** yyyy-mm-dd in Malmö local time. */
@@ -21,7 +21,9 @@ export interface WeekDay {
  * month-long show doesn't fill every day; `ongoing` counts them instead.
  */
 export function buildWeek(events: MalmoEvent[], now: Date, days = 7) {
-  const dayKeys = Array.from({ length: days }, (_, i) => localDay(new Date(now.getTime() + i * DAY_MS)));
+  // Step over calendar days, not 24 h: a DST change makes one day 23 or 25 hours long.
+  const today = localDay(now);
+  const dayKeys = Array.from({ length: days }, (_, i) => addDays(today, i));
   const byDay = new Map(dayKeys.map((d) => [d, [] as MalmoEvent[]]));
   let ongoing = 0;
 

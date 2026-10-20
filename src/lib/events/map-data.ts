@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { MapEvent } from "@/components/map/types";
+import { addDays } from "@/lib/days";
 
 import { isUpcoming, toFilterable } from "./filters";
 import { localDay } from "./malmo-time";
@@ -12,9 +12,8 @@ import {
   formatPrice,
 } from "./format";
 import type { MalmoEvent, SourceStatus } from "./types";
+import type { MapEvent } from "./view-types";
 import { hasCoordinates } from "./venues";
-
-const DAY_MS = 86_400_000;
 
 function overlaps(e: MalmoEvent, from: string, to: string) {
   const start = localDay(new Date(e.startsAt));
@@ -45,7 +44,7 @@ function toMapEvent(e: MalmoEvent, sourceNames: Map<string, string>): MapEvent {
 export function weekMapEvents(events: MalmoEvent[], sources: SourceStatus[], now: Date, days = 7) {
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
   const from = localDay(now);
-  const to = localDay(new Date(now.getTime() + (days - 1) * DAY_MS));
+  const to = addDays(from, days - 1);
   return events
     .filter((e) => isUpcoming(e, now) && hasCoordinates(e) && overlaps(e, from, to))
     .map((e) => toMapEvent(e, sourceNames));

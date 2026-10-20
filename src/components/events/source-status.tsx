@@ -26,7 +26,7 @@ export function SourceStatusBar({ sources }: { sources: SourceStatus[] }) {
         {active.map((s) => (
           <li key={s.id}>
             <Link
-              href={`/?source=${s.id}`}
+              href={`/?src=${s.id}`}
               title={s.state === "error" ? "Couldn't be reached just now" : undefined}
               className="bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors"
             >
