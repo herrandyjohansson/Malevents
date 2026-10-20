@@ -4,6 +4,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
+import { AdminNav } from "@/components/admin/admin-nav";
 import { RefreshAllButton, RefreshSourceButton, SourceToggle } from "@/components/admin/source-controls";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
@@ -27,7 +28,10 @@ export default function AdminPage() {
         title="Event sources"
         description="Check each API's health, refresh its cached data, or switch it off without a deploy."
       >
-        <RefreshAllButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminNav />
+          <RefreshAllButton />
+        </div>
       </PageHeader>
       <Suspense fallback={<AdminSkeleton />}>
         <AdminOverview />

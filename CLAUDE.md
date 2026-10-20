@@ -27,7 +27,7 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 ## Architecture
 
 - **Stack**: Next.js 16.4 App Router with `cacheComponents` (partial prerendering, `"use cache"`), React 19.3, TypeScript, Tailwind CSS v4, Turbopack. Path alias `@/*` maps to `src/*`.
-- **Routes** (`src/app/`): `/` Discover, `/tonight`, `/map`, `/calendar`, `/week`, `/venues` and `/venues/[slug]`, `/saved`, `/admin` and `/admin/sources/[id]`. Admin Server Actions live in `src/app/admin/actions.ts`. The tab list is `src/components/layout/nav-config.ts`.
+- **Routes** (`src/app/`): `/` Discover, `/tonight`, `/map`, `/calendar`, `/week`, `/venues` and `/venues/[slug]`, `/saved`, `/admin`, `/admin/sources/[id]` and `/admin/logs` (log dashboard over the in-memory buffer in `src/lib/log.ts`, analysed by `src/lib/log-analysis.ts`). Admin Server Actions live in `src/app/admin/actions.ts`. The tab list is `src/components/layout/nav-config.ts`.
 - **Rendering**: pages prerender a static shell and stream the data part inside `<Suspense>` behind a skeleton; data parts call `connection()` because they depend on the current time and admin settings.
 
 ### Event data pipeline (`src/lib/events/`)

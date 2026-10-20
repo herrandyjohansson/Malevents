@@ -9,11 +9,45 @@
  *
  * Log events and numbers, not page content or visitor input. Values go
  * through JSON.stringify, so newlines in upstream text can't forge lines.
+ *
+ * Every entry, at any level, is also kept in a ring buffer in memory for the
+ * admin's Logs page (see recentLogs).
  */
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const;
-type Level = keyof typeof LEVELS;
+export type LogLevel = keyof typeof LEVELS;
+type Level = LogLevel;
 type Fields = Record<string, unknown>;
+
+export interface LogEntry {
+  ts: string;
+  level: LogLevel;
+  event: string;
+  [field: string]: unknown;
+}
+
+/** Entries kept for the Logs page; the oldest are dropped first. */
+const BUFFER_SIZE = 2000;
+
+interface LogBuffer {
+  startedAt: string;
+  entries: LogEntry[];
+}
+
+// On globalThis because each route bundle gets its own copy of this module;
+// one buffer per server process collects them all.
+const BUFFER_KEY = Symbol.for("malevents.logBuffer");
+const globalStore = globalThis as typeof globalThis & { [BUFFER_KEY]?: LogBuffer };
+const buffer = (globalStore[BUFFER_KEY] ??= { startedAt: new Date().toISOString(), entries: [] });
+
+/**
+ * The entries logged by this server process, oldest first, at every level
+ * whatever LOG_LEVEL says. In memory only: lost on restart, and on serverless
+ * hosts each instance has its own.
+ */
+export function recentLogs(): { startedAt: string; entries: readonly LogEntry[] } {
+  return buffer;
+}
 
 /** Longest string value written; longer ones (error messages with HTML in them) are cut. */
 const MAX_STRING = 500;
@@ -27,8 +61,11 @@ function replacer(_key: string, value: unknown) {
 }
 
 function write(level: Level, event: string, fields: Fields = {}) {
-  if (LEVELS[level] < minLevel) return;
   const line = JSON.stringify({ ts: new Date().toISOString(), level, event, ...fields }, replacer);
+  // Stored as parsed back from the line, so the buffer holds exactly what was written.
+  buffer.entries.push(JSON.parse(line));
+  if (buffer.entries.length > BUFFER_SIZE) buffer.entries.splice(0, buffer.entries.length - BUFFER_SIZE);
+  if (LEVELS[level] < minLevel) return;
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   else console.log(line);

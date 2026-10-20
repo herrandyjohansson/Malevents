@@ -306,6 +306,8 @@ The server writes one JSON object per line (`src/lib/log.ts`), with `ts`, `level
 
 Logs hold events and numbers, never visitor input: request paths are logged without their query string.
 
+**In the app:** with Admin mode on, `/admin/logs` shows them: page load time (median, 95th percentile and a trend), cache hit rate, upstream requests and failures, a row per source (health, average fetch and request time, data, cache hits, last fetch), and a filterable stream where each line opens to its JSON. Filters (time window, source, lowest level, event, search) live in the URL. "Go live" refreshes every 5 s, and "JSONL" downloads every entry. The page reads an in-memory buffer of the last 2,000 entries at every level, whatever `LOG_LEVEL` says. It is lost on restart, and on Vercel each instance keeps its own, so the Vercel Logs view stays the full history.
+
 Locally, save and query them with `jq`:
 
 ```bash

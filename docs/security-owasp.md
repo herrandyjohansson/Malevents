@@ -32,7 +32,7 @@ This page records how each rule that applies is met, and the exceptions that are
 
 | Rule | Why it is accepted |
 | --- | --- |
-| RX1, AZ1, AZ2 Admin without auth (critical) | `/admin` and its Server Actions are open during development, by the owner's decision. The admin-mode toggle only hides the tab. What an attacker can do: switch sources off where the settings file is writable (not on Vercel) and refresh caches. Must be fixed before a public launch (see CLAUDE.md). |
+| RX1, AZ1, AZ2 Admin without auth (critical) | `/admin` and its Server Actions are open during development, by the owner's decision. The admin-mode toggle only hides the tab. What an attacker can do: switch sources off where the settings file is writable (not on Vercel) and refresh caches. `/admin/logs` and its JSONL download are open too; they show upstream URLs, timings and error messages, but no secrets or visitor input (L2). Must be fixed before a public launch (see CLAUDE.md). |
 | AP1 Rate limiting | The refresh actions have a 60 s cooldown per cache tag. It is kept in memory, so it holds per server instance, not across all of them. A shared limit would need a store such as Redis, which the project avoids (free, keyless tools only). |
 | H1, H2 Content-Security-Policy without `script-src` | A nonce-based `script-src` makes every page render per request, which would turn off the prerendered static shells. The CSP covers framing, plugins, `<base>` and form targets. |
 | L3 Trace ids | Logs inside the shared source cache can't carry a request id. On Vercel, each log line is already grouped under its request in the Logs view. |
