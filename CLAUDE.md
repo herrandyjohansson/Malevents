@@ -60,3 +60,4 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 - To add a source: write `sources/<name>.ts`, add it to `SOURCES`, and add the venue's coordinates to `venues.ts` if it is new.
 - One pull request per task, branched from and targeting `main`. Avoid stacking PRs.
 - `/admin` has no protection; flag this before any public launch.
+- Security follows the OWASP rules in `.claude/rules/security-and-owasp.md` (loaded for `src/**`). `docs/security-owasp.md` records how each one is met and the accepted exceptions; update it when a change affects one. Upstream requests go through `http.ts`, which only fetches public http(s) URLs.

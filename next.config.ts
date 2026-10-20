@@ -11,13 +11,16 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  // Vercel already sends this on its domains; set here so it doesn't depend on the host.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
 const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
-  /* config options here */
+  // Don't advertise the framework in an X-Powered-By header.
+  poweredByHeader: false,
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {

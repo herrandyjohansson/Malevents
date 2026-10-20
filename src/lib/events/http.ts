@@ -3,7 +3,7 @@ import "server-only";
 import { errorMessage, log, since } from "@/lib/log";
 
 /** Why an upstream read failed, for grouping failures in the logs. */
-export type FailureReason = "timeout" | "network" | "http" | "too_large" | "invalid_json" | "other";
+export type FailureReason = "timeout" | "network" | "http" | "too_large" | "invalid_json" | "blocked_url" | "other";
 
 export class SourceError extends Error {
   constructor(
@@ -50,6 +50,49 @@ async function readText(sourceId: string, res: Response): Promise<{ text: string
   return { text: text + decoder.decode(), bytes };
 }
 
+/** Redirects followed per request; each hop is checked like the first URL. */
+const MAX_REDIRECTS = 5;
+
+/** IPv4 literals inside a network: private, loopback, link-local, carrier-grade NAT, unspecified. */
+const PRIVATE_IPV4 = /^(10|127|0)\.|^169\.254\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\.|^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./;
+
+/**
+ * Only fetch public http(s) URLs. Adapters fetch detail-page links found in
+ * scraped HTML, so a changed or compromised venue site must not be able to
+ * point the server at itself or its internal network (SSRF). Host names are
+ * not resolved: this stops links to local names and private IP literals,
+ * not public names that resolve to private addresses.
+ */
+function assertPublicUrl(sourceId: string, url: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new SourceError(sourceId, "Invalid URL", "blocked_url");
+  }
+  const host = parsed.hostname;
+  // URL has already lower-cased the host and turned decimal or hex IPv4 forms into dotted ones.
+  // No dot: single-label names and every IPv6 literal, none of which a venue site links to.
+  const local = !host.includes(".") || /\.(localhost|local|internal)$/.test(host) || PRIVATE_IPV4.test(host);
+  if ((parsed.protocol !== "https:" && parsed.protocol !== "http:") || local) {
+    throw new SourceError(sourceId, `Refused to fetch ${parsed.protocol}//${host}`, "blocked_url");
+  }
+  return parsed;
+}
+
+/** fetch, following redirects by hand so every hop passes assertPublicUrl. */
+async function fetchPublic(sourceId: string, url: string, init: RequestInit) {
+  let target = assertPublicUrl(sourceId, url);
+  for (let hop = 0; ; hop++) {
+    const res = await fetch(target, { ...init, redirect: "manual" });
+    const location = res.headers.get("location");
+    if (res.status < 300 || res.status >= 400 || !location) return res;
+    await res.body?.cancel();
+    if (hop === MAX_REDIRECTS) throw new SourceError(sourceId, `Too many redirects from ${target.host}`, "http");
+    target = assertPublicUrl(sourceId, new URL(location, target).toString());
+  }
+}
+
 /**
  * GET a URL and read the body, logging every request: one debug line on
  * success, a warning with the failure reason otherwise. `parse` runs inside
@@ -68,11 +111,12 @@ async function get<T>(
   try {
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await fetchPublic(sourceId, url, {
         headers: { Accept: accept, "User-Agent": USER_AGENT, ...headers },
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
+      if (err instanceof SourceError) throw err;
       if (err instanceof Error && err.name === "TimeoutError") {
         throw new SourceError(sourceId, `No response from ${new URL(url).host} within ${timeoutMs} ms`, "timeout");
       }

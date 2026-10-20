@@ -299,8 +299,9 @@ The server writes one JSON object per line (`src/lib/log.ts`), with `ts`, `level
 | `crawl.listing` | info | A paged listing was read | `source`, `pages`, `maxPages`, `items`, `stop` (`last_page`, `empty_page`, `page_failed`, `max_pages`) |
 | `crawl.details` | info | Detail pages were read | `source`, `urls`, `attempted`, `failed`, `skipped`, `durationMs` |
 | `http.response` | debug | Each upstream request that succeeded | `source`, `url`, `status`, `bytes`, `durationMs` |
-| `http.failed` | warn | Each upstream request that failed | `source`, `url`, `status`, `reason` (`timeout`, `network`, `http`, `too_large`, `invalid_json`), `error` |
+| `http.failed` | warn | Each upstream request that failed | `source`, `url`, `status`, `reason` (`timeout`, `network`, `http`, `too_large`, `invalid_json`, `blocked_url`), `error` |
 | `admin.source_toggled`, `admin.cache_refreshed` | info | Admin actions (the admin has no login) | `source`, `enabled` |
+| `admin.input_rejected`, `admin.rate_limited` | warn | An admin action got an unknown source or bad value, or a refresh came within the 60 s cooldown | `action`, `reason`, `source`, `tag`, `retryInS` |
 | `request.failed` | error | A server error while rendering or in an action | `path` (without query), `route`, `routeType`, `digest`, `error` |
 
 Logs hold events and numbers, never visitor input: request paths are logged without their query string.
@@ -348,7 +349,7 @@ Conventions worth keeping:
 
 ## Known limits and next steps
 
-- **No protection** on `/admin` or its actions (see the note at the top). Handle this before a public launch.
+- **No protection** on `/admin` or its actions (see the note at the top). Handle this before a public launch. Refreshes have a 60 s cooldown per server instance. All OWASP exceptions are listed in [docs/security-owasp.md](docs/security-owasp.md).
 - **Admin on/off settings don't persist on Vercel** (see Deployment).
 - **Events without coordinates** don't appear on the map. Add their venues to `venues.ts`, or geocode them with a free service such as OpenStreetMap Nominatim within its usage policy.
 - **Page size.** The home page renders every upcoming event card (several hundred) and `/map` and `/calendar` send all events to the browser; paging would make them lighter.
