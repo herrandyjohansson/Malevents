@@ -5,13 +5,14 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { DivIcon, LocationEvent, Map as LeafletMapInstance, Marker, MarkerClusterGroup, MarkerOptions } from "leaflet";
 import { Crosshair, LocateFixed, Minus, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { eventHref } from "@/lib/events/event-href";
+import type { MapEvent } from "@/lib/events/view-types";
 import { cn } from "@/lib/utils";
 
 import { addBasemap } from "./basemap";
-import { eventHref } from "@/lib/events/event-href";
-import type { MapEvent } from "@/lib/events/view-types";
 
 const MALMO_CENTER: [number, number] = [55.6, 13.0];
 /** From this zoom up every venue has its own pin; below it nearby venues merge into a bubble. */
@@ -135,6 +136,23 @@ export function LeafletMap({
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  // Popup links are plain DOM anchors (Leaflet builds the popups). Route them
+  // through the app router so the event opens as a sheet over the map instead
+  // of reloading the page; modified clicks still open a new tab.
+  const router = useRouter();
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    function onClick(e: MouseEvent) {
+      const link = (e.target as Element).closest<HTMLAnchorElement>("a.malevents-popup-item");
+      if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      router.push(link.getAttribute("href")!);
+    }
+    container.addEventListener("click", onClick);
+    return () => container.removeEventListener("click", onClick);
+  }, [router]);
 
   // Create the map once. Leaflet touches `window`, so it's imported lazily on the client.
   useEffect(() => {

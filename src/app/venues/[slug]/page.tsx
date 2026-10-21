@@ -20,6 +20,8 @@ import { buildVenues } from "@/lib/events/venue-data";
 
 export async function generateMetadata({ params }: PageProps<"/venues/[slug]">): Promise<Metadata> {
   const { slug } = await params;
+  // Request-time: the venue list depends on the current time and the live feed.
+  await connection();
   const { events } = await getAllEvents();
   const venue = buildVenues(events, new Date()).find((v) => v.slug === slug);
   return venue

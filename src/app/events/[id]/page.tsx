@@ -11,6 +11,8 @@ import { getEventDetail } from "@/lib/events/event-detail";
 import { CATEGORY_LABELS, formatEventDate } from "@/lib/events/format";
 
 export async function generateMetadata({ params }: PageProps<"/events/[id]">): Promise<Metadata> {
+  // Request-time: looking the event up reads the clock (has it ended?) and the live feed.
+  await connection();
   const detail = await getEventDetail(decodeURIComponent((await params).id));
   if (!detail) return { title: "Event not found", robots: { index: false } };
   const { event } = detail;
