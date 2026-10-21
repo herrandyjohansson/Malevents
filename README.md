@@ -32,7 +32,7 @@ This README is the project's summary report: what the site does, how the code is
 | Styling | Tailwind CSS v4, shadcn/ui components (new-york style, Radix primitives), lucide icons, dark theme only |
 | Tabs | Tonight, Discover (list or month calendar), Map, Venues, Saved, plus Admin when Admin mode is on; every event has its own page |
 | Map | Leaflet with the standard OpenStreetMap tiles (no API key), darkened with CSS |
-| Data | 10 source adapters (7 live venue and ticket sites, 3 demo fixtures), scraped or read from JSON, normalized into one `MalmoEvent` type |
+| Data | 13 source adapters (11 live: the city calendar, venue sites and ticket listings; 2 demo fixtures), scraped or read from JSON, normalized into one `MalmoEvent` type |
 | Caching | `"use cache: remote"` per source (Vercel Runtime Cache), served stale while refreshing in the background |
 | Hosting | Vercel, deployed from GitHub (production from `main`, a preview per pull request) |
 | Auth | None (see the note above) |
@@ -188,7 +188,10 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
 | Malmö Stadsteater | HTML | hours | on |
 | Inkonst (Tickster organizer page) | HTML | hours | on |
 | Tickster · Malmö (city listing) | HTML | hours | on |
-| Malmö stad | demo fixture | hours | off in live mode |
+| Malmö stad (city event calendar) | JSON embedded in HTML | hours | on |
+| Malmö Konsthall | The Events Calendar REST API | hours | on |
+| Skånes Dansteater | HTML | hours | on |
+| Plan B | Next.js page data | hours | on |
 | Ticket marketplace | demo fixture | minutes | off in live mode |
 | Skåne culture | demo fixture | days | off in live mode |
 
@@ -204,6 +207,10 @@ None of these venues offers a documented, keyless API, so each adapter uses the 
 | Malmö Opera | Server-rendered calendar (one row per performance, `?page=N`), plus each production page's Open Graph image and text. Touring dates sold via Riksteatern are skipped. | `https://www.malmoopera.se/malmo-opera` |
 | Malmö Stadsteater | Server-rendered calendar (about five months ahead, one page) for Hippodromen, Intiman, Studion and Verkstan; rows without their own date take the day heading above them. Production pages add image and text. | `https://www.malmostadsteater.se/kalender` |
 | Tickster · Malmö | Tickster's city listing sorted by start date (about 300 events across Babel, Grand Malmö, Ungdomens Hus, clubs, comedy …), with each event page for time, price and image. Venue comes from each event's place text. | `https://www.tickster.com/se/sv/events/in/malm%C3%B6` |
+| Malmö stad | The city's event calendar embeds its listing as JSON in the page; one request with `startDate`, `endDate` and `num` reads the next 90 days (about 290 events: libraries, museums, Folkets Park, Kulturskolan, outside organisers). Its categories and the "Barn och familj" target group map onto ours. | `https://malmo.se/evenemang?startDate=…&endDate=…&num=1000` |
+| Malmö Konsthall | The Events Calendar plugin's JSON API, paged. `sources/events-calendar.ts` turns any WordPress site running that plugin into a source. | `https://malmokonsthall.se/wp-json/tribe/events/v1/events` |
+| Skånes Dansteater | Server-rendered calendar, one `<article class="performance">` per performance with a `<time datetime>`; performances outside Malmö are skipped. Production pages add image and text. | `https://www.skanesdansteater.se/kalender` |
+| Plan B | The home page's `__NEXT_DATA__` carries the venue's featured events (day only, no start time); the full programme loads in the browser, so only featured events are listed. Events the site promotes at other venues are skipped. | `https://www.planbmalmo.com/` |
 | Inkonst | Its public Tickster organizer page (the event date is in each link), plus each Tickster event page for start time, price and image. `sources/tickster.ts` turns any Tickster organizer page into a source. | `https://www.tickster.com/se/sv/events/by/bkz8z545crn3x5m/inkonst` |
 
 HTML is parsed with [cheerio](https://cheerio.js.org/). `scrape.ts` finds event "cards" by their links rather than by theme class names, and parses Swedish dates ("fre 9 okt 19.00", "26 november 2026 | 18:30"), inferring the year when a listing leaves it out. Detail pages go through `fetchDetailPage`, which caches each page for days, so an hourly refresh only fetches pages for events it hasn't seen; at most 3–4 are fetched at once.

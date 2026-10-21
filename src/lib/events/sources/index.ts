@@ -1,10 +1,13 @@
 import { inkonst } from "./inkonst";
+import { malmoKonsthall } from "./malmo-konsthall";
 import { malmoLive } from "./malmo-live";
 import { malmoOpera } from "./malmo-opera";
 import { malmoStadsteater } from "./malmo-stadsteater";
 import { malmoStad } from "./malmo-stad";
 import { moriska } from "./moriska";
+import { planB } from "./plan-b";
 import { skaneCulture } from "./skane-culture";
+import { skanesDansteater } from "./skanes-dansteater";
 import { slagthuset } from "./slagthuset";
 import { ticksterMalmo } from "./tickster-malmo";
 import { ticketMarketplace } from "./ticket-marketplace";
@@ -23,6 +26,9 @@ export const SOURCES: EventSource[] = [
   malmoOpera,
   malmoStadsteater,
   inkonst,
+  malmoKonsthall,
+  skanesDansteater,
+  planB,
   ticksterMalmo,
   ticketMarketplace,
   skaneCulture,

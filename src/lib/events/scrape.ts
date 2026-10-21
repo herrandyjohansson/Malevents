@@ -157,3 +157,36 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, in
   await Promise.all(workers);
   return results;
 }
+
+/**
+ * The JSON array that follows `"key":` in a page, for sites that embed
+ * their listing data in the HTML. Brackets inside strings are skipped, so
+ * a title like "Live [sold out]" doesn't end the array early. Returns
+ * undefined when the key is missing or the array doesn't parse.
+ */
+export function embeddedJsonArray<T>(html: string, key: string): T[] | undefined {
+  const start = html.indexOf(`"${key}":[`);
+  if (start < 0) return undefined;
+  const open = html.indexOf("[", start);
+  let depth = 0;
+  let inString = false;
+  for (let i = open; i < html.length; i++) {
+    const c = html[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === "[" || c === "{") depth++;
+    else if (c === "]" || c === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(html.slice(open, i + 1)) as T[];
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+  return undefined;
+}

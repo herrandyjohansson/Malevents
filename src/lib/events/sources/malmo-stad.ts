@@ -1,127 +1,166 @@
 import "server-only";
 
+import { addDays } from "@/lib/days";
+
+import { LIVE_MODE } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
+import { decodeEntities, truncate } from "../html";
+import { fetchText, SourceError } from "../http";
+import { malmoToday } from "../malmo-time";
 import { parsePriceText, toCategory } from "../normalize";
-import type { EventSource, MalmoEvent } from "../types";
+import { embeddedJsonArray } from "../scrape";
+import type { EventCategory, EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "malmo-stad";
+const SITE = "https://malmo.se";
+const LISTING = `${SITE}/evenemang`;
+/** How far ahead to read; the city lists few events beyond about three months. */
+const DAYS_AHEAD = 90;
+/** Most items one request returns; reaching it means the window was cut short. */
+const MAX_ITEMS = 1000;
 
-/** Upstream shape: a municipal calendar feed with Swedish field names. */
-interface MalmoStadResponse {
-  items: {
-    id: string;
-    rubrik: string;
-    ingress?: string;
-    startdatum: string;
-    slutdatum?: string;
-    plats?: { namn: string; adress?: string };
-    kategorier: string[];
-    kostnad?: string;
-    lank: string;
-  }[];
-}
-
-function toEvent(item: MalmoStadResponse["items"][number]): MalmoEvent {
-  return {
-    id: `${ID}:${item.id}`,
-    sourceId: ID,
-    title: item.rubrik,
-    description: item.ingress,
-    startsAt: item.startdatum,
-    endsAt: item.slutdatum,
-    category: toCategory(...item.kategorier),
-    venue: item.plats && { name: item.plats.namn, address: item.plats.adress, city: "Malmö" },
-    ...parsePriceText(item.kostnad),
-    url: item.lank,
+/**
+ * One item of the listing data malmo.se embeds in its event pages (the
+ * Sitevision app behind "Evenemang i Malmö"). Only the fields read here.
+ */
+export interface MalmoStadItem {
+  id: string;
+  title: string;
+  desc?: string;
+  image?: string;
+  /** Site-relative event page. */
+  url: string;
+  categories?: string[];
+  place?: string[];
+  targetGroups?: string[];
+  dates?: {
+    /** "16:30 – 17:30", or empty when the event has no set time. */
+    time?: string;
+    /** Start and end as epoch milliseconds. */
+    sortDateTime?: number;
+    endSortDateTime?: number;
+    isSingleDay?: boolean;
+    room?: string[];
   };
 }
 
-async function getMalmoStadEvents(): Promise<MalmoEvent[]> {
-  // No public endpoint is wired up yet. When one is, fetch it here with
-  // fetchJson<MalmoStadResponse>(ID, url) behind LIVE_MODE. Venue coordinates
-  // come from the venue lookup in venues.ts.
-  const data = demoResponse();
-  return data.items.map(toEvent);
+/** The calendar's own categories, matched to ours before falling back to keywords. */
+const CATEGORIES: Record<string, EventCategory> = {
+  konsert: "music",
+  musik: "music",
+  "teater och scenkonst": "theatre",
+  dans: "theatre",
+  utställning: "art",
+  konst: "art",
+  film: "film",
+  samtal: "talks",
+  föreläsning: "talks",
+  litteratur: "talks",
+  workshop: "talks",
+  visning: "talks",
+  idrott: "sports",
+  "mat och dryck": "food",
+};
+
+function category(item: MalmoStadItem): EventCategory {
+  // Children's events are what families look for, whatever the art form.
+  if (item.targetGroups?.includes("Barn och familj")) return "family";
+  for (const c of item.categories ?? []) {
+    const hit = CATEGORIES[c.toLowerCase()];
+    if (hit) return hit;
+  }
+  return toCategory(...(item.categories ?? []), item.title);
+}
+
+export function malmoStadItemToEvent(item: MalmoStadItem): MalmoEvent | undefined {
+  const start = item.dates?.sortDateTime;
+  if (!item.id || !item.title || !start) return undefined;
+  const end = item.dates?.endSortDateTime;
+  const description = truncate(decodeEntities(item.desc ?? "").trim());
+  const place = item.place?.[0]?.trim();
+  return {
+    id: `${ID}:${item.id}@${start}`,
+    sourceId: ID,
+    title: decodeEntities(item.title).trim(),
+    description,
+    startsAt: new Date(start).toISOString(),
+    endsAt: end && end > start ? new Date(end).toISOString() : undefined,
+    // Multi-day items (exhibitions, recurring series) are date ranges; only a single day without a time is "time not announced".
+    timeUnknown: !item.dates?.time && item.dates?.isSingleDay !== false ? true : undefined,
+    category: category(item),
+    venue: place ? { name: place, city: "Malmö" } : undefined,
+    ...parsePriceText(description),
+    imageUrl: item.image,
+    url: new URL(item.url, SITE).toString(),
+    notes: item.dates?.room?.filter(Boolean).length ? item.dates.room : undefined,
+  };
+}
+
+/**
+ * Malmö stad's public event calendar: city libraries, museums, Folkets Park,
+ * Kulturskolan and outside organisers. The listing page embeds its data as
+ * JSON, and takes a date range and a page size, so one request reads the
+ * next DAYS_AHEAD days.
+ */
+async function getMalmoStadEvents(report: SourceReport): Promise<MalmoEvent[]> {
+  const items = LIVE_MODE ? await fetchItems(report) : demoItems();
+  return items.map(malmoStadItemToEvent).filter((e): e is MalmoEvent => e !== undefined);
+}
+
+async function fetchItems(report: SourceReport) {
+  const today = malmoToday();
+  const url = `${LISTING}?startDate=${today}&endDate=${addDays(today, DAYS_AHEAD)}&num=${MAX_ITEMS}`;
+  const items = embeddedJsonArray<MalmoStadItem>(await fetchText(ID, url, { timeoutMs: 15000 }), "items");
+  if (!items) throw new SourceError(ID, "The calendar page no longer embeds its listing data");
+  if (items.length >= MAX_ITEMS) report.warn(`Read the first ${MAX_ITEMS} events; later ones in the window are missing`);
+  return items;
 }
 
 export const malmoStad: EventSource = {
   id: ID,
   name: "Malmö stad",
-  homepage: "https://malmo.se/evenemang",
-  description: "The city's public event calendar: libraries, parks, markets and city-run events.",
-  kind: "fixture",
-  demo: true,
+  homepage: LISTING,
+  description: "The city's event calendar: libraries, museums, Folkets Park, Kulturskolan and outside organisers.",
+  kind: LIVE_MODE ? "html" : "fixture",
+  endpoint: LISTING,
+  demo: !LIVE_MODE,
+  timeoutMs: 15000,
   fetchEvents: getMalmoStadEvents,
 };
 
-function demoResponse(): MalmoStadResponse {
-  const lank = "https://malmo.se/evenemang";
-  return {
-    items: [
-      {
-        id: "1001",
-        rubrik: "Sagostund på Stadsbiblioteket",
-        ingress: "Högläsning för barn 3–6 år i Barnens bibliotek.",
-        startdatum: daysFromTodayAt(0, "10:30"),
-        slutdatum: daysFromTodayAt(0, "11:15"),
-        plats: { namn: "Malmö stadsbibliotek", adress: "Kung Oscars väg 11" },
-        kategorier: ["Barn & familj"],
-        kostnad: "Gratis",
-        lank,
-      },
-      {
-        id: "1002",
-        rubrik: "Bondemarknad på Möllevångstorget",
-        ingress: "Lokala odlare och producenter från hela Skåne.",
-        startdatum: daysFromTodayAt(2, "09:00"),
-        slutdatum: daysFromTodayAt(2, "14:00"),
-        plats: { namn: "Möllevångstorget" },
-        kategorier: ["Mat & dryck", "Marknad"],
-        kostnad: "Fri entré",
-        lank,
-      },
-      {
-        id: "1003",
-        rubrik: "Stadsvandring: Västra hamnen förr och nu",
-        ingress: "Guidad promenad från varvsepoken till Turning Torso.",
-        startdatum: daysFromTodayAt(3, "13:00"),
-        slutdatum: daysFromTodayAt(3, "14:30"),
-        plats: { namn: "Turning Torso", adress: "Lilla Varvsgatan 14" },
-        kategorier: ["Föreläsning", "Stadsvandring"],
-        kostnad: "100 kr",
-        lank,
-      },
-      {
-        id: "1004",
-        rubrik: "Jazz i Folkets park",
-        ingress: "Sommarscenens höstavslutning med lokala jazzband.",
-        startdatum: daysFromTodayAt(5, "18:00"),
-        slutdatum: daysFromTodayAt(5, "21:00"),
-        plats: { namn: "Folkets park", adress: "Amiralsgatan 35" },
-        kategorier: ["Musik"],
-        kostnad: "Gratis",
-        lank,
-      },
-      {
-        id: "1005",
-        rubrik: "Malmö stadslopp",
-        ingress: "5 och 10 km genom centrala Malmö.",
-        startdatum: daysFromTodayAt(9, "10:00"),
-        plats: { namn: "Stortorget" },
-        kategorier: ["Idrott", "Löpning"],
-        kostnad: "250–350 kr",
-        lank,
-      },
-      {
-        id: "1006",
-        rubrik: "Workshop: Laga din cykel",
-        ingress: "Lär dig byta slang och justera växlar.",
-        startdatum: daysFromTodayAt(12, "17:00"),
-        plats: { namn: "Garaget", adress: "Lönngatan 30" },
-        kategorier: ["Workshop"],
-        kostnad: "Gratis",
-        lank,
-      },
-    ],
-  };
+/** Items in the shape the page embeds, with dates kept upcoming. */
+function demoItems(): MalmoStadItem[] {
+  const at = (day: number, time: string) => Date.parse(daysFromTodayAt(day, time));
+  return [
+    {
+      id: "5.demo1",
+      title: "Sagostund på Stadsbiblioteket",
+      desc: "Högläsning för barn 3–6 år i Barnens bibliotek. Fri entré.",
+      url: "/Uppleva-och-gora/Evenemang/Evenemang-i-Malmo/Evenemangssida.html?id=5.demo1",
+      categories: ["Litteratur"],
+      place: ["Stadsbiblioteket"],
+      targetGroups: ["Barn och familj"],
+      dates: { time: "10:30 – 11:15", sortDateTime: at(0, "10:30"), endSortDateTime: at(0, "11:15"), isSingleDay: true },
+    },
+    {
+      id: "5.demo2",
+      title: "Visning: Malmöhus genom tiderna",
+      desc: "En guidad visning genom slottets historia.",
+      url: "/Uppleva-och-gora/Evenemang/Evenemang-i-Malmo/Evenemangssida.html?id=5.demo2",
+      categories: ["Visning"],
+      place: ["Malmö museum"],
+      targetGroups: [],
+      dates: { time: "13:00 – 14:00", sortDateTime: at(2, "13:00"), endSortDateTime: at(2, "14:00"), isSingleDay: true },
+    },
+    {
+      id: "5.demo3",
+      title: "Konsert: Malmö Kulturskolas höstkonsert",
+      desc: "Elever spelar och sjunger. Gratis.",
+      url: "/Uppleva-och-gora/Evenemang/Evenemang-i-Malmo/Evenemangssida.html?id=5.demo3",
+      categories: ["Konsert"],
+      place: ["Folkets Park"],
+      targetGroups: [],
+      dates: { time: "18:00 – 19:30", sortDateTime: at(4, "18:00"), endSortDateTime: at(4, "19:30"), isSingleDay: true },
+    },
+  ];
 }
