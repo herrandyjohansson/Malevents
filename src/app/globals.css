@@ -530,26 +530,106 @@
 .no-scrollbar {
   scrollbar-width: none;
 }
-/* The first-visit intro (components/layout/intro.tsx). Hidden before paint for
-   the rest of the session; a CSS fail-safe removes it even if scripts never run. */
+/* The first-visit intro (components/layout/intro.tsx): the site's night ground
+   and aurora brought to full screen, the wordmark decrypting in the middle.
+   Hidden before paint for the rest of the session; a CSS fail-safe removes it
+   even if scripts never run. */
 html[data-intro="seen"] .intro-overlay {
   display: none;
 }
 .intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--background);
+  clip-path: inset(0 0 0 0);
   animation: intro-failsafe 1ms linear 7s forwards;
 }
+/* Three slow colour fields around the centre, the header aurora at full scale. */
+.intro-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.intro-aurora::before,
+.intro-aurora::after,
+.intro-aurora > span {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  animation: aurora-drift 18s ease-in-out infinite alternate;
+}
+.intro-aurora::before {
+  width: 46rem;
+  height: 26rem;
+  left: calc(50% - 38rem);
+  top: calc(50% - 22rem);
+  background: var(--brand-1);
+  opacity: 0.34;
+}
+.intro-aurora::after {
+  width: 44rem;
+  height: 24rem;
+  left: calc(50% - 4rem);
+  top: calc(50% - 4rem);
+  background: var(--brand-2);
+  opacity: 0.28;
+  animation-duration: 24s;
+  animation-direction: alternate-reverse;
+}
+.intro-aurora > span {
+  width: 30rem;
+  height: 18rem;
+  left: calc(50% - 6rem);
+  top: calc(50% - 20rem);
+  background: var(--brand-3);
+  opacity: 0.16;
+  animation-duration: 30s;
+}
+/* The site's dot grid, centred, so the ground isn't a flat fill. */
+.intro-grain {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(oklch(1 0 0 / 8%) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 10%, transparent 65%);
+  mask-image: radial-gradient(ellipse at center, black 10%, transparent 65%);
+}
+/* A letter locking into place: a short rise out of a blur. */
+.intro-letter-lock {
+  animation: intro-lock 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes intro-lock {
+  /* Starts half visible, so the slot never flashes empty between glyph and letter. */
+  from {
+    opacity: 0.45;
+    transform: translateY(0.12em);
+    filter: blur(5px);
+  }
+}
+/* Leaving: the curtain lifts off the page while the wordmark drifts up with it. */
 .intro-overlay.intro-leaving {
-  animation: intro-leave 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: intro-curtain 750ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
 }
-.intro-overlay.intro-leaving p:first-child {
-  transition: letter-spacing 550ms cubic-bezier(0.22, 1, 0.36, 1);
-  letter-spacing: 0.02em;
+.intro-overlay.intro-leaving .intro-stage {
+  animation: intro-stage-out 750ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
 }
-@keyframes intro-leave {
+@keyframes intro-curtain {
   to {
-    opacity: 0;
-    filter: blur(6px);
+    clip-path: inset(0 0 100% 0);
     visibility: hidden;
+  }
+}
+@keyframes intro-stage-out {
+  to {
+    transform: translateY(-3rem);
+    opacity: 0;
   }
 }
 @keyframes intro-failsafe {
@@ -559,11 +639,15 @@ html[data-intro="seen"] .intro-overlay {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .intro-overlay.intro-leaving {
-    animation: intro-leave 200ms linear forwards;
+  .intro-aurora::before,
+  .intro-aurora::after,
+  .intro-aurora > span,
+  .intro-letter-lock {
+    animation: none;
   }
-  .intro-overlay.intro-leaving p:first-child {
-    transition: none;
+  .intro-overlay.intro-leaving,
+  .intro-overlay.intro-leaving .intro-stage {
+    animation: intro-failsafe 250ms linear forwards;
   }
 }
 

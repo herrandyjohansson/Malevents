@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     ".claude/**",
     ".codex/**",
     ".impeccable/**",
+    // MapLibre's worker, copied from node_modules (scripts/copy-maplibre-worker.mjs).
+    "public/vendor/**",
   ]),
 ]);
 

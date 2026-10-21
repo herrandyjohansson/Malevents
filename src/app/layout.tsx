@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Intro } from "@/components/layout/intro";
 import { Backdrop, SiteHeader } from "@/components/layout/site-header";
 
+import { LIVE_MODE } from "@/lib/events/config";
+import { SOURCE_META } from "@/lib/events/sources";
 import { INTRO_SEEN_KEY } from "@/lib/intro";
 
 import "./globals.css";
@@ -32,6 +34,9 @@ export const viewport: Viewport = {
   themeColor: "#0b0b12",
 };
 
+/** The places the intro names while events load: real sources, not listing sites or demo stand-ins. */
+const INTRO_VENUES = SOURCE_META.filter((s) => (LIVE_MODE ? !s.demo : true) && !s.name.includes("·")).map((s) => s.name);
+
 export default function RootLayout({ children, sheet }: LayoutProps<"/">) {
   return (
     // suppressHydrationWarning: the intro script below sets data-intro on <html> before React hydrates.
@@ -53,7 +58,7 @@ export default function RootLayout({ children, sheet }: LayoutProps<"/">) {
             __html: `try{if(sessionStorage.getItem(${JSON.stringify(INTRO_SEEN_KEY)}))document.documentElement.dataset.intro="seen"}catch(e){}`,
           }}
         />
-        <Intro />
+        <Intro venues={INTRO_VENUES} />
         <Backdrop />
         <SiteHeader />
         <div id="content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
