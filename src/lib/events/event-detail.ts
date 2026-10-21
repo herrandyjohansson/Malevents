@@ -22,7 +22,8 @@ const MORE_AT_VENUE = 4;
 
 /** One event by id, with what its page shows around it; undefined when the feed no longer has it. */
 export async function getEventDetail(id: string): Promise<EventDetail | undefined> {
-  const { events, sources } = await getAllEvents();
+  // Wait for every source: a link to an event from a slow source must not read as "not found".
+  const { events, sources } = await getAllEvents("complete");
   const event = events.find((e) => e.id === id);
   if (!event) return undefined;
   const now = new Date();

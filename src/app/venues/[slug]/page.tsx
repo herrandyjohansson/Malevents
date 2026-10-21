@@ -11,7 +11,9 @@ import { SpotlightList } from "@/components/events/spotlight-list";
 import { PageHeader } from "@/components/layout/page-header";
 import { VenueMap } from "@/components/venues/venue-map";
 import { formatDayMonth } from "@/lib/days";
+import { PendingSources } from "@/components/events/pending-sources";
 import { getAllEvents } from "@/lib/events/aggregate";
+import { pendingNames } from "@/lib/events/pending";
 import { AREA_NAMES } from "@/lib/events/areas";
 import { CATEGORY_LABELS } from "@/lib/events/format";
 import { localDay } from "@/lib/events/malmo-time";
@@ -50,9 +52,14 @@ async function VenueDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   // Request-time: reads admin settings and hides events that have ended.
   await connection();
-  const { events, sources } = await getAllEvents();
   const now = new Date();
-  const venue = buildVenues(events, now).find((v) => v.slug === slug);
+  let { events, sources } = await getAllEvents();
+  let venue = buildVenues(events, now).find((v) => v.slug === slug);
+  // Not among the sources that have answered yet: it may be at a venue only a slow source lists.
+  if (!venue && pendingNames(sources).length > 0) {
+    ({ events, sources } = await getAllEvents("complete"));
+    venue = buildVenues(events, now).find((v) => v.slug === slug);
+  }
   if (!venue) notFound();
 
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
@@ -72,6 +79,7 @@ async function VenueDetail({ params }: { params: Promise<{ slug: string }> }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <PendingSources names={pendingNames(sources)} />
       <div className="grid gap-6 lg:grid-cols-[1fr_24rem] lg:items-end">
         <PageHeader size="compact" title={venue.name} description={place || undefined} className="pt-0" />
         {mapEvents.length > 0 && (

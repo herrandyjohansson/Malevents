@@ -42,7 +42,7 @@ export default function AdminPage() {
 
 async function AdminOverview() {
   await connection();
-  const { events, sources } = await getAllEvents();
+  const { events, sources } = await getAllEvents("complete");
   const now = new Date();
   const upcoming = events.filter((e) => isUpcoming(e, now));
   const meta = new Map(SOURCE_META.map((m) => [m.id, m]));

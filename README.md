@@ -40,6 +40,7 @@ This README is the project's summary report: what the site does, how the code is
 
 ## What the site does
 
+- **Intro** (first visit in a browser session, any page): "MALEVENTS" decrypts letter by letter (inspired by React Bits' Decrypted Text, rewritten without dependencies in `components/layout/intro.tsx`) while the events load behind it. It leaves once the page's skeletons are gone, after at least ~1.6 s (the word complete) and at most 6 s; a CSS fail-safe removes it even without JavaScript, and reduced-motion visitors get a plain fade.
 - **Tonight** (`/tonight`, the first tab): what's on right now, then the rest of the day by part of day (This afternoon, This evening, Late) on an hour-by-hour timeline, or tomorrow once tonight is over. Called "Today in Malmö" before 15:00. Exhibitions fold into an "Open all day" section.
 - **Discover** (`/`): a short title, the shared filter bar (see [Filters](#filters)) and events grouped under day headings, 24 at a time with "Show more". Image cards on wider screens, compact rows on phones. A List ↔ Calendar switch (from tablet width) shows the same filtered events as a month calendar (`?view=calendar`). A small map of the coming week and the listing sites sit at the foot of the page.
 - **Event page** (`/events/<id>`): image, kind of event, when, where (venue, area, address), price, a button that names where it leads ("Tickets on Tickster"), Directions, Save, Add to calendar, Share, the description when the listing has a real one, and more at the same venue. From a list it opens as a sheet over the list; a shared link opens the full page. Cancelled and sold-out events say so.
@@ -154,6 +155,8 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
                        getAllEvents()  (aggregate.ts, React cache() per request)
                        • reads admin on/off settings
                        • runs every enabled source in parallel, each with its own timeout
+                       • "fast" mode: renders after 3 s with the sources that have answered;
+                         the rest keep fetching in the background and the page refreshes itself
                        • failures become a status, never a crash
                        • merges and de-duplicates
                                                      │
@@ -173,6 +176,8 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
 
    The long expiry means visitors get the cached copy immediately while a slow scrape runs behind the scenes. A failure is cached for seconds only, and is returned rather than thrown so the real error message reaches the admin in production.
 3. **Aggregation.** `getAllEvents()` runs all enabled sources with a per-source timeout (8 s by default; 30–45 s for the scraped sites), records a status per source, and merges events. Events with the same normalized title and start minute are de-duplicated, keeping the richer record. It is wrapped in React's `cache()` so the home page's map and list share one lookup.
+
+   On a cold cache the scraped sites take up to about 20 s. So the lists, map, Tonight and venue pages call it in **"fast" mode**: a source that hasn't answered within 3 s comes back as `pending` and the page renders with the rest (about 450 events after 4 s on a cold start). The pending fetch carries on in the background, kept alive past the response with `after()`, and fills the cache. A "Still fetching events from …" notice (`PendingSources`) refreshes the page every few seconds, one refresh at a time, until nothing is pending (all ~1,280 events after about 10 s), keeping scroll, filters and any open sheet. A refresh joins a fetch already in progress in the same server process instead of scraping the site again. The event page and the admin use **"complete" mode** and wait for every source, so a link to an event from a slow source never reads as "not found".
 4. **Locations.** Adapters pass through coordinates when the upstream has them; otherwise `venues.ts` looks up the venue name in a list of known Malmö venues. Events still without coordinates are left off the map and flagged in the admin.
 5. **Rendering.** Pages keep a static shell (header, intro) that is prerendered, and stream the data-dependent part behind a skeleton inside `<Suspense>`. Data parts call `connection()` because they depend on the current time and the admin settings.
 6. **Admin actions.** `src/app/admin/actions.ts` holds Server Actions: switching a source on or off writes `settings.ts` and calls `refresh()`; refreshing calls `updateTag("events:<id>")` or `updateTag("events")` so the next request fetches fresh data.

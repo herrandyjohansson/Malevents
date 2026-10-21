@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { Intro } from "@/components/layout/intro";
 import { Backdrop, SiteHeader } from "@/components/layout/site-header";
+
+import { INTRO_SEEN_KEY } from "@/lib/intro";
 
 import "./globals.css";
 
@@ -31,7 +34,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children, sheet }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    // suppressHydrationWarning: the intro script below sets data-intro on <html> before React hydrates.
+    <html
+      lang="en"
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body className="relative isolate flex min-h-full flex-col font-sans">
         <a
           href="#content"
@@ -39,6 +47,13 @@ export default function RootLayout({ children, sheet }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
+        {/* Before first paint: skip the intro for the rest of the session once it has played. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(sessionStorage.getItem(${JSON.stringify(INTRO_SEEN_KEY)}))document.documentElement.dataset.intro="seen"}catch(e){}`,
+          }}
+        />
+        <Intro />
         <Backdrop />
         <SiteHeader />
         <div id="content" tabIndex={-1} className="flex flex-1 flex-col outline-none">

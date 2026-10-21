@@ -9,6 +9,8 @@ type Leaflet = typeof import("leaflet");
 // MapTiler, which needs a key, so we use OpenFreeMap's hosted copy instead.
 // Drawn with WebGL through MapLibre.
 const STYLE_URL = "https://tiles.openfreemap.org/styles/fiord";
+/** MapLibre's web worker, copied into public/vendor before dev and build. */
+const WORKER_URL = "/vendor/maplibre-gl-worker.mjs";
 const VECTOR_ATTRIBUTION =
   '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
@@ -35,14 +37,18 @@ function supportsWebGL() {
 export async function addBasemap(L: Leaflet, map: LeafletMapInstance, isAlive: () => boolean) {
   if (supportsWebGL()) {
     try {
-      const [{ maplibreGL }, style] = await Promise.all([
+      const [{ maplibreGL }, { setWorkerUrl }, style] = await Promise.all([
         import("@maplibre/maplibre-gl-leaflet"),
+        import("maplibre-gl"),
         fetch(STYLE_URL).then((res) => {
           if (!res.ok) throw new Error(`Basemap style: HTTP ${res.status}`);
           return res.json() as Promise<StyleSpecification>;
         }),
       ]);
       if (!isAlive()) return;
+      // The worker is served from public/ (scripts/copy-maplibre-worker.mjs): the
+      // bundler can't resolve the URL MapLibre would otherwise compute for it.
+      setWorkerUrl(WORKER_URL);
       // Leaflet owns the attribution control, so MapLibre's own is switched off.
       maplibreGL({ style, attributionControl: false }).addTo(map);
       map.attributionControl.addAttribution(VECTOR_ATTRIBUTION);

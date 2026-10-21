@@ -9,7 +9,9 @@ import { TimelineEvent } from "@/components/tonight/timeline-event";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, formatDay } from "@/lib/days";
+import { PendingSources } from "@/components/events/pending-sources";
 import { getAllEvents } from "@/lib/events/aggregate";
+import { pendingNames } from "@/lib/events/pending";
 import { toFilterable } from "@/lib/events/filters";
 import { localDay, localTime } from "@/lib/events/malmo-time";
 import { groupTonight } from "@/lib/events/tonight-data";
@@ -60,7 +62,7 @@ export default function TonightPage() {
 async function Tonight() {
   // Request-time: everything here is relative to the current minute.
   await connection();
-  const { events } = await getAllEvents();
+  const { events, sources } = await getAllEvents();
   const now = new Date();
   const today = localDay(now);
   const tomorrow = addDays(today, 1);
@@ -78,6 +80,7 @@ async function Tonight() {
         title={nothingLeft ? "Quiet now. Tomorrow has more." : localTime(now) < EVENING_FROM ? "Today in Malmö" : "Tonight in Malmö"}
         description={`${formatDay(today)}, ${localTime(now)}. ${summary(live.length, later.length)}`}
       />
+      <PendingSources names={pendingNames(sources)} />
 
       {live.length > 0 && (
         <section className="flex flex-col gap-3">

@@ -5,7 +5,9 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EventMapView } from "@/components/map/event-map-view";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PendingSources } from "@/components/events/pending-sources";
 import { getAllEvents } from "@/lib/events/aggregate";
+import { pendingNames } from "@/lib/events/pending";
 import { isUpcoming } from "@/lib/events/filters";
 import { localDay } from "@/lib/events/malmo-time";
 import { buildMapEvents } from "@/lib/events/map-data";
@@ -38,12 +40,15 @@ async function MapData() {
   const unplaced = events.filter((e) => isUpcoming(e, now) && !hasCoordinates(e)).length;
 
   return (
-    <EventMapView
+    <>
+      <PendingSources names={pendingNames(sources)} />
+      <EventMapView
       events={buildMapEvents(events, sources, now)}
       today={localDay(now)}
       unplacedCount={unplaced}
       sources={sources.filter((s) => s.enabled).map(({ id, name }) => ({ id, name }))}
-    />
+      />
+    </>
   );
 }
 

@@ -97,7 +97,8 @@ export interface SourceStatus {
   name: string;
   demo: boolean;
   enabled: boolean;
-  state: "ok" | "error" | "disabled";
+  /** "pending": still being fetched when the page rendered (see getAllEvents' "fast" mode). */
+  state: "ok" | "error" | "disabled" | "pending";
   count: number;
   error?: string;
   /** Partial failures while fetching, e.g. detail pages that couldn't be read. */

@@ -6,6 +6,7 @@ const STYLES: Record<SourceStatus["state"], { label: string; className: string; 
   ok: { label: "Healthy", className: "border-success/30 bg-success/10 text-success", dot: "bg-success" },
   error: { label: "Failing", className: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
   disabled: { label: "Disabled", className: "text-muted-foreground", dot: "bg-muted-foreground" },
+  pending: { label: "Loading", className: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
 };
 
 export function StatusBadge({ state }: { state: SourceStatus["state"] }) {

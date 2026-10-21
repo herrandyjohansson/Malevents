@@ -6,7 +6,7 @@ import { malmoLocalToIso } from "../malmo-time";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchJson } from "../http";
 import { parsePriceText, toCategory } from "../normalize";
-import type { EventSource, MalmoEvent } from "../types";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "slagthuset";
 const SITE = "https://slagthuset.se";
@@ -14,6 +14,7 @@ const API = "https://wp.slagthuset.se/wp-json/wp/v2/events";
 const FIELDS = "id,link,title,acf,event_medium";
 /** The API orders by publish date, newest first, so upcoming events sit on the first pages. */
 const PAGES = 4;
+const PER_PAGE = 100;
 
 interface Term {
   name: string;
@@ -101,17 +102,26 @@ export function slagthusetPostToEvent(post: SlagthusetPost): MalmoEvent | undefi
   };
 }
 
-async function fetchPosts(): Promise<SlagthusetPost[]> {
-  const pages = await Promise.all(
-    Array.from({ length: PAGES }, (_, i) =>
-      fetchJson<SlagthusetPost[]>(ID, `${API}?per_page=100&page=${i + 1}&_fields=${FIELDS}`).catch((err) => {
-        // Later pages 400 once they run past the last page; only the first is required.
-        if (i === 0) throw err;
-        return [];
-      }),
-    ),
-  );
-  return pages.flat();
+/**
+ * Page by page, stopping at the first short page. Asking for pages past the
+ * last one makes WordPress answer HTTP 400, which used to log a warning for
+ * every refresh even though nothing was wrong.
+ */
+async function fetchPosts(report: SourceReport): Promise<SlagthusetPost[]> {
+  const posts: SlagthusetPost[] = [];
+  for (let page = 1; page <= PAGES; page++) {
+    let batch: SlagthusetPost[];
+    try {
+      batch = await fetchJson<SlagthusetPost[]>(ID, `${API}?per_page=${PER_PAGE}&page=${page}&_fields=${FIELDS}`);
+    } catch (err) {
+      if (page === 1) throw err;
+      report.warn(`Page ${page} of the events API failed, so later events are missing`);
+      break;
+    }
+    posts.push(...batch);
+    if (batch.length < PER_PAGE) break;
+  }
+  return posts;
 }
 
 /**
@@ -119,8 +129,8 @@ async function fetchPosts(): Promise<SlagthusetPost[]> {
  * front end over a headless WordPress whose REST API is open, so this reads
  * structured JSON rather than scraping pages.
  */
-async function getSlagthusetEvents(): Promise<MalmoEvent[]> {
-  const posts = LIVE_MODE ? await fetchPosts() : demoPosts();
+async function getSlagthusetEvents(report: SourceReport): Promise<MalmoEvent[]> {
+  const posts = LIVE_MODE ? await fetchPosts(report) : demoPosts();
   const cutoff = Date.now() - 6 * 60 * 60 * 1000;
   return posts
     .map(slagthusetPostToEvent)

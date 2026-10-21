@@ -43,10 +43,13 @@ export function SourceList({ sources }: { sources: SourceStatus[] }) {
             >
               <span
                 aria-hidden
-                className={cn("size-1.5 rounded-full", s.state === "ok" ? "bg-success" : "bg-destructive")}
+                className={cn(
+                  "size-1.5 rounded-full",
+                  s.state === "ok" ? "bg-success" : s.state === "pending" ? "bg-warning" : "bg-destructive",
+                )}
               />
               <span className="text-foreground font-medium">{s.name}</span>
-              {s.state === "ok" ? s.count : "unavailable"}
+              {s.state === "ok" ? s.count : s.state === "pending" ? "loading…" : "unavailable"}
               {s.demo && <span className="opacity-60">· demo</span>}
             </Link>
           </li>

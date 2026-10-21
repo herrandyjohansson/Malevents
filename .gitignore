@@ -43,3 +43,6 @@ next-env.d.ts
 
 # saved server logs
 *.jsonl
+
+# MapLibre's worker, copied from node_modules by scripts/copy-maplibre-worker.mjs
+/public/vendor/

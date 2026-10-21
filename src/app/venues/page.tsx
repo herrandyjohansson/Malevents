@@ -5,7 +5,9 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VenueGrid } from "@/components/venues/venue-grid";
+import { PendingSources } from "@/components/events/pending-sources";
 import { getAllEvents } from "@/lib/events/aggregate";
+import { pendingNames } from "@/lib/events/pending";
 import { formatEventDate } from "@/lib/events/format";
 import { buildVenues } from "@/lib/events/venue-data";
 
@@ -28,10 +30,12 @@ export default function VenuesPage() {
 async function VenueData() {
   // Request-time: reads admin settings and hides events that have ended.
   await connection();
-  const { events } = await getAllEvents();
+  const { events, sources } = await getAllEvents();
   const venues = buildVenues(events, new Date());
   return (
-    <VenueGrid
+    <>
+      <PendingSources names={pendingNames(sources)} />
+      <VenueGrid
       venues={venues.map((v) => ({
         slug: v.slug,
         name: v.name,
@@ -43,6 +47,7 @@ async function VenueData() {
         next: v.events[0] && { title: v.events[0].title, dateLabel: formatEventDate(v.events[0]) },
       }))}
     />
+    </>
   );
 }
 
