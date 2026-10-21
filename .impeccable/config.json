@@ -1,0 +1,24 @@
+{
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/components/calendar/calendar-view.tsx"
+        ],
+        "createdAt": "2026-10-21T08:57:39.828Z",
+        "reason": "Agent: the 2px left border on calendar event chips carries the event's category colour in a dense month grid; the critique (2026-10-21) classified it as meaningful, not decoration"
+      }
+    ]
+  }
+}

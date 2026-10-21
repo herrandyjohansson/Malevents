@@ -1,5 +1,6 @@
 import { addDays, addMonths, isDay, rangeLength, weekend, type DayRange } from "@/lib/days";
 
+import { areaAt, isAreaId, type AreaId } from "./areas";
 import { localDay, localTime } from "./malmo-time";
 import { EVENT_CATEGORIES, type EventCategory, type MalmoEvent } from "./types";
 
@@ -27,6 +28,8 @@ export interface EventFilters {
   cats: EventCategory[];
   /** Empty means every source. */
   sources: string[];
+  /** Empty means every area (and events without one). */
+  areas: AreaId[];
   when: When;
   /** Only with when = "custom". */
   from?: string;
@@ -40,13 +43,14 @@ export const DEFAULT_FILTERS: EventFilters = {
   q: "",
   cats: [],
   sources: [],
+  areas: [],
   when: "all",
   free: false,
   hideLong: false,
 };
 
 /** Search params owned by the filters; anything else in the URL is left alone. */
-export const FILTER_PARAMS = ["q", "cat", "src", "when", "from", "to", "free", "nolong", "category", "source"];
+export const FILTER_PARAMS = ["q", "cat", "src", "area", "when", "from", "to", "free", "nolong", "category", "source"];
 
 /*
  * "Tonight" has two meanings, on purpose:
@@ -76,8 +80,12 @@ function list(value: string | undefined) {
   return value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [];
 }
 
-/** Parse untrusted search params into a valid filter set. */
-export function parseFilters(params: ParamSource): EventFilters {
+/**
+ * Parse untrusted search params into a valid filter set. `defaultWhen` is
+ * the page's time window when the URL names none (the Map starts on the
+ * next 7 days); an explicit `when=all` still means any time.
+ */
+export function parseFilters(params: ParamSource, defaultWhen: When = "all"): EventFilters {
   // `category` and `source` are the single-value params older links used.
   const cats = [...list(get(params, "cat")), ...list(get(params, "category"))].filter(
     (c): c is EventCategory => (EVENT_CATEGORIES as readonly string[]).includes(c),
@@ -87,13 +95,15 @@ export function parseFilters(params: ParamSource): EventFilters {
   const to = get(params, "to");
   const hasRange = isDay(from) && isDay(to) && from <= to;
   let when = (get(params, "when") ?? "") as When;
-  if (when === "custom" || (!when && hasRange)) when = hasRange ? "custom" : "all";
-  else if (!WHEN_OPTIONS.some((o) => o.value === when)) when = "all";
+  if (when === "custom" || (!when && hasRange)) when = hasRange ? "custom" : defaultWhen;
+  else if (!WHEN_OPTIONS.some((o) => o.value === when)) when = defaultWhen;
+  const areas = list(get(params, "area")).filter(isAreaId);
 
   return {
     q: (get(params, "q") ?? "").trim().slice(0, 100),
     cats: [...new Set(cats)],
     sources: [...new Set(sources)].slice(0, 30),
+    areas: [...new Set(areas)],
     when,
     ...(when === "custom" ? { from, to } : {}),
     free: get(params, "free") === "1",
@@ -102,16 +112,17 @@ export function parseFilters(params: ParamSource): EventFilters {
 }
 
 /** The filters as search params, leaving out defaults. Other params in `base` are kept. */
-export function filtersToParams(filters: EventFilters, base?: URLSearchParams) {
+export function filtersToParams(filters: EventFilters, base?: URLSearchParams, defaultWhen: When = "all") {
   const params = new URLSearchParams(base);
   for (const key of FILTER_PARAMS) params.delete(key);
   if (filters.q) params.set("q", filters.q);
   if (filters.cats.length) params.set("cat", filters.cats.join(","));
   if (filters.sources.length) params.set("src", filters.sources.join(","));
+  if (filters.areas.length) params.set("area", filters.areas.join(","));
   if (filters.when === "custom" && filters.from && filters.to) {
     params.set("from", filters.from);
     params.set("to", filters.to);
-  } else if (filters.when !== "all" && filters.when !== "custom") {
+  } else if (filters.when !== defaultWhen && filters.when !== "custom") {
     params.set("when", filters.when);
   }
   if (filters.free) params.set("free", "1");
@@ -124,13 +135,20 @@ export function filterQuery(params: URLSearchParams) {
   return filtersToParams(parseFilters(params)).toString();
 }
 
-/** How many filters differ from the defaults (search not included). */
-export function activeFilterCount(f: EventFilters) {
-  return f.cats.length + f.sources.length + Number(f.when !== "all") + Number(f.free) + Number(f.hideLong);
+/** How many filters differ from the page's defaults (search not included). */
+export function activeFilterCount(f: EventFilters, defaultWhen: When = "all") {
+  return (
+    f.cats.length +
+    f.sources.length +
+    f.areas.length +
+    Number(f.when !== defaultWhen) +
+    Number(f.free) +
+    Number(f.hideLong)
+  );
 }
 
-export function hasActiveFilters(f: EventFilters) {
-  return f.q !== "" || activeFilterCount(f) > 0;
+export function hasActiveFilters(f: EventFilters, defaultWhen: When = "all") {
+  return f.q !== "" || activeFilterCount(f, defaultWhen) > 0;
 }
 
 /** The days a filter covers, or null for any time. */
@@ -165,6 +183,8 @@ export interface Filterable {
   startTime: string;
   /** Lower-cased title, venue and description. */
   searchText: string;
+  /** The Malmö area of the venue, when it has coordinates inside one. */
+  area?: AreaId;
 }
 
 export function isLongRunning(e: Pick<Filterable, "startDay" | "endDay">) {
@@ -173,7 +193,7 @@ export function isLongRunning(e: Pick<Filterable, "startDay" | "endDay">) {
 
 interface MatchOptions {
   /** Leave one dimension out, to count what picking another value of it would give. */
-  ignore?: "cats" | "sources";
+  ignore?: "cats" | "sources" | "areas";
 }
 
 /** Build a matcher once per filter set; call it per event. */
@@ -183,6 +203,7 @@ export function matcher(f: EventFilters, today: string, { ignore }: MatchOptions
   return (e: Filterable) => {
     if (ignore !== "cats" && f.cats.length && !f.cats.includes(e.category)) return false;
     if (ignore !== "sources" && f.sources.length && !f.sources.includes(e.sourceId)) return false;
+    if (ignore !== "areas" && f.areas.length && !(e.area && f.areas.includes(e.area))) return false;
     if (f.free && !e.isFree) return false;
     if (f.hideLong && isLongRunning(e)) return false;
     if (range && (e.startDay > range.to || e.endDay < range.from)) return false;
@@ -196,6 +217,7 @@ export interface Facets {
   total: number;
   categories: Partial<Record<EventCategory, number>>;
   sources: Record<string, number>;
+  areas: Partial<Record<AreaId, number>>;
 }
 
 /**
@@ -206,11 +228,13 @@ export function facetCounts(events: Filterable[], f: EventFilters, today: string
   const all = matcher(f, today);
   const anyCat = matcher(f, today, { ignore: "cats" });
   const anySource = matcher(f, today, { ignore: "sources" });
-  const facets: Facets = { total: 0, categories: {}, sources: {} };
+  const anyArea = matcher(f, today, { ignore: "areas" });
+  const facets: Facets = { total: 0, categories: {}, sources: {}, areas: {} };
   for (const e of events) {
     if (all(e)) facets.total++;
     if (anyCat(e)) facets.categories[e.category] = (facets.categories[e.category] ?? 0) + 1;
     if (anySource(e)) facets.sources[e.sourceId] = (facets.sources[e.sourceId] ?? 0) + 1;
+    if (e.area && anyArea(e)) facets.areas[e.area] = (facets.areas[e.area] ?? 0) + 1;
   }
   return facets;
 }
@@ -254,6 +278,7 @@ export function toFilterable(e: MalmoEvent): Filterable {
     startDay,
     endDay: endDay < startDay ? startDay : endDay,
     startTime: localTime(start),
+    area: e.venue?.lat !== undefined && e.venue.lng !== undefined ? areaAt(e.venue.lat, e.venue.lng) : undefined,
     searchText: `${e.title} ${e.venue?.name ?? ""} ${(e.description ?? "").slice(0, 300)}`.toLowerCase(),
   };
 }

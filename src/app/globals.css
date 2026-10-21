@@ -56,7 +56,7 @@
   --warning: oklch(0.82 0.16 80);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 11%);
-  --ring: oklch(0.72 0.2 335 / 60%);
+  --ring: oklch(0.72 0.2 335);
   /* Brand gradient stops: the logo, headings and the aurora behind page headers. */
   --brand-1: oklch(0.72 0.2 335);
   --brand-2: oklch(0.74 0.15 240);
@@ -72,7 +72,20 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  /* Keyboard focus: a solid ring in the brand colour, offset so it clears the element's own border. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 40%, transparent);
+    color: var(--foreground);
+  }
+  input,
+  textarea {
+    caret-color: var(--primary);
   }
   body {
     @apply bg-background text-foreground;
@@ -85,12 +98,6 @@
   h3 {
     text-wrap: balance;
   }
-}
-
-@utility text-gradient {
-  background-image: linear-gradient(100deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
-  background-clip: text;
-  color: transparent;
 }
 
 /* Aurora: slow, blurred colour fields drifting behind page headers.
@@ -188,8 +195,8 @@
 /* Tab bar pill: springs to the active tab, stretching a little on the way. */
 .tab-indicator {
   transition:
-    transform 420ms cubic-bezier(0.34, 1.4, 0.5, 1),
-    width 420ms cubic-bezier(0.34, 1.4, 0.5, 1),
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 200ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -523,6 +530,10 @@
 .no-scrollbar {
   scrollbar-width: none;
 }
+/* A sideways-scrolling row fades out at its edges, so it reads as "more this way". */
+.fade-edges {
+  mask-image: linear-gradient(to right, transparent, #000 0.75rem, #000 calc(100% - 1.5rem), transparent);
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -580,7 +591,7 @@
 
 /* Save heart: a pop on the icon and a ring of sparks bursting out when saved. */
 .save-button.is-popping svg {
-  animation: heart-pop 450ms cubic-bezier(0.34, 1.6, 0.5, 1);
+  animation: heart-pop 450ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .save-button.is-popping::before,
 .save-button.is-popping::after {

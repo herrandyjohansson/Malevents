@@ -1,6 +1,6 @@
 # Malevents
 
-What's on in Malmö: one site that gathers events from many venue sites and ticket listings, cleans them into one shape, and shows them across seven tabs: cards, tonight's timeline, a map, a calendar, a week planner, venues and your saved events.
+What's on in Malmö: one site that gathers events from many venue sites and ticket listings, cleans them into one shape, and shows them across five tabs: tonight's timeline, a day-by-day list (or month calendar) with time and area filters, a map, venues and your saved events, with a page for every event.
 
 This README is the project's summary report: what the site does, how the code is laid out, which libraries it uses, how data flows from the venue sites to the page, how it is deployed on Vercel, and how work on it is done.
 
@@ -30,7 +30,7 @@ This README is the project's summary report: what the site does, how the code is
 | --- | --- |
 | Framework | Next.js 16.4 (App Router, Cache Components, Turbopack), React 19.3, TypeScript 5 |
 | Styling | Tailwind CSS v4, shadcn/ui components (new-york style, Radix primitives), lucide icons, dark theme only |
-| Tabs | Discover, Tonight, Map, Calendar, Week, Venues, Saved, plus Admin when Admin mode is on |
+| Tabs | Tonight, Discover (list or month calendar), Map, Venues, Saved, plus Admin when Admin mode is on; every event has its own page |
 | Map | Leaflet with the standard OpenStreetMap tiles (no API key), darkened with CSS |
 | Data | 10 source adapters (7 live venue and ticket sites, 3 demo fixtures), scraped or read from JSON, normalized into one `MalmoEvent` type |
 | Caching | `"use cache: remote"` per source (Vercel Runtime Cache), served stale while refreshing in the background |
@@ -40,23 +40,23 @@ This README is the project's summary report: what the site does, how the code is
 
 ## What the site does
 
-- **Discover** (`/`): a hero with "This weekend" and "Explore the map" shortcuts and a small map of the coming week, then all upcoming events as image cards under the shared filter bar (see [Filters](#filters)). Cards show image, time, venue, price, and a Tickets link or "Sold out" when the source gives one.
-- **Tonight** (`/tonight`): what's on right now and an hour-by-hour timeline of what starts later today (or tomorrow, once tonight is over), with exhibitions folded into an "Open all day" section.
-- **Map** (`/map`): the same filters, plus a month calendar you drag across to pick dates, and pins colored by category. On phones the map fills the screen, with filter chips floating on top (the rest in a bottom sheet) and a swipe-up sheet listing the events.
-- **Calendar** (`/calendar`): a full-page month calendar under the same filter bar.
-- **Week** (`/week`): the next seven days. A coverflow reel of picks (one per category, with a picture) tilts as you scroll, then a planner board puts each day in its own column with a category-mix bar and a compact time-ordered list. On phones each column is a screen wide and you swipe between days; chips above jump to a day.
-- **Venues** (`/venues`): every venue with upcoming events, searchable and filterable by category; `/venues/<slug>` shows a venue's programme and location.
+- **Tonight** (`/tonight`, the first tab): what's on right now, then the rest of the day by part of day (This afternoon, This evening, Late) on an hour-by-hour timeline, or tomorrow once tonight is over. Called "Today in Malmö" before 15:00. Exhibitions fold into an "Open all day" section.
+- **Discover** (`/`): a short title, the shared filter bar (see [Filters](#filters)) and events grouped under day headings, 24 at a time with "Show more". Image cards on wider screens, compact rows on phones. A List ↔ Calendar switch (from tablet width) shows the same filtered events as a month calendar (`?view=calendar`). A small map of the coming week and the listing sites sit at the foot of the page.
+- **Event page** (`/events/<id>`): image, kind of event, when, where (venue, area, address), price, a button that names where it leads ("Tickets on Tickster"), Directions, Save, Add to calendar, Share, the description when the listing has a real one, and more at the same venue. From a list it opens as a sheet over the list; a shared link opens the full page. Cancelled and sold-out events say so.
+- **Map** (`/map`): the same filters, starting on the next 7 days, plus a month calendar you drag across to pick dates, and pins colored by category. On phones the map fills the screen, with filter chips floating on top (the rest in a bottom sheet) and a swipe-up sheet listing the events.
+- **Venues** (`/venues`): every venue with upcoming events, searchable and filterable by area and kind of event; `/venues/<slug>` shows a venue's area, programme and location.
+- The old `/week` and `/calendar` addresses redirect into Discover (`?when=week`, `?view=calendar`), keeping any filters.
 - **Saved** (`/saved`): events you hearted on any card, grouped by day, with "add to calendar" (.ics) for one event or all. Kept in the browser's localStorage, no account.
 - **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Per source: health, event count, last fetch, response time and cache lifetime; refresh one source or all; switch a source off for visitors without a deploy; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location.
 
 ## Filters
 
-Discover, Map and Calendar share one filter bar, and every choice is a button you can see and tap:
+Discover (list and calendar) and Map share one filter bar. When and where are up front; the rest is one tap away:
 
-- **When**: a segmented control (Any time, Today, Tonight, Weekend, 7 days, 30 days, Pick dates). "Pick dates" folds a drag-to-select calendar open in the bar.
-- **Categories**: chips with live counts (how many events you'd get with that category picked).
-- **Free only** and **Hide exhibitions**: chips with a small switch inside.
-- **Sources**: folds open as a row of chips with counts.
+- **When**: a segmented control (Any time, Tonight, Today, This weekend, Next 7 days, Pick dates; Next 30 days in the panel). "Pick dates" folds a drag-to-select calendar open in the bar. The Map starts on the next 7 days.
+- **Area**: chips for Centrum, Möllan, Västra Hamnen, Davidshall & Triangeln, Rosengård & Värnhem, Limhamn and Hyllie, with live counts; empty areas are hidden. Areas come from venue coordinates (`lib/events/areas.ts`).
+- **Filters panel**: kind of event, free only, hide exhibitions, and listing sites, each with live counts. Active ones show under the bar as chips you can remove, and so does a search on phones (where the search box is in the panel).
+- Categories: Music, Stage (theatre, musicals, opera, dance, comedy), Nightlife, Art & exhibitions, Film, Family, Sports, Food & drink, Talks & workshops, Other.
 
 Filters live in the URL (`q`, `cat`, `src`, `when` or `from`/`to`, `free`, `nolong`), so links are shareable and the Discover, Map and Calendar tabs carry them over. Discover filters on the server; Map and Calendar filter in the browser with the same functions from `src/lib/events/filters.ts`. Older `?category=`, `?source=` and map `?from=&to=` links still work. On the phone map the bar becomes a row of floating chips with the rest in a bottom sheet.
 
@@ -94,9 +94,9 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── globals.css       Tailwind v4 theme tokens, dark palette, map tile darkening, effects
     │   ├── page.tsx          /            Discover
     │   ├── map/page.tsx      /map         Map
-    │   ├── calendar/page.tsx /calendar    Calendar
     │   ├── tonight/page.tsx  /tonight     Tonight
-    │   ├── week/page.tsx     /week        Week
+    │   ├── events/[id]/page.tsx /events/:id  one event (full page)
+    │   ├── @sheet/           the same event as a sheet over a list (intercepting route)
     │   ├── venues/
     │   │   ├── page.tsx                  /venues              venue directory
     │   │   └── [slug]/page.tsx           /venues/:slug        one venue's programme and map
@@ -113,7 +113,6 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── filters/          the shared filter bar: inline buttons (filter-bar), phone-map filter sheet (filter-panel), search box, useFilters (URL state)
     │   ├── calendar/         calendar-view
     │   ├── tonight/          timeline-event
-    │   ├── week/             highlight-reel (coverflow), week-board (day columns), scroll-buttons
     │   ├── venues/           venue-grid (searchable directory), venue-map
     │   ├── saved/            save-button (the heart on cards), saved-list
     │   ├── admin/            source-controls, status-badge
@@ -136,7 +135,6 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
             ├── filters.ts        the shared filter model: URL params ↔ filters, matcher, facet counts; Malmö-local days
             ├── map-data.ts       events → map pins (week preview and date ranges)
             ├── calendar-data.ts  events → calendar entries
-            ├── week-data.ts      events → seven day columns and the picks reel
             ├── venue-data.ts     events grouped into venues with slugs, counts and categories
             ├── venues.ts         coordinates for known Malmö venues
             ├── http.ts           fetch with timeout, MaleventsBot user agent, SourceError
@@ -161,7 +159,7 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
                                                      │
               ┌──────────────────────┬───────────────┴──────────┬───────────────────┐
               ▼                      ▼                          ▼                   ▼
-        / (filters on server)   /map (map-data.ts)     /calendar (calendar-data)   /admin (statuses)
+        / (filters on server, list or calendar)   /map (map-data.ts)   /events/[id] (event-detail)   /admin (statuses)
 ```
 
 1. **Adapters.** Each file in `src/lib/events/sources/` knows one upstream. Its `fetchEvents()` fetches JSON or HTML and maps it into `MalmoEvent` (id `<source>:<upstream id>`, title, start and end as ISO strings, category, venue, price, `isFree`, image, URL, ticket URL, sold out, notes). The rest of the app only sees that shape.
@@ -227,9 +225,8 @@ Sources with a live endpoint fetch it by default. Sources that only have demo fi
 | --- | --- | --- | --- |
 | `/` | `app/page.tsx` | `PageHeader`, `WeekMapPreview` (7-day map), `EventResults` → `FilterBar`, `SpotlightList` + `EventCard`, `SourceStatus` | Static shell; filters read from search params and applied on the server |
 | `/map` | `app/map/page.tsx` | `EventMapView` → `FilterBar`, `RangeCalendar`, `LeafletMap`, `MapLegend` | Server prepares pins; filters and range are client-side and written to the URL with `history.replaceState` |
-| `/calendar` | `app/calendar/page.tsx` | `CalendarView` → `FilterBar` | Server prepares entries; filters run in the browser |
 | `/tonight` | `app/tonight/page.tsx` | `TimelineEvent`, `SaveButton` | Request-time; anchored on the current Malmö time |
-| `/week` | `app/week/page.tsx` | `HighlightReel`, `WeekBoard` | Request-time, server-rendered; the coverflow tilt is a CSS scroll-driven animation, the only client code is the arrow buttons |
+| `/events/[id]` | `app/events/[id]/page.tsx`, `app/@sheet/(.)events/[id]/page.tsx` | `EventDetail`, `EventActions`, `EventSheet` | Request-time; the full page on a direct visit, a sheet over the current page when opened from a list |
 | `/venues` | `app/venues/page.tsx` | `VenueGrid` | Request-time; search and category filter run in the browser |
 | `/venues/[slug]` | `app/venues/[slug]/page.tsx` | `VenueMap`, `EventCard` | Request-time; the venue is looked up from the live events, so unknown slugs 404 |
 | `/saved` | `app/saved/page.tsx` | `SavedList` | Static shell; the list is read from localStorage in the browser, with .ics export |
@@ -354,7 +351,7 @@ Conventions worth keeping:
 - **No protection** on `/admin` or its actions (see the note at the top). Handle this before a public launch. Refreshes have a 60 s cooldown per server instance. All OWASP exceptions are listed in [docs/security-owasp.md](docs/security-owasp.md).
 - **Admin on/off settings don't persist on Vercel** (see Deployment).
 - **Events without coordinates** don't appear on the map. Add their venues to `venues.ts`, or geocode them with a free service such as OpenStreetMap Nominatim within its usage policy.
-- **Page size.** The home page renders every upcoming event card (several hundred) and `/map` and `/calendar` send all events to the browser; paging would make them lighter.
+- **Page size.** Discover renders 24 events at a time; the Map and the calendar view still send all events to the browser.
 - **OSM tiles** are fine for a low-traffic site that shows the attribution, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Move to a hosted tile plan if traffic grows.
 - **Scrapers depend on venue sites' markup.** If a venue changes its site, its source shows as failing in `/admin`, and the other sources keep working.
 - **Saved events live in one browser.** Hearts are kept in localStorage, so they don't follow you to another device and are lost if site data is cleared.

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { addBasemap } from "./basemap";
+import { eventHref } from "@/lib/events/event-href";
 import type { MapEvent } from "@/lib/events/view-types";
 
 const MALMO_CENTER: [number, number] = [55.6, 13.0];
@@ -86,9 +87,8 @@ function popupContent(events: MapEvent[]) {
   list.className = "malevents-popup-list";
   for (const e of events) {
     const item = document.createElement("a");
-    item.href = e.url;
-    item.target = "_blank";
-    item.rel = "noopener noreferrer";
+    // The in-app event page; the venue's own link is one tap further, on that page.
+    item.href = eventHref(e.id);
     item.className = "malevents-popup-item";
     item.style.setProperty("--cat", e.color);
 

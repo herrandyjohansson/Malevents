@@ -15,7 +15,6 @@ export default function VenuesPage() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-6">
       <PageHeader
-        eyebrow="Venues"
         title="Malmö's stages, clubs and halls"
         description="Every place with something coming up, from the opera to the smallest club. Open one to see its whole programme."
       />
@@ -38,6 +37,7 @@ async function VenueData() {
         name: v.name,
         address: [v.address, v.city].filter(Boolean).join(", ") || undefined,
         count: v.events.length,
+        area: v.area,
         categories: v.categories,
         imageUrl: v.imageUrl,
         next: v.events[0] && { title: v.events[0].title, dateLabel: formatEventDate(v.events[0]) },

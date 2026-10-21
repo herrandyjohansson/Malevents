@@ -8,7 +8,7 @@ The import above is the Next.js rule: this project runs Next.js 16.4, whose APIs
 
 ## What this is
 
-Malevents gathers events in Malmö from venue sites and ticket listings, normalizes them into one `MalmoEvent` shape, and shows them across tabs: Discover, Tonight, Map, Calendar, Week, Venues, Saved, plus Admin when the per-browser "Admin mode" toggle is on. It is deployed on Vercel from `main`. There is no database, no auth and no API keys.
+Malevents gathers events in Malmö from venue sites and ticket listings, normalizes them into one `MalmoEvent` shape, and shows them across five tabs: Tonight, Discover (list or month calendar), Map, Venues, Saved, plus Admin when the per-browser "Admin mode" toggle is on. Every event has its own page, `/events/[id]`. `PRODUCT.md` records who the site is for and its product principles. It is deployed on Vercel from `main`. There is no database, no auth and no API keys.
 
 ## Commands
 
@@ -27,7 +27,7 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 ## Architecture
 
 - **Stack**: Next.js 16.4 App Router with `cacheComponents` (partial prerendering, `"use cache"`), React 19.3, TypeScript, Tailwind CSS v4, Turbopack. Path alias `@/*` maps to `src/*`.
-- **Routes** (`src/app/`): `/` Discover, `/tonight`, `/map`, `/calendar`, `/week`, `/venues` and `/venues/[slug]`, `/saved`, `/admin`, `/admin/sources/[id]` and `/admin/logs` (log dashboard over the in-memory buffer in `src/lib/log.ts`, analysed by `src/lib/log-analysis.ts`). Admin Server Actions live in `src/app/admin/actions.ts`. The tab list is `src/components/layout/nav-config.ts`.
+- **Routes** (`src/app/`): `/` Discover (`?view=calendar` for the month view, `?show=` for paging), `/tonight`, `/map`, `/events/[id]` (also opened as a sheet over lists through the intercepting route `app/@sheet/(.)events/[id]`), `/venues` and `/venues/[slug]`, `/saved`, `/admin`, `/admin/sources/[id]` and `/admin/logs` (log dashboard over the in-memory buffer in `src/lib/log.ts`, analysed by `src/lib/log-analysis.ts`). Admin Server Actions live in `src/app/admin/actions.ts`. The tab list is `src/components/layout/nav-config.ts`. `/week` and `/calendar` redirect into Discover (`next.config.ts`).
 - **Rendering**: pages prerender a static shell and stream the data part inside `<Suspense>` behind a skeleton; data parts call `connection()` because they depend on the current time and admin settings.
 
 ### Event data pipeline (`src/lib/events/`)
@@ -36,7 +36,7 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 2. **Caching**: `fetch-source.ts` is the only cached function, using `"use cache: remote"` (Vercel Runtime Cache) with tags `events` and `events:<id>` and a `cacheProfile` of `minutes`, `hours` (default) or `days`. Failures are returned, not thrown, and cached for seconds. The only other cached function is `fetch-page.ts` (`fetchDetailPage`), also `"use cache: remote"`, which caches each event detail page for days inside its source's entry.
 3. **Aggregation**: `aggregate.ts` (`getAllEvents()`, wrapped in React `cache()`) runs enabled sources in parallel with per-source timeouts, turns failures into a status, merges and de-duplicates.
 4. **Locations**: `venues.ts` adds coordinates for known venues; events without coordinates stay off the map.
-5. **Views**: `map-data.ts`, `calendar-data.ts`, `week-data.ts`, `tonight-data.ts` and `venue-data.ts` shape events for each tab. `filters.ts` is the shared filter model (URL params, matcher, facet counts) used both on the server (Discover) and in the browser (Map, Calendar).
+5. **Views**: `discover-data.ts` (day groups and paging), `map-data.ts`, `calendar-data.ts`, `tonight-data.ts`, `venue-data.ts` and `event-detail.ts` shape events for each view. `filters.ts` is the shared filter model (URL params, matcher, facet counts, per-page default time window) used both on the server (Discover) and in the browser (Map, Calendar). `areas.ts` maps venue coordinates to everyday Malmö areas (Centrum, Möllan, …). `normalize.ts` `refineEvent` runs on every fetched event: category from the longest keyword match or the venue, and the cancelled flag.
 6. **Admin**: `settings.ts` stores source on/off in `.data/source-settings.json` (does not persist on Vercel). Refresh actions call `updateTag`.
 
 `config.ts` holds `LIVE_MODE` (`EVENTS_LIVE`), the `Europe/Stockholm` time zone and the default source timeout.
@@ -60,4 +60,5 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 - To add a source: write `sources/<name>.ts`, add it to `SOURCES`, and add the venue's coordinates to `venues.ts` if it is new.
 - One pull request per task, branched from and targeting `main`. Avoid stacking PRs.
 - `/admin` has no protection; flag this before any public launch.
+- Agent skills: `tdd-guide` (unit tests), `senior-qa` (Playwright end-to-end) and `a11y-audit` (WCAG 2.2) are in `.claude/skills/`. `docs/skills.md` lists every skill and rule, where it came from, what it is for here and its known quirks; update it when adding or updating one.
 - Security follows the OWASP rules in `.claude/rules/security-and-owasp.md` (loaded for `src/**`). `docs/security-owasp.md` records how each one is met and the accepted exceptions; update it when a change affects one. Upstream requests go through `http.ts`, which only fetches public http(s) URLs.

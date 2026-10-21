@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
+  // Week and Calendar used to be tabs; both now live in Discover. Query
+  // strings (shared filters) are passed through to the destination.
+  async redirects() {
+    return [
+      { source: "/week", destination: "/?when=week", permanent: true },
+      { source: "/calendar", destination: "/?view=calendar", permanent: true },
+    ];
+  },
   // Don't advertise the framework in an X-Powered-By header.
   poweredByHeader: false,
   cacheComponents: true,

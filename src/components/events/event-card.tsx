@@ -1,7 +1,11 @@
 import { Clock, MapPin } from "lucide-react";
+import Link from "next/link";
 
 import { SaveButton } from "@/components/saved/save-button";
 
+import { AREA_NAMES } from "@/lib/events/areas";
+import { eventHref } from "@/lib/events/event-href";
+import { toFilterable } from "@/lib/events/filters";
 import { CATEGORY_COLORS, CATEGORY_LABELS, dateParts, formatEventDate, formatPrice } from "@/lib/events/format";
 import type { MalmoEvent } from "@/lib/events/types";
 import { toSaved } from "@/lib/saved-snapshot";
@@ -10,6 +14,7 @@ import { EventArt } from "./event-art";
 
 export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName: string }) {
   const price = formatPrice(event);
+  const area = toFilterable(event).area;
   const { weekday, day, month } = dateParts(event.startsAt);
   const color = CATEGORY_COLORS[event.category];
 
@@ -26,9 +31,9 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
           <span className="mt-0.5 text-lg font-semibold">{day}</span>
           <span className="text-muted-foreground text-[10px] font-semibold uppercase">{month}</span>
         </div>
-        {event.soldOut ? (
+        {event.cancelled || event.soldOut ? (
           <span className="bg-destructive/90 absolute top-3 right-3 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg">
-            Sold out
+            {event.cancelled ? "Cancelled" : "Sold out"}
           </span>
         ) : (
           price && (
@@ -50,11 +55,10 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
           <span aria-hidden className="size-1.5 rounded-full bg-[var(--cat)]" />
           {CATEGORY_LABELS[event.category]}
         </span>
-        <h3 className="line-clamp-2 text-[17px] leading-snug font-semibold">
-          <a href={event.url} target="_blank" rel="noopener noreferrer" className="after:absolute after:inset-0">
+        <h3 className={`line-clamp-2 text-[17px] leading-snug font-semibold ${event.cancelled ? "line-through" : ""}`}>
+          <Link href={eventHref(event.id)} className="after:absolute after:inset-0">
             {event.title}
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
+          </Link>
         </h3>
         <dl className="text-muted-foreground mt-auto flex flex-col gap-1 pt-1 text-sm">
           <div className="flex items-center gap-2">
@@ -68,7 +72,10 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
             <div className="flex items-center gap-2">
               <dt className="sr-only">Where</dt>
               <MapPin className="size-3.5 shrink-0" />
-              <dd className="truncate">{event.venue.name}</dd>
+              <dd className="truncate">
+                {event.venue.name}
+                {area && <span className="text-muted-foreground/80"> · {AREA_NAMES[area]}</span>}
+              </dd>
             </div>
           )}
           {price && (
@@ -80,22 +87,20 @@ export function EventCard({ event, sourceName }: { event: MalmoEvent; sourceName
         </dl>
       </div>
 
-      <div className="text-muted-foreground flex items-center justify-between gap-3 border-t border-white/5 px-4 py-2.5 text-xs">
-        <span className="truncate">via {sourceName}</span>
-        <span className="flex shrink-0 items-center gap-3">
-          {!event.soldOut && event.ticketUrl && (
-            <a
-              href={event.ticketUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-primary/15 text-primary hover:bg-primary/25 relative z-10 rounded-full px-2.5 py-1 font-medium transition-colors"
-            >
-              Tickets
-              <span className="sr-only"> for {event.title} (opens in a new tab)</span>
-            </a>
-          )}
-          <SaveButton event={toSaved(event, price)} className="-my-1.5 -mr-1.5" />
-        </span>
+      <div className="flex items-center justify-end gap-2 border-t border-white/5 px-3 py-2 text-sm sm:text-xs">
+        {!event.soldOut && !event.cancelled && event.ticketUrl && (
+          <a
+            href={event.ticketUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Tickets on ${sourceName}`}
+            className="bg-primary/15 text-primary hover:bg-primary/25 relative z-10 inline-flex h-11 items-center rounded-full px-4 font-medium transition-colors sm:h-8 sm:px-3"
+          >
+            Tickets
+            <span className="sr-only"> for {event.title} on {sourceName} (opens in a new tab)</span>
+          </a>
+        )}
+        <SaveButton event={toSaved(event, price)} className="size-11 sm:size-8" />
       </div>
     </article>
   );

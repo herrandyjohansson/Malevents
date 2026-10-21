@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/events/format";
-import { DEFAULT_FILTERS, resolveRange, WHEN_OPTIONS, type EventFilters } from "@/lib/events/filters";
+import { AREAS } from "@/lib/events/areas";
+import { resolveRange, WHEN_OPTIONS, type EventFilters } from "@/lib/events/filters";
 import { EVENT_CATEGORIES } from "@/lib/events/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export function FilterPanel({
   open,
   onOpenChange,
   filters,
+  defaults,
   update,
   setFilters,
   isPending,
@@ -34,6 +36,8 @@ export function FilterPanel({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filters: EventFilters;
+  /** What "Clear all" goes back to: no filters, in the page's default time window. */
+  defaults: EventFilters;
   update: (changes: Partial<EventFilters>) => void;
   setFilters: (filters: EventFilters) => void;
   isPending: boolean;
@@ -93,7 +97,30 @@ export function FilterPanel({
             )}
           </Section>
 
-          <Section title="Category">
+          <Section title="Area">
+            <div className="grid grid-cols-2 gap-1.5">
+              {AREAS.map((a) => {
+                const on = filters.areas.includes(a.id);
+                const n = facets.areas[a.id] ?? 0;
+                return (
+                  <Tile
+                    key={a.id}
+                    active={on}
+                    disabled={n === 0 && !on}
+                    onClick={() =>
+                      update({ areas: on ? filters.areas.filter((x) => x !== a.id) : [...filters.areas, a.id] })
+                    }
+                    className="flex items-center justify-between gap-2 text-left disabled:opacity-35"
+                  >
+                    <span className="truncate">{a.name}</span>
+                    <span className="text-muted-foreground text-xs tabular-nums">{n}</span>
+                  </Tile>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title="Kind of event">
             <div className="grid grid-cols-2 gap-1.5">
               {EVENT_CATEGORIES.map((c) => {
                 const on = filters.cats.includes(c);
@@ -147,7 +174,7 @@ export function FilterPanel({
             </div>
           </Section>
 
-          <Section title="Source">
+          <Section title="Listing sites">
             <ul className="flex flex-col gap-1">
               {sources.map((s) => {
                 const on = filters.sources.includes(s.id);
@@ -189,7 +216,7 @@ export function FilterPanel({
             variant="ghost"
             onClick={() => {
               setPickDates(false);
-              setFilters(DEFAULT_FILTERS);
+              setFilters(defaults);
             }}
           >
             Clear all
@@ -207,7 +234,7 @@ export function FilterPanel({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2.5">
-      <h3 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{title}</h3>
+      <h3 className="text-sm font-semibold">{title}</h3>
       {children}
     </section>
   );
@@ -223,7 +250,7 @@ function Tile({
       type="button"
       aria-pressed={active}
       className={cn(
-        "h-10 rounded-xl border px-3 text-sm font-medium transition-all active:scale-[0.98]",
+        "h-11 rounded-xl border px-3 text-sm font-medium transition-all active:scale-[0.98]",
         active
           ? "border-primary/60 bg-primary/20 text-foreground"
           : "text-muted-foreground hover:text-foreground hover:bg-accent/60 bg-white/[0.02]",

@@ -10,11 +10,42 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, formatDay } from "@/lib/days";
 import { getAllEvents } from "@/lib/events/aggregate";
+import { toFilterable } from "@/lib/events/filters";
 import { localDay, localTime } from "@/lib/events/malmo-time";
 import { groupTonight } from "@/lib/events/tonight-data";
 import type { MalmoEvent } from "@/lib/events/types";
 
 export const metadata: Metadata = { title: "Tonight" };
+
+/** Before this, the page is about today rather than tonight. */
+const EVENING_FROM = "15:00";
+
+/** Sections of the rest of the day, by when things start (Malmö time). */
+const PARTS = [
+  { id: "morning", label: "This morning", until: "12:00" },
+  { id: "afternoon", label: "This afternoon", until: "17:00" },
+  { id: "evening", label: "This evening", until: "22:00" },
+  { id: "late", label: "Late", until: "99:99" },
+] as const;
+
+/** Today's events by part of the day; after-midnight shows count as late, unknown times go last. */
+function byPartOfDay(events: MalmoEvent[], today: string) {
+  const parts = PARTS.map((p) => ({ ...p, events: [] as MalmoEvent[] }));
+  const unknown: MalmoEvent[] = [];
+  for (const e of events) {
+    if (e.timeUnknown) {
+      unknown.push(e);
+      continue;
+    }
+    const { startDay, startTime } = toFilterable(e);
+    const part = startDay > today ? parts[parts.length - 1] : parts.find((p) => startTime < p.until)!;
+    part.events.push(e);
+  }
+  return [
+    ...parts.filter((p) => p.events.length > 0),
+    ...(unknown.length ? [{ id: "unknown", label: "Time not announced", events: unknown }] : []),
+  ];
+}
 
 export default function TonightPage() {
   return (
@@ -44,24 +75,13 @@ async function Tonight() {
   return (
     <>
       <PageHeader
-        eyebrow={`${formatDay(today)} · ${localTime(now)}`}
-        title={
-          nothingLeft ? (
-            <>
-              Quiet now. <span className="text-gradient">Tomorrow</span> has more.
-            </>
-          ) : (
-            <>
-              Tonight in <span className="text-gradient">Malmö</span>
-            </>
-          )
-        }
-        description={summary(live.length, later.length)}
+        title={nothingLeft ? "Quiet now. Tomorrow has more." : localTime(now) < EVENING_FROM ? "Today in Malmö" : "Tonight in Malmö"}
+        description={`${formatDay(today)}, ${localTime(now)}. ${summary(live.length, later.length)}`}
       />
 
       {live.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
             <span className="relative flex size-2.5">
               <span className="bg-destructive absolute inset-0 animate-ping rounded-full opacity-75" />
               <span className="bg-destructive relative size-2.5 rounded-full" />
@@ -79,13 +99,25 @@ async function Tonight() {
       )}
 
       {timeline.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
-            <Moon className="text-primary size-4" />
-            {showTomorrow ? `Tomorrow · ${formatDay(tomorrow)}` : "Later tonight"}
-          </h2>
-          <Timeline events={timeline} />
-        </section>
+        showTomorrow ? (
+          <section className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <Moon className="text-primary size-4" aria-hidden />
+              Tomorrow, {formatDay(tomorrow)}
+            </h2>
+            <Timeline events={timeline} />
+          </section>
+        ) : (
+          byPartOfDay(timeline, today).map((part) => (
+            <section key={part.id} className="flex flex-col gap-3">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Moon className="text-primary size-4" aria-hidden />
+                {part.label}
+              </h2>
+              <Timeline events={part.events} />
+            </section>
+          ))
+        )
       ) : (
         <p className="text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
           Nothing listed for tomorrow yet.
@@ -157,7 +189,7 @@ function Timeline({ events }: { events: MalmoEvent[] }) {
           </span>
           <span
             aria-hidden
-            className="bg-background border-primary shadow-primary absolute top-[5px] left-[calc(-1rem-5px)] size-2.5 rounded-full border-2 shadow-[0_0_10px]"
+            className="bg-background border-primary absolute top-[5px] left-[calc(-1rem-5px)] size-2.5 rounded-full border-2"
           />
           <ul className="rise-in flex flex-col gap-2.5">
             {list.map((e) => (

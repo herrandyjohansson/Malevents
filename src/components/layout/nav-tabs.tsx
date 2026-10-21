@@ -76,7 +76,7 @@ function DesktopTabs({
       <li
         aria-hidden
         className={cn(
-          "tab-indicator gradient-ring absolute top-1 left-0 h-[calc(100%-0.5rem)] rounded-full bg-white/[0.08] shadow-[0_0_24px_-6px] shadow-primary/50",
+          "tab-indicator absolute top-1 left-0 h-[calc(100%-0.5rem)] rounded-full border border-white/10 bg-white/[0.08]",
           !pill && "opacity-0",
         )}
         style={pill ? { transform: `translateX(${pill.x}px)`, width: pill.width } : undefined}
@@ -116,7 +116,7 @@ function MobileTabBar({
   adminMode: boolean;
   hrefFor?: (tab: NavTab) => string;
 }) {
-  // Admin is reached from the header on phones, to keep the bar to six tabs.
+  // Admin is reached from the header on phones, to keep the bar to five tabs.
   const tabs = visibleTabs(adminMode).filter((t) => !t.adminOnly);
   return (
     <div className="glass fixed inset-x-0 bottom-0 z-[1000] border-t pb-[env(safe-area-inset-bottom)] md:hidden">
@@ -130,14 +130,14 @@ function MobileTabBar({
                 href={hrefFor(tab)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "text-muted-foreground flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
+                  "text-muted-foreground flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
                   active && "text-foreground",
                 )}
               >
                 <span
                   className={cn(
                     "relative flex h-7 w-12 items-center justify-center rounded-full transition-all duration-300",
-                    active && "bg-primary/20 text-primary shadow-[0_0_18px_-4px] shadow-primary/60",
+                    active && "bg-primary/20 text-primary",
                   )}
                 >
                   <Icon className="size-5" />
@@ -159,16 +159,14 @@ function AdminModeToggle({ on, onChange }: { on: boolean; onChange: (on: boolean
       type="button"
       aria-pressed={on}
       onClick={() => onChange(!on)}
-      title={on ? "Turn admin mode off" : "Turn admin mode on"}
+      title={on ? "Admin mode is on (turn off)" : "Admin mode, for the site's maintainers"}
       className={cn(
-        "flex size-9 items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors lg:w-auto lg:px-3.5",
-        on
-          ? "border-primary/50 bg-primary/15 text-primary"
-          : "text-muted-foreground hover:text-foreground bg-white/[0.03]",
+        "flex size-9 items-center justify-center rounded-full transition-colors",
+        on ? "bg-primary/15 text-primary border-primary/50 border" : "text-muted-foreground/60 hover:text-foreground",
       )}
     >
       <ShieldCheck className="size-4" />
-      <span className="max-lg:sr-only">Admin</span>
+      <span className="sr-only">Admin mode</span>
     </button>
   );
 }

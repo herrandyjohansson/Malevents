@@ -62,13 +62,14 @@ function fetchCalendar(report: SourceReport): Promise<OperaRow[]> {
 }
 
 /**
- * Everything at the opera is music unless the keywords clearly say family,
- * theatre (musicals) or talks; guided tours ("visning") are "other".
+ * The opera house stages opera, musicals and dance, so its productions are
+ * Stage unless the keywords clearly say concert, family or talk (guided
+ * tours count as talks).
  */
 function operaCategory(row: OperaRow, description: string | undefined): EventCategory {
   const category = toCategory(row.title, description);
-  if (category === "family" || category === "theatre" || category === "talks") return category;
-  return /visning|guid/i.test(row.title) ? "other" : "music";
+  if (category === "music" || category === "family" || category === "talks") return category;
+  return "theatre";
 }
 
 function operaToEvent(row: OperaRow, meta: PageMeta | undefined): MalmoEvent {

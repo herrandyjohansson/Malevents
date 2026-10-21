@@ -20,7 +20,8 @@ export const metadata: Metadata = {
     default: "Malevents – What's on in Malmö",
     template: "%s · Malevents",
   },
-  description: "Concerts, exhibitions, sports, markets and more in Malmö, gathered from many sources in one place.",
+  description:
+    "What's on in Malmö tonight, this weekend and beyond: concerts, stage, clubs, sport and more across the city's venues, by time and area.",
 };
 
 export const viewport: Viewport = {
@@ -28,13 +29,23 @@ export const viewport: Viewport = {
   themeColor: "#0b0b12",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children, sheet }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="relative isolate flex min-h-full flex-col font-sans">
+        <a
+          href="#content"
+          className="bg-primary text-primary-foreground sr-only z-[2000] rounded-full px-4 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        >
+          Skip to content
+        </a>
         <Backdrop />
         <SiteHeader />
-        {children}
+        <div id="content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
+          {children}
+        </div>
+        {/* An event opened from a list renders here, as a sheet over the page (see app/@sheet). */}
+        {sheet}
       </body>
     </html>
   );

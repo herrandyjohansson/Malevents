@@ -4,6 +4,8 @@ import { ArrowUpRight, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 
 import { RemoteImage } from "@/components/events/remote-image";
+import { chipClass } from "@/components/filters/filter-bar";
+import { AREA_NAMES, AREAS, isAreaId, type AreaId } from "@/lib/events/areas";
 import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/events/format";
 import { EVENT_CATEGORIES, type EventCategory } from "@/lib/events/types";
 import { useUrlParam } from "@/lib/use-url-param";
@@ -13,6 +15,7 @@ export interface VenueSummary {
   slug: string;
   name: string;
   address?: string;
+  area?: AreaId;
   count: number;
   categories: { category: EventCategory; count: number }[];
   imageUrl?: string;
@@ -22,10 +25,12 @@ export interface VenueSummary {
 type Sort = "busiest" | "name";
 
 export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
-  // Search, category and sort live in the URL (?q=&cat=&sort=name) so a view can be shared.
+  // Search, area, category and sort live in the URL (?q=&area=&cat=&sort=name) so a view can be shared.
   const [queryParam, setQuery] = useUrlParam("q");
   const [catParam, setCatParam] = useUrlParam("cat");
   const [sortParam, setSortParam] = useUrlParam("sort");
+  const [areaParam, setAreaParam] = useUrlParam("area");
+  const area = areaParam && isAreaId(areaParam) ? areaParam : null;
   const query = queryParam ?? "";
   const category = (EVENT_CATEGORIES as readonly string[]).includes(catParam ?? "") ? (catParam as EventCategory) : null;
   const setCategory = (c: EventCategory | null) => setCatParam(c);
@@ -36,6 +41,7 @@ export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
   const shown = venues
     .filter((v) => !q || `${v.name} ${v.address ?? ""}`.toLowerCase().includes(q))
     .filter((v) => !category || v.categories.some((c) => c.category === category))
+    .filter((v) => !area || v.area === area)
     .sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name, "sv") : b.count - a.count));
   const categories = [...new Set(venues.flatMap((v) => v.categories.slice(0, 2).map((c) => c.category)))];
 
@@ -50,7 +56,7 @@ export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a venue"
             aria-label="Find a venue"
-            className="placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-10 w-full rounded-full border bg-white/[0.04] pr-4 pl-10 text-sm outline-none focus-visible:ring-[3px]"
+            className="placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-11 w-full rounded-full border bg-white/[0.04] pr-4 pl-10 text-sm outline-none focus-visible:ring-[3px] sm:h-10"
           />
         </div>
         <div className="no-scrollbar -mx-2.5 flex gap-1.5 overflow-x-auto px-2.5 lg:mx-0 lg:px-0">
@@ -60,10 +66,7 @@ export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
               type="button"
               aria-pressed={category === c}
               onClick={() => setCategory(category === c ? null : c)}
-              className={cn(
-                "flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-all active:scale-95",
-                category === c ? "text-foreground" : "text-muted-foreground hover:text-foreground bg-white/[0.03]",
-              )}
+              className={cn(chipClass(category === c), category === c && "text-foreground")}
               style={category === c ? { borderColor: CATEGORY_COLORS[c], background: `${CATEGORY_COLORS[c]}30` } : undefined}
             >
               <span aria-hidden>{CATEGORY_EMOJI[c]}</span>
@@ -79,7 +82,7 @@ export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
               aria-pressed={sort === s}
               onClick={() => setSort(s)}
               className={cn(
-                "h-7 flex-1 rounded-full px-3 transition-colors",
+                "h-10 flex-1 rounded-full px-3 transition-colors sm:h-7",
                 sort === s ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -89,15 +92,35 @@ export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
         </div>
       </div>
 
+      <ul className="fade-edges no-scrollbar -mt-2 flex gap-1.5 overflow-x-auto px-1" aria-label="Areas">
+        {AREAS.map((a) => {
+          const n = venues.filter((v) => v.area === a.id).length;
+          if (n === 0 && area !== a.id) return null;
+          return (
+            <li key={a.id} className="shrink-0">
+              <button
+                type="button"
+                aria-pressed={area === a.id}
+                onClick={() => setAreaParam(area === a.id ? null : a.id)}
+                className={chipClass(area === a.id)}
+              >
+                {a.name}
+                <span className="text-muted-foreground/80 tabular-nums">{n}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
       <p className="text-muted-foreground text-sm" aria-live="polite">
         {shown.length === 1 ? "1 venue" : `${shown.length} venues`}
       </p>
 
-      <ul className="rise-in grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <ul className="rise-in grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {shown.map((v) => {
           const top = v.categories[0]?.category ?? "other";
           return (
-            <li key={v.slug}>
+            <li key={v.slug} className="min-w-0">
               <Link
                 href={`/venues/${v.slug}`}
                 className="group bg-card hover:border-white/15 relative flex h-full flex-col overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-1"
@@ -126,10 +149,10 @@ export function VenueGrid({ venues }: { venues: VenueSummary[] }) {
                     {v.name}
                     <ArrowUpRight className="text-muted-foreground group-hover:text-foreground mt-1 size-4 shrink-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </h2>
-                  {v.address && (
-                    <p className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
-                      <MapPin className="size-3 shrink-0" />
-                      {v.address}
+                  {(v.area || v.address) && (
+                    <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                      <MapPin className="size-3 shrink-0" aria-hidden />
+                      <span className="truncate">{[v.area && AREA_NAMES[v.area], v.address].filter(Boolean).join(" · ")}</span>
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1">

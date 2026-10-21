@@ -30,7 +30,6 @@ export default function LogsPage({ searchParams }: PageProps<"/admin/logs">) {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-10 sm:px-6">
       <PageHeader
-        eyebrow="Admin"
         title="Logs"
         description="What the server has logged: page loads, cache hits, every upstream fetch and request, admin actions and errors."
       >

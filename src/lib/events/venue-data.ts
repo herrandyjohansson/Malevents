@@ -1,5 +1,6 @@
 import "server-only";
 
+import { areaAt, type AreaId } from "./areas";
 import { isUpcoming } from "./filters";
 import type { EventCategory, MalmoEvent } from "./types";
 import { hasCoordinates } from "./venues";
@@ -11,6 +12,8 @@ export interface Venue {
   city?: string;
   lat?: number;
   lng?: number;
+  /** Everyday Malmö area, when the venue has coordinates inside one. */
+  area?: AreaId;
   /** Upcoming events here, soonest first. */
   events: MalmoEvent[];
   /** Upcoming events per category, most common first. */
@@ -57,6 +60,7 @@ export function buildVenues(events: MalmoEvent[], now: Date): Venue[] {
         city: best.city,
         lat: best.lat,
         lng: best.lng,
+        area: best.lat !== undefined && best.lng !== undefined ? areaAt(best.lat, best.lng) : undefined,
         events: list,
         categories: [...counts.entries()]
           .map(([category, count]) => ({ category, count }))

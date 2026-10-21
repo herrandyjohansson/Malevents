@@ -20,9 +20,8 @@ export default function MapPage() {
       <PageHeader
         className="max-lg:sr-only"
         size="compact"
-        eyebrow="Map"
         title="Where it's happening"
-        description="Filter by day, category or price, or drag across the calendar to see where things are on those days."
+        description="The next 7 days on the map. Pick another time, an area or a kind of event, or drag across the calendar."
       />
       <Suspense fallback={<MapSkeleton />}>
         <MapData />

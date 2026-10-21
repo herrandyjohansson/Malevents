@@ -1,6 +1,7 @@
 export const EVENT_CATEGORIES = [
   "music",
   "theatre",
+  "nightlife",
   "art",
   "film",
   "family",
@@ -44,6 +45,8 @@ export interface MalmoEvent {
   /** Direct ticket link, when the upstream gives one apart from the event page. */
   ticketUrl?: string;
   soldOut?: boolean;
+  /** The upstream marks the event as cancelled ("Inställt"); it stays listed, struck through. */
+  cancelled?: true;
   /** Free-text extras from the upstream, e.g. age limit or doors time. */
   notes?: string[];
   /**

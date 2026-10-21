@@ -1,4 +1,4 @@
-import type { Facets } from "@/lib/events/filters";
+import type { Facets, When } from "@/lib/events/filters";
 
 export interface FilterBarProps {
   mode: "server" | "client";
@@ -20,6 +20,8 @@ export interface FilterBarProps {
    * filter panel.
    */
   variant?: "bar" | "floating";
+  /** The page's time window when the URL names none ("all" unless the page says otherwise). */
+  defaultWhen?: When;
   className?: string;
 }
 

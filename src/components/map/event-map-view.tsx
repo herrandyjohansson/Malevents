@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin, MapPinOff } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 
 import { FilterBar } from "@/components/filters/filter-bar";
@@ -46,7 +47,8 @@ export function EventMapView({
   sources: { id: string; name: string }[];
 }) {
   // The shared filters (in the URL) decide what's on the map; "any time" shows every upcoming event.
-  const { filters, update } = useFilters("client");
+  // The map starts on the next 7 days: "any time" piles months of events onto the same pins.
+  const { filters, update } = useFilters("client", "week");
   const range = resolveRange(filters, today);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const isDesktop = useIsDesktop();
@@ -134,7 +136,16 @@ export function EventMapView({
 
   const days = range ? rangeLength(range) : 0;
   const sheetOpen = snap !== "peek";
-  const filterBarProps = { mode: "client" as const, facets, sources, today, lastMonth, countFor, noun: "events on the map" };
+  const filterBarProps = {
+    mode: "client" as const,
+    facets,
+    sources,
+    today,
+    lastMonth,
+    countFor,
+    noun: "events on the map",
+    defaultWhen: "week" as const,
+  };
 
   return (
     <div
@@ -242,7 +253,13 @@ export function EventMapView({
           {unplacedCount > 0 && (
             <p className="text-muted-foreground flex items-center gap-2 border-t px-4 py-2.5 text-xs max-lg:pb-[max(0.625rem,env(safe-area-inset-bottom))]">
               <MapPinOff className="size-3.5 shrink-0" />
-              {unplacedCount} upcoming {unplacedCount === 1 ? "event has" : "events have"} no known location.
+              <span>
+                {unplacedCount} upcoming {unplacedCount === 1 ? "event has" : "events have"} no known location, so{" "}
+                {unplacedCount === 1 ? "it isn't" : "they aren't"} on the map.{" "}
+                <Link href="/" className="text-foreground underline underline-offset-2">
+                  See all in Discover
+                </Link>
+              </span>
             </p>
           )}
         </aside>

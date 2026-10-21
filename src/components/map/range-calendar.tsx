@@ -110,9 +110,9 @@ export function RangeCalendar({
         >
           <ChevronLeft />
         </Button>
-        <h3 className="text-sm font-semibold" aria-live="polite">
+        <p className="text-sm font-semibold" aria-live="polite">
           {formatMonth(month)}
-        </h3>
+        </p>
         <Button
           variant="ghost"
           size="icon"

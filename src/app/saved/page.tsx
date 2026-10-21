@@ -9,9 +9,8 @@ export default function SavedPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 pb-12 sm:px-6">
       <PageHeader
-        eyebrow="Saved"
         title="Your plans"
-        description="Events you've hearted, by day. Add them to your calendar in one tap."
+        description="The events you've saved, by day. Add one or all of them to your calendar from here."
       />
       <SavedList />
     </main>

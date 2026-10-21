@@ -68,13 +68,13 @@ export function SegmentedControl<T extends string>({
       aria-label={label}
       onKeyDown={onKeyDown}
       className={cn(
-        "no-scrollbar relative flex h-9 items-center gap-0.5 overflow-x-auto rounded-full border bg-white/[0.03] p-0.5",
+        "no-scrollbar relative flex h-11 items-center gap-0.5 overflow-x-auto rounded-full border bg-white/[0.03] p-0.5 sm:h-9",
         className,
       )}
     >
       <span
         aria-hidden
-        className="tab-indicator bg-primary/25 border-primary/60 absolute top-0.5 bottom-0.5 left-0 rounded-full border shadow-[0_0_18px_-6px] shadow-primary"
+        className="tab-indicator bg-primary/25 border-primary/60 absolute top-0.5 bottom-0.5 left-0 rounded-full border"
         style={{ transform: `translateX(${pill?.x ?? 0}px)`, width: pill?.w ?? 0, opacity: pill ? 1 : 0 }}
       />
       {options.map(({ value: v, label: text, icon: Icon }) => {
@@ -89,7 +89,7 @@ export function SegmentedControl<T extends string>({
             tabIndex={active || (value === null && v === options[0].value) ? 0 : -1}
             onClick={() => onChange(v)}
             className={cn(
-              "relative flex h-full shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors active:scale-95",
+              "relative flex h-full shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors active:scale-95 sm:px-3 sm:text-xs",
               active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >

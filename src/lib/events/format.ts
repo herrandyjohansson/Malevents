@@ -1,16 +1,17 @@
-import { dayNames, formatShort } from "@/lib/days";
+import { dayNames, formatDay, formatShort } from "@/lib/days";
 
 import { localDay, localTime } from "./malmo-time";
 import type { EventCategory, MalmoEvent } from "./types";
 
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
   music: "Music",
-  theatre: "Theatre & comedy",
+  theatre: "Stage",
+  nightlife: "Nightlife",
   art: "Art & exhibitions",
   film: "Film",
   family: "Family",
   sports: "Sports",
-  food: "Food & markets",
+  food: "Food & drink",
   talks: "Talks & workshops",
   other: "Other",
 };
@@ -19,6 +20,7 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
 export const CATEGORY_COLORS: Record<EventCategory, string> = {
   music: "#c084fc",
   theatre: "#fb7185",
+  nightlife: "#2dd4bf",
   art: "#fbbf24",
   film: "#94a3b8",
   family: "#38bdf8",
@@ -32,6 +34,7 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
 export const CATEGORY_EMOJI: Record<EventCategory, string> = {
   music: "🎵",
   theatre: "🎭",
+  nightlife: "🪩",
   art: "🎨",
   film: "🎬",
   family: "🧸",
@@ -53,6 +56,16 @@ export function formatEventDate(event: Pick<MalmoEvent, "startsAt" | "endsAt" | 
   if (end && localDay(end) !== localDay(start)) {
     return `${startDay} – ${formatShort(localDay(end))}`;
   }
+  if (event.timeUnknown) return startDay;
+  return `${startDay} · ${localTime(start)}${end ? `–${localTime(end)}` : ""}`;
+}
+
+/** "Wednesday 21 October · 19:30", a day range for multi-day events, or the day alone when the time is unknown. */
+export function formatEventDateLong(event: Pick<MalmoEvent, "startsAt" | "endsAt" | "timeUnknown">) {
+  const start = new Date(event.startsAt);
+  const end = event.endsAt ? new Date(event.endsAt) : undefined;
+  const startDay = formatDay(localDay(start));
+  if (end && localDay(end) !== localDay(start)) return `${startDay} – ${formatDay(localDay(end))}`;
   if (event.timeUnknown) return startDay;
   return `${startDay} · ${localTime(start)}${end ? `–${localTime(end)}` : ""}`;
 }

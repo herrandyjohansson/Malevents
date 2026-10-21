@@ -105,7 +105,7 @@ function SavedContent() {
 
       {[...days.entries()].map(([day, list]) => (
         <section key={day} className="flex flex-col gap-2.5">
-          <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{formatDay(day)}</h2>
+          <h2 className="text-lg font-semibold">{formatDay(day)}</h2>
           <ul className="rise-in flex flex-col gap-2.5">
             {list.map((e) => (
               <li key={e.id}>

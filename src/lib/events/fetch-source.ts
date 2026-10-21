@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { errorMessage, log, since } from "@/lib/log";
 
 import { SourceError } from "./http";
-import { withSafeLinks } from "./normalize";
+import { refineEvent, withSafeLinks } from "./normalize";
 import { getSource } from "./sources";
 import type { MalmoEvent } from "./types";
 import { withCoordinates } from "./venues";
@@ -56,7 +56,7 @@ export async function fetchSource(id: string): Promise<SourceResult> {
   const report = { warn: (message: string) => warnings.push(message) };
   let events: MalmoEvent[];
   try {
-    events = (await source.fetchEvents(report)).map((e) => withSafeLinks(withCoordinates(e), source.homepage));
+    events = (await source.fetchEvents(report)).map((e) => refineEvent(withSafeLinks(withCoordinates(e), source.homepage)));
   } catch (err) {
     cacheLife("seconds");
     const error = errorMessage(err);

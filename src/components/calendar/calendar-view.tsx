@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useMemo } from "react";
 
 import { FilterBar } from "@/components/filters/filter-bar";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { addDays, addMonths, formatDay, formatMonth, isDay, monthGrid, monthStart, WEEKDAYS_SHORT } from "@/lib/days";
 import { countOnDay, facetCounts, isLongRunning, matcher } from "@/lib/events/filters";
+import { eventHref } from "@/lib/events/event-href";
 import { useUrlParam } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +69,8 @@ export function CalendarView({
   const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filters, today]);
   const facets = useMemo(() => facetCounts(events, filters, today), [events, filters, today]);
 
-  const days = monthGrid(month);
+  // This month starts at the current week: whole weeks already over are only noise.
+  const days = monthGrid(month).filter((d, i, all) => month !== currentMonth || all[i - (i % 7) + 6] >= today);
   const eventsByDay = groupByDay(filtered, days);
   const monthKey = month.slice(0, 7);
   const inMonth = filtered.filter((e) => e.startDay.slice(0, 7) <= monthKey && e.endDay.slice(0, 7) >= monthKey);
@@ -83,6 +86,7 @@ export function CalendarView({
           today={today}
           lastMonth={lastMonth}
           countFor={(day) => countOnDay(events, day)}
+          noun="events in all months"
         />
       </div>
 
@@ -92,7 +96,7 @@ export function CalendarView({
           {formatMonth(month)}
         </h2>
         <p className="text-muted-foreground text-sm" aria-live="polite">
-          {inMonth.length === 1 ? "1 event" : `${inMonth.length} events`} this month
+          {inMonth.length === 1 ? "1 event" : `${inMonth.length} events`} in {formatMonth(month).split(" ")[0]}
         </p>
         <div className="flex items-center gap-1">
           <Button
@@ -152,7 +156,7 @@ export function CalendarView({
                 <span
                   className={cn(
                     "pointer-events-none relative flex size-6 items-center justify-center self-end rounded-full text-xs font-medium sm:self-start",
-                    (outside || isPast) && "text-muted-foreground/60",
+                    (outside || isPast) && "text-muted-foreground",
                     isToday && "bg-primary text-primary-foreground",
                   )}
                 >
@@ -211,7 +215,7 @@ export function CalendarView({
             <ul className="-mx-2 flex flex-col gap-1 overflow-y-auto">
               {selectedEvents.map((e) => (
                 <li key={e.id}>
-                  <DayEvent event={e} />
+                  <DayEvent event={e} onOpen={() => setSelectedDay(null)} />
                 </li>
               ))}
             </ul>
@@ -225,10 +229,8 @@ export function CalendarView({
 function EventPill({ event: e }: { event: CalendarEvent }) {
   const longRunning = isLongRunning(e);
   return (
-    <a
-      href={e.url}
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      href={eventHref(e.id)}
       title={`${e.title}${e.venueName ? ` · ${e.venueName}` : ""} · ${e.dateLabel}`}
       className={cn(
         "flex min-w-0 items-center gap-1 rounded border-l-2 px-1.5 py-0.5 text-[11px] leading-tight transition-opacity hover:brightness-125",
@@ -237,16 +239,15 @@ function EventPill({ event: e }: { event: CalendarEvent }) {
     >
       {!longRunning && <span className="text-muted-foreground shrink-0 tabular-nums">{e.timeLabel}</span>}
       <span className="truncate">{e.title}</span>
-    </a>
+    </Link>
   );
 }
 
-function DayEvent({ event: e }: { event: CalendarEvent }) {
+function DayEvent({ event: e, onOpen }: { event: CalendarEvent; onOpen: () => void }) {
   return (
-    <a
-      href={e.url}
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      href={eventHref(e.id)}
+      onClick={onOpen}
       className="hover:bg-accent/60 flex items-start gap-3 rounded-lg px-2 py-2 transition-colors"
     >
       <span
@@ -264,10 +265,10 @@ function DayEvent({ event: e }: { event: CalendarEvent }) {
         </span>
         <span className="text-muted-foreground text-xs">
           {e.categoryLabel}
-          {e.priceLabel && ` · ${e.priceLabel}`} · {e.sourceName}
+          {e.priceLabel && ` · ${e.priceLabel}`}
         </span>
       </span>
-      <ExternalLink className="text-muted-foreground mt-1 size-4 shrink-0" />
-    </a>
+      <ChevronRight className="text-muted-foreground mt-1 size-4 shrink-0" aria-hidden />
+    </Link>
   );
 }
