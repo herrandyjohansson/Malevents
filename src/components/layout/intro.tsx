@@ -74,10 +74,14 @@ export function Intro({ venues }: { venues: string[] }) {
   }));
   const [phase, setPhase] = useState<"playing" | "leaving" | "gone">("playing");
   const started = useRef(0);
+  // The root layout re-renders on every refresh (pending sources, map filters), handing a new
+  // `venues` array each time; read it through a ref so the effect runs once, on mount.
+  const venuesRef = useRef(venues);
 
   useEffect(() => {
     // Already played this session: the CSS hides it before paint, so there is nothing to run.
     if (document.documentElement.dataset.intro === "seen") return;
+    const venues = venuesRef.current;
     try {
       sessionStorage.setItem(INTRO_SEEN_KEY, "1");
     } catch {
@@ -113,11 +117,15 @@ export function Intro({ venues }: { venues: string[] }) {
         window.clearInterval(tick);
         setFrame((f) => ({ ...f, glyphs: WORD.split(""), locked: WORD.length }));
         setPhase("leaving");
-        window.setTimeout(() => setPhase("gone"), LEAVE_MS);
+        window.setTimeout(() => {
+          setPhase("gone");
+          // Hides it through the CSS too, so a remount later in the visit never plays it again.
+          document.documentElement.dataset.intro = "seen";
+        }, LEAVE_MS);
       }
     }, TICK_MS);
     return () => window.clearInterval(tick);
-  }, [venues]);
+  }, []);
 
   if (phase === "gone") return null;
   const whole = frame.locked === WORD.length;
