@@ -21,13 +21,13 @@
 
 ## 🔍 Del A – Felsökningsövning
 
-Den här uppgiften är byggd kring **The 4Ds**: du **delegerar** analysen, **beskriver** problemet rätt, **bedömer** svaret kritiskt och **äger** resultatet. Du behöver inte tänka på dem aktivt – men du kommer märka dem när du är klar.
+Den här uppgiften är byggd kring **The 4Ds**: du **delegerar** analysen *(Delegation)*, **beskriver** problemet rätt *(Description)*, **bedömer** svaret kritiskt *(Discernment)* och **äger** resultatet *(Diligence)*. Du behöver inte tänka på dem aktivt – men du kommer märka dem när du är klar.
 
 ### 🎯 Uppgift
 
 Analysera ett riktigt problem med Claude Code. Välj **ett** av följande:
 
-- [ ] En bugg du stött på i ditt eget projekt under kursen
+- [X] En bugg du stött på i ditt eget projekt under kursen
 - [ ] En bugg från ett open source-projekts issue-tracker (sök på etiketten `bug` eller `confirmed bug`)
 - [ ] Ett fel du kan simulera, till exempel:
   - ett API som returnerar oväntat svar

@@ -18,6 +18,16 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /**
+ * How long a failure is kept. `expire` sits just past `revalidate` so a
+ * failure is never served stale with a background refresh behind it: on
+ * Vercel that refresh is not kept alive, the instance freezes mid-fetch,
+ * and on thaw the request timer fires and caches a fresh "timeout" failure
+ * even when the upstream is back. The next request refetches in the
+ * foreground instead, where the aggregator keeps it alive with `after`.
+ */
+const FAILURE_LIFETIME = { stale: 30, revalidate: 15, expire: 16 } as const;
+
+/**
  * How often each profile refreshes in the background (`revalidate`) and how
  * long a stale copy may still be served while that happens (`expire`). The
  * long expiry is the point: once a source has been fetched, visitors get the
@@ -41,8 +51,8 @@ const LIFETIMES = {
  *
  * Failures are returned rather than thrown: errors thrown inside a cache
  * scope reach production with their message redacted, and the admin needs
- * it. A failure is cached only briefly ("seconds"), which also keeps a
- * broken upstream from being hammered on every request.
+ * it. A failure is cached only briefly (FAILURE_LIFETIME), which also keeps
+ * a broken upstream from being hammered on every request.
  */
 export async function fetchSource(id: string): Promise<SourceResult> {
   "use cache: remote";
@@ -58,7 +68,7 @@ export async function fetchSource(id: string): Promise<SourceResult> {
   try {
     events = (await source.fetchEvents(report)).map((e) => refineEvent(withSafeLinks(withCoordinates(e), source.homepage)));
   } catch (err) {
-    cacheLife("seconds");
+    cacheLife(FAILURE_LIFETIME);
     const error = errorMessage(err);
     const reason = err instanceof SourceError ? err.reason : "other";
     log.warn("source.fetch_failed", { source: id, reason, durationMs: since(started), error });

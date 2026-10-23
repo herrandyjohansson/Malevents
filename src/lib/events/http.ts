@@ -94,6 +94,17 @@ async function fetchPublic(sourceId: string, url: string, init: RequestInit) {
 }
 
 /**
+ * Node's fetch reports every network error as "fetch failed" and keeps the
+ * real one (connect timeout, reset, DNS) in `cause`; add its code so the
+ * logs and the admin can tell them apart.
+ */
+function networkMessage(err: unknown) {
+  if (!(err instanceof Error)) return "Network error";
+  const cause = err.cause as { code?: unknown } | undefined;
+  return typeof cause?.code === "string" ? `${err.message} (${cause.code})` : err.message;
+}
+
+/**
  * GET a URL and read the body, logging every request: one debug line on
  * success, a warning with the failure reason otherwise. `parse` runs inside
  * the same log line so invalid JSON counts as a failed request.
@@ -120,7 +131,7 @@ async function get<T>(
       if (err instanceof Error && err.name === "TimeoutError") {
         throw new SourceError(sourceId, `No response from ${new URL(url).host} within ${timeoutMs} ms`, "timeout");
       }
-      throw new SourceError(sourceId, err instanceof Error ? err.message : "Network error", "network");
+      throw new SourceError(sourceId, networkMessage(err), "network");
     }
     status = res.status;
     if (!res.ok) {
