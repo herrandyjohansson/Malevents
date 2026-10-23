@@ -16,10 +16,19 @@ import { cn } from "@/lib/utils";
  * with Tickets and Save. On phones the actions sit on their own line under
  * the text, so the venue never has to be cut short.
  */
-export function TimelineEvent({ event, live }: { event: MalmoEvent; live?: boolean }) {
+export function TimelineEvent({
+  event,
+  live,
+  hideArea,
+}: {
+  event: MalmoEvent;
+  live?: boolean;
+  /** Under an area heading the area would only repeat it. */
+  hideArea?: boolean;
+}) {
   const price = formatPrice(event);
   const color = CATEGORY_COLORS[event.category];
-  const area = toFilterable(event).area;
+  const area = !hideArea && toFilterable(event).area;
   const tickets = !event.soldOut && !event.cancelled && event.ticketUrl;
 
   return (

@@ -16,6 +16,7 @@ import {
   lastEventDay,
   matcher,
   parseFilters,
+  resolveRange,
   toFilterable,
 } from "@/lib/events/filters";
 import { localDay } from "@/lib/events/malmo-time";
@@ -72,7 +73,8 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
   const matches = matcher(filters, today);
   const visible = upcoming.filter((u) => matches(u.f)).map((u) => u.event);
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
-  const groups = takeEvents(groupByDay(visible, today), show);
+  // With a later time picked (next weekend), events already running sit under its first day.
+  const groups = takeEvents(groupByDay(visible, today, resolveRange(filters, today)?.from), show);
   const moreParams = filtersToParams(filters);
   moreParams.set("show", String(show + PAGE));
 

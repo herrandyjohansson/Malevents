@@ -12,6 +12,7 @@ import { CATEGORY_LABELS } from "@/lib/events/format";
 import { activeFilterCount, hasActiveFilters, resolveRange, type When } from "@/lib/events/filters";
 import { cn } from "@/lib/utils";
 
+import { chipClass } from "./chip-class";
 import { FilterPanel } from "./filter-panel";
 import { SearchBox } from "./search-box";
 import type { FilterBarProps } from "./types";
@@ -23,15 +24,6 @@ const QUICK_WHEN: { value: When; label: string; icon: typeof Sun }[] = [
   { value: "weekend", label: "This weekend", icon: Sparkles },
   { value: "week", label: "Next 7 days", icon: CalendarDays },
 ];
-
-/** A chip: 44px tall on phones (thumb-sized), 36px from `sm` up. */
-export const chipClass = (active: boolean) =>
-  cn(
-    "flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition-colors sm:h-9 sm:px-3 sm:text-xs",
-    active
-      ? "border-primary/60 bg-primary/20 text-foreground"
-      : "text-muted-foreground hover:text-foreground bg-white/[0.03] hover:border-white/20",
-  );
 
 export function FilterBar(props: FilterBarProps) {
   return props.variant === "floating" ? <FloatingFilters {...props} /> : <InlineFilters {...props} />;
@@ -99,7 +91,9 @@ const WHEN_SEGMENTS: SegmentOption<When>[] = [
   { value: "tonight", label: "Tonight", icon: Moon },
   { value: "today", label: "Today", icon: Sun },
   { value: "weekend", label: "This weekend", icon: Sparkles },
+  { value: "nextweekend", label: "Next weekend" },
   { value: "week", label: "Next 7 days" },
+  { value: "thismonth", label: "This month" },
 ];
 
 /**

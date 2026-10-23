@@ -4,7 +4,7 @@ import { ArrowUpRight, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 
 import { RemoteImage } from "@/components/events/remote-image";
-import { chipClass } from "@/components/filters/filter-bar";
+import { chipClass } from "@/components/filters/chip-class";
 import { AREA_NAMES, AREAS, isAreaId, type AreaId } from "@/lib/events/areas";
 import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/events/format";
 import { EVENT_CATEGORIES, type EventCategory } from "@/lib/events/types";

@@ -1,38 +1,47 @@
-import { CalendarDays, Moon, Palette } from "lucide-react";
+import { CalendarDays, Moon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AllDay } from "@/components/tonight/all-day";
+import { DayStrip } from "@/components/tonight/day-strip";
 import { TimelineEvent } from "@/components/tonight/timeline-event";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { addDays, formatDay } from "@/lib/days";
+import { addDays, dayNames, formatDay, isDay } from "@/lib/days";
 import { PendingSources } from "@/components/events/pending-sources";
 import { getAllEvents } from "@/lib/events/aggregate";
 import { pendingNames } from "@/lib/events/pending";
-import { toFilterable } from "@/lib/events/filters";
+import { endOf, toFilterable } from "@/lib/events/filters";
 import { localDay, localTime } from "@/lib/events/malmo-time";
-import { groupTonight } from "@/lib/events/tonight-data";
+import { countByDay, groupDay, groupTonight } from "@/lib/events/tonight-data";
 import type { MalmoEvent } from "@/lib/events/types";
 
 export const metadata: Metadata = { title: "Tonight" };
+
+/** How many days ahead the day strip reaches, today included. */
+const STRIP_DAYS = 60;
 
 /** Before this, the page is about today rather than tonight. */
 const EVENING_FROM = "15:00";
 
 /** Sections of the rest of the day, by when things start (Malmö time). */
 const PARTS = [
-  { id: "morning", label: "This morning", until: "12:00" },
-  { id: "afternoon", label: "This afternoon", until: "17:00" },
-  { id: "evening", label: "This evening", until: "22:00" },
+  { id: "morning", label: "Morning", until: "12:00" },
+  { id: "afternoon", label: "Afternoon", until: "17:00" },
+  { id: "evening", label: "Evening", until: "22:00" },
   { id: "late", label: "Late", until: "99:99" },
 ] as const;
 
-/** Today's events by part of the day; after-midnight shows count as late, unknown times go last. */
-function byPartOfDay(events: MalmoEvent[], today: string) {
-  const parts = PARTS.map((p) => ({ ...p, events: [] as MalmoEvent[] }));
+/** A day's events by part of the day; after-midnight shows count as late, unknown times go last. */
+function byPartOfDay(events: MalmoEvent[], day: string, isToday: boolean) {
+  const parts = PARTS.map((p) => ({
+    ...p,
+    label: isToday && p.id !== "late" ? `This ${p.label.toLowerCase()}` : p.label,
+    events: [] as MalmoEvent[],
+  }));
   const unknown: MalmoEvent[] = [];
   for (const e of events) {
     if (e.timeUnknown) {
@@ -40,7 +49,7 @@ function byPartOfDay(events: MalmoEvent[], today: string) {
       continue;
     }
     const { startDay, startTime } = toFilterable(e);
-    const part = startDay > today ? parts[parts.length - 1] : parts.find((p) => startTime < p.until)!;
+    const part = startDay > day ? parts[parts.length - 1] : parts.find((p) => startTime < p.until)!;
     part.events.push(e);
   }
   return [
@@ -49,23 +58,42 @@ function byPartOfDay(events: MalmoEvent[], today: string) {
   ];
 }
 
-export default function TonightPage() {
+export default function TonightPage({ searchParams }: PageProps<"/tonight">) {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 pb-12 sm:px-6">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 pt-5 pb-12 sm:px-6">
       <Suspense fallback={<TonightSkeleton />}>
-        <Tonight />
+        <Tonight searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function Tonight() {
+async function Tonight({ searchParams }: { searchParams: PageProps<"/tonight">["searchParams"] }) {
   // Request-time: everything here is relative to the current minute.
   await connection();
-  const { events, sources } = await getAllEvents();
+  const [{ events, sources }, params] = await Promise.all([getAllEvents(), searchParams]);
   const now = new Date();
   const today = localDay(now);
   const tomorrow = addDays(today, 1);
+
+  const counts = countByDay(events.filter((e) => endOf(e) >= now));
+  const stripDays = Array.from({ length: STRIP_DAYS }, (_, i) => {
+    const day = addDays(today, i);
+    return { day, count: counts.get(day) ?? 0 };
+  });
+  // Only days on the strip; anything else (a stale link, a past day) falls back to today.
+  const picked = Array.isArray(params.day) ? params.day[0] : params.day;
+  const day = isDay(picked) && picked > today && picked <= stripDays.at(-1)!.day ? picked : today;
+  const strip = <DayStrip days={stripDays} today={today} selected={day} />;
+
+  if (day !== today) {
+    return (
+      <>
+        {strip}
+        <DayView day={day} isTomorrow={day === tomorrow} events={events} pending={pendingNames(sources)} />
+      </>
+    );
+  }
 
   const { live, later, allDay, tomorrow: tomorrowEvents } = groupTonight(events, now);
 
@@ -76,7 +104,9 @@ async function Tonight() {
 
   return (
     <>
+      {strip}
       <PageHeader
+        size="compact"
         title={nothingLeft ? "Quiet now. Tomorrow has more." : localTime(now) < EVENING_FROM ? "Today in Malmö" : "Tonight in Malmö"}
         description={`${formatDay(today)}, ${localTime(now)}. ${summary(live.length, later.length)}`}
       />
@@ -111,7 +141,7 @@ async function Tonight() {
             <Timeline events={timeline} />
           </section>
         ) : (
-          byPartOfDay(timeline, today).map((part) => (
+          byPartOfDay(timeline, today, true).map((part) => (
             <section key={part.id} className="flex flex-col gap-3">
               <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <Moon className="text-primary size-4" aria-hidden />
@@ -127,23 +157,7 @@ async function Tonight() {
         </p>
       )}
 
-      {allDay.length > 0 && (
-        <details className="group bg-card/50 rounded-2xl border">
-          <summary className="flex cursor-pointer list-none items-center gap-3 p-4 text-sm font-medium [&::-webkit-details-marker]:hidden">
-            <Palette className="text-muted-foreground size-4" />
-            Open all day: {allDay.length === 1 ? "1 exhibition" : `${allDay.length} exhibitions`} and multi-day events
-            <span className="text-muted-foreground ml-auto text-xs group-open:hidden">Show</span>
-            <span className="text-muted-foreground ml-auto hidden text-xs group-open:inline">Hide</span>
-          </summary>
-          <ul className="grid grid-cols-1 gap-2.5 p-2.5 pt-0 sm:grid-cols-2">
-            {allDay.map((e) => (
-              <li key={e.id}>
-                <TimelineEvent event={e} />
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      <AllDay events={allDay} />
 
       <div className="flex flex-wrap justify-center gap-2 pt-2">
         <Button asChild variant="outline">
@@ -154,6 +168,64 @@ async function Tonight() {
         </Button>
         <Button asChild variant="outline">
           <Link href="/map?when=tonight">Tonight on the map</Link>
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/** A later day picked on the strip: the same sections as today, without "Happening now". */
+function DayView({
+  day,
+  isTomorrow,
+  events: all,
+  pending,
+}: {
+  day: string;
+  isTomorrow: boolean;
+  events: MalmoEvent[];
+  pending: string[];
+}) {
+  const { events, allDay } = groupDay(all, day);
+  const { weekday } = dayNames(day);
+  const count = events.length === 1 ? "1 thing" : `${events.length} things`;
+
+  return (
+    <>
+      <PageHeader
+        size="compact"
+        title={`${isTomorrow ? "Tomorrow" : weekday} in Malmö`}
+        description={`${formatDay(day)}. ${events.length ? `${count} on.` : "Nothing listed yet."}`}
+      />
+      <PendingSources names={pending} />
+
+      {events.length > 0 ? (
+        byPartOfDay(events, day, false).map((part) => (
+          <section key={part.id} className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <Moon className="text-primary size-4" aria-hidden />
+              {part.label}
+            </h2>
+            <Timeline events={part.events} />
+          </section>
+        ))
+      ) : (
+        <p className="text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
+          Nothing listed for {formatDay(day)} yet.
+        </p>
+      )}
+
+      <AllDay events={allDay} />
+
+      <div className="flex flex-wrap justify-center gap-2 pt-2">
+        <Button asChild variant="outline">
+          <Link href={`/?from=${day}&to=${day}`}>
+            <CalendarDays />
+            Browse this day
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href={`/map?from=${day}&to=${day}`}>This day on the map</Link>
         </Button>
       </div>
     </>
@@ -209,7 +281,12 @@ function Timeline({ events }: { events: MalmoEvent[] }) {
 
 function TonightSkeleton() {
   return (
-    <div className="flex flex-col gap-6 pt-10">
+    <div className="flex flex-col gap-6">
+      <div className="flex gap-2 overflow-hidden py-1">
+        {Array.from({ length: 10 }, (_, i) => (
+          <Skeleton key={i} className="h-[4.5rem] w-14 shrink-0 rounded-2xl" />
+        ))}
+      </div>
       <Skeleton className="h-4 w-48" />
       <Skeleton className="h-12 w-80" />
       {Array.from({ length: 5 }, (_, i) => (

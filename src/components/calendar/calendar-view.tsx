@@ -7,36 +7,53 @@ import { useMemo } from "react";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { useFilters } from "@/components/filters/use-filters";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { addDays, addMonths, formatDay, formatMonth, isDay, monthGrid, monthStart, WEEKDAYS_SHORT } from "@/lib/days";
-import { countOnDay, facetCounts, isLongRunning, matcher } from "@/lib/events/filters";
-import { eventHref } from "@/lib/events/event-href";
+import { countOnDay, facetCounts, filtersToParams, isLongRunning, matcher, type EventFilters } from "@/lib/events/filters";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/events/format";
+import type { EventCategory } from "@/lib/events/types";
 import { useUrlParam } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
 
 import type { CalendarEvent } from "@/lib/events/view-types";
 
-/** Pills shown per day cell before collapsing into "+N more". */
-const MAX_PILLS = 3;
+/** Kinds of event listed per day cell before collapsing into "+N more". */
+const MAX_KINDS = 5;
 const MAX_MONTHS_AHEAD = 12;
 
-/** Single-day events by start time first, long-running ones after. */
-function byDisplayOrder(a: CalendarEvent, b: CalendarEvent) {
-  return Number(isLongRunning(a)) - Number(isLongRunning(b)) || a.timeLabel.localeCompare(b.timeLabel);
+interface DayKinds {
+  total: number;
+  /** Busiest kind first. */
+  kinds: { category: EventCategory; count: number }[];
 }
 
-/** The filtered events covering each day of the grid, in display order. */
-function groupByDay(events: CalendarEvent[], days: string[]) {
-  const map = new Map<string, CalendarEvent[]>(days.map((d) => [d, []]));
-  const [gridStart, gridEnd] = [days[0], days[days.length - 1]];
+/**
+ * How many filtered events of each kind are on each day of the grid.
+ * Exhibitions and other long-running events are left out: they would be on
+ * every day and drown the rest. The day page lists them separately.
+ */
+function summarizeDays(events: CalendarEvent[], days: string[]) {
+  const counts = new Map<string, Map<EventCategory, number>>(days.map((d) => [d, new Map()]));
   for (const e of events) {
-    if (e.endDay < gridStart || e.startDay > gridEnd) continue;
-    const from = e.startDay < gridStart ? gridStart : e.startDay;
-    const to = e.endDay > gridEnd ? gridEnd : e.endDay;
-    for (let d = from; d <= to; d = addDays(d, 1)) map.get(d)?.push(e);
+    if (isLongRunning(e)) continue;
+    // A show running past midnight counts on both days, as on the day page.
+    for (let d = e.startDay; d <= e.endDay; d = addDays(d, 1)) {
+      const day = counts.get(d);
+      day?.set(e.category, (day.get(e.category) ?? 0) + 1);
+    }
   }
-  for (const list of map.values()) list.sort(byDisplayOrder);
-  return map;
+  const summary = new Map<string, DayKinds>();
+  for (const [day, byKind] of counts) {
+    const kinds = [...byKind.entries()].map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count);
+    summary.set(day, { total: kinds.reduce((n, k) => n + k.count, 0), kinds });
+  }
+  return summary;
+}
+
+/** The day page, with the calendar's filters carried along and one kind picked. */
+function dayHref(day: string, filters: EventFilters, category?: EventCategory) {
+  const params = filtersToParams({ ...filters, cats: category ? [category] : [], when: "all", from: undefined, to: undefined });
+  const query = params.toString();
+  return `/days/${day}${query ? `?${query}` : ""}`;
 }
 
 /** First day of the month named by ?month=yyyy-mm, kept within the months the calendar offers. */
@@ -55,15 +72,12 @@ export function CalendarView({
   today: string;
   sources: { id: string; name: string }[];
 }) {
-  // The shown month and the open day live in the URL (?month=yyyy-mm&day=yyyy-mm-dd) so they can be shared.
+  // The shown month lives in the URL (?month=yyyy-mm) so it can be shared.
   const currentMonth = monthStart(today);
   const lastMonth = addMonths(currentMonth, MAX_MONTHS_AHEAD);
   const [monthParam, setMonthParam] = useUrlParam("month");
-  const [dayParam, setDayParam] = useUrlParam("day");
   const month = shownMonth(monthParam, currentMonth, lastMonth);
   const setMonth = (next: string) => setMonthParam(next === currentMonth ? null : next.slice(0, 7));
-  const selectedDay = isDay(dayParam) ? dayParam : null;
-  const setSelectedDay = (day: string | null) => setDayParam(day);
   // The shared filters (in the URL), applied in the browser.
   const { filters } = useFilters("client");
   const filtered = useMemo(() => events.filter(matcher(filters, today)), [events, filters, today]);
@@ -71,10 +85,9 @@ export function CalendarView({
 
   // This month starts at the current week: whole weeks already over are only noise.
   const days = monthGrid(month).filter((d, i, all) => month !== currentMonth || all[i - (i % 7) + 6] >= today);
-  const eventsByDay = groupByDay(filtered, days);
+  const summaries = summarizeDays(filtered, days);
   const monthKey = month.slice(0, 7);
   const inMonth = filtered.filter((e) => e.startDay.slice(0, 7) <= monthKey && e.endDay.slice(0, 7) >= monthKey);
-  const selectedEvents = selectedDay ? (eventsByDay.get(selectedDay) ?? []) : [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -134,62 +147,72 @@ export function CalendarView({
         </div>
         <div className="grid flex-1 auto-rows-fr grid-cols-7">
           {days.map((day) => {
-            const list = eventsByDay.get(day) ?? [];
+            const { total, kinds } = summaries.get(day) ?? { total: 0, kinds: [] };
             const outside = day.slice(0, 7) !== monthKey;
             const isToday = day === today;
             const isPast = day < today;
-            const shown = list.slice(0, MAX_PILLS);
+            const shown = kinds.slice(0, kinds.length > MAX_KINDS ? MAX_KINDS - 1 : MAX_KINDS);
             return (
               <div
                 key={day}
                 className={cn(
-                  "group relative flex min-h-20 flex-col gap-1 border-r border-b p-1 sm:p-1.5 [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0",
+                  "group relative flex min-h-20 flex-col gap-1 border-r border-b p-1 sm:min-h-28 sm:p-1.5 [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0",
                   outside && "bg-background/40",
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => setSelectedDay(day)}
-                  aria-label={`${formatDay(day)}, ${list.length} events`}
-                  className="absolute inset-0 rounded-none outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset"
+                {/* The whole cell opens the day; the kind rows on top open it with that kind picked. */}
+                <Link
+                  href={dayHref(day, filters)}
+                  aria-label={`${formatDay(day)}, ${total === 1 ? "1 event" : `${total} events`}`}
+                  className="hover:bg-accent/30 absolute inset-0 rounded-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset"
                 />
-                <span
-                  className={cn(
-                    "pointer-events-none relative flex size-6 items-center justify-center self-end rounded-full text-xs font-medium sm:self-start",
-                    (outside || isPast) && "text-muted-foreground",
-                    isToday && "bg-primary text-primary-foreground",
+                <span className="pointer-events-none relative flex items-center justify-between gap-1">
+                  <span
+                    className={cn(
+                      "flex size-6 items-center justify-center rounded-full text-xs font-medium",
+                      (outside || isPast) && "text-muted-foreground",
+                      isToday && "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    {Number(day.slice(8))}
+                  </span>
+                  {total > 0 && (
+                    <span className="text-muted-foreground pr-0.5 text-[11px] tabular-nums max-sm:hidden">{total}</span>
                   )}
-                >
-                  {Number(day.slice(8))}
                 </span>
 
-                {/* Phones: coloured dots. Larger screens: event pills. */}
-                {list.length > 0 && (
-                  <div className="pointer-events-none relative flex flex-wrap gap-0.5 sm:hidden">
-                    {list.slice(0, 6).map((e) => (
-                      <span
-                        key={e.id}
-                        className="size-1.5 rounded-full"
-                        style={{ background: e.color }}
-                      />
-                    ))}
+                {/* Phones: a dot per kind and the total. Larger screens: a row per kind with its count. */}
+                {total > 0 && (
+                  <div className="pointer-events-none relative flex flex-col items-center gap-0.5 sm:hidden">
+                    <span className="flex flex-wrap justify-center gap-0.5">
+                      {kinds.slice(0, 4).map((k) => (
+                        <span key={k.category} className="size-1.5 rounded-full" style={{ background: CATEGORY_COLORS[k.category] }} />
+                      ))}
+                    </span>
+                    <span className="text-muted-foreground text-[10px] leading-none tabular-nums">{total}</span>
                   </div>
                 )}
-                <ul className="relative hidden min-w-0 flex-col gap-0.5 sm:flex">
-                  {shown.map((e) => (
-                    <li key={e.id}>
-                      <EventPill event={e} />
+                <ul className="relative hidden min-w-0 flex-col sm:flex">
+                  {shown.map((k) => (
+                    <li key={k.category}>
+                      <Link
+                        href={dayHref(day, filters, k.category)}
+                        className="hover:bg-accent/70 flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-[11px] leading-tight transition-colors"
+                      >
+                        <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: CATEGORY_COLORS[k.category] }} />
+                        <span className="truncate">{CATEGORY_LABELS[k.category]}</span>
+                        <span className="text-muted-foreground ml-auto shrink-0 tabular-nums">{k.count}</span>
+                      </Link>
                     </li>
                   ))}
-                  {list.length > MAX_PILLS && (
+                  {kinds.length > shown.length && (
                     <li>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDay(day)}
-                        className="text-muted-foreground hover:text-foreground px-1 text-[11px] font-medium"
+                      <Link
+                        href={dayHref(day, filters)}
+                        className="text-muted-foreground hover:text-foreground block px-1 py-0.5 text-[11px] font-medium"
                       >
-                        +{list.length - MAX_PILLS} more
-                      </button>
+                        +{kinds.length - shown.length} more kinds
+                      </Link>
                     </li>
                   )}
                 </ul>
@@ -198,77 +221,6 @@ export function CalendarView({
           })}
         </div>
       </div>
-
-      <Dialog open={selectedDay !== null} onOpenChange={(open) => !open && setSelectedDay(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedDay && formatDay(selectedDay)}</DialogTitle>
-            <DialogDescription>
-              {selectedEvents.length === 0
-                ? "Nothing on this day with the current filters."
-                : selectedEvents.length === 1
-                  ? "1 event"
-                  : `${selectedEvents.length} events`}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedEvents.length > 0 && (
-            <ul className="-mx-2 flex flex-col gap-1 overflow-y-auto">
-              {selectedEvents.map((e) => (
-                <li key={e.id}>
-                  <DayEvent event={e} onOpen={() => setSelectedDay(null)} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
-  );
-}
-
-function EventPill({ event: e }: { event: CalendarEvent }) {
-  const longRunning = isLongRunning(e);
-  return (
-    <Link
-      href={eventHref(e.id)}
-      title={`${e.title}${e.venueName ? ` · ${e.venueName}` : ""} · ${e.dateLabel}`}
-      className={cn(
-        "flex min-w-0 items-center gap-1 rounded border-l-2 px-1.5 py-0.5 text-[11px] leading-tight transition-opacity hover:brightness-125",
-      )}
-      style={{ borderColor: e.color, background: `${e.color}${longRunning ? "14" : "26"}` }}
-    >
-      {!longRunning && <span className="text-muted-foreground shrink-0 tabular-nums">{e.timeLabel}</span>}
-      <span className="truncate">{e.title}</span>
-    </Link>
-  );
-}
-
-function DayEvent({ event: e, onOpen }: { event: CalendarEvent; onOpen: () => void }) {
-  return (
-    <Link
-      href={eventHref(e.id)}
-      onClick={onOpen}
-      className="hover:bg-accent/60 flex items-start gap-3 rounded-lg px-2 py-2 transition-colors"
-    >
-      <span
-        aria-hidden
-        className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm"
-        style={{ background: e.color }}
-      >
-        {e.emoji}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="font-medium">{e.title}</span>
-        <span className="text-muted-foreground text-sm">
-          {e.dateLabel}
-          {e.venueName && ` · ${e.venueName}`}
-        </span>
-        <span className="text-muted-foreground text-xs">
-          {e.categoryLabel}
-          {e.priceLabel && ` · ${e.priceLabel}`}
-        </span>
-      </span>
-      <ChevronRight className="text-muted-foreground mt-1 size-4 shrink-0" aria-hidden />
-    </Link>
   );
 }

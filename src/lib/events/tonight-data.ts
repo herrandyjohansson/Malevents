@@ -50,3 +50,43 @@ export function groupTonight(events: MalmoEvent[], now: Date): TonightGroups {
   groups.tomorrow.sort(byStart);
   return groups;
 }
+
+export interface DayGroups {
+  /** Starting that day, plus shows after midnight before NIGHT_ENDS. */
+  events: MalmoEvent[];
+  /** Exhibitions and other long-running events open that day. */
+  allDay: MalmoEvent[];
+}
+
+/**
+ * Sort events into the Tonight tab's sections for a later day picked in the
+ * day strip: the same night-long day as groupTonight, without "live".
+ */
+export function groupDay(events: MalmoEvent[], day: string): DayGroups {
+  const next = addDays(day, 1);
+  const groups: DayGroups = { events: [], allDay: [] };
+
+  for (const event of events) {
+    const { startDay, endDay, startTime } = toFilterable(event);
+    if (isLongRunning({ startDay, endDay })) {
+      if (startDay <= day && endDay >= day) groups.allDay.push(event);
+      continue;
+    }
+    const isAfterMidnightShow = startDay === next && !event.timeUnknown && startTime < NIGHT_ENDS;
+    if (startDay === day || isAfterMidnightShow) groups.events.push(event);
+  }
+
+  groups.events.sort(byStart);
+  return groups;
+}
+
+/** How many events (not counting long-running ones) start on each day, for the day strip. */
+export function countByDay(events: MalmoEvent[]) {
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    const { startDay, endDay } = toFilterable(event);
+    if (isLongRunning({ startDay, endDay })) continue;
+    counts.set(startDay, (counts.get(startDay) ?? 0) + 1);
+  }
+  return counts;
+}

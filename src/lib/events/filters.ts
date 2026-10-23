@@ -16,7 +16,9 @@ export const WHEN_OPTIONS = [
   { value: "today", label: "Today" },
   { value: "tonight", label: "Tonight" },
   { value: "weekend", label: "This weekend" },
+  { value: "nextweekend", label: "Next weekend" },
   { value: "week", label: "Next 7 days" },
+  { value: "thismonth", label: "This month" },
   { value: "month", label: "Next 30 days" },
 ] as const;
 
@@ -159,8 +161,13 @@ export function resolveRange(f: EventFilters, today: string): DayRange | null {
       return { from: today, to: today };
     case "weekend":
       return weekend(today);
+    case "nextweekend":
+      return weekend(addDays(weekend(today).to, 1));
     case "week":
       return { from: today, to: addDays(today, 6) };
+    case "thismonth":
+      // The rest of the calendar month, today included.
+      return { from: today, to: addDays(addMonths(today, 1), -1) };
     case "month":
       return { from: today, to: addDays(today, 29) };
     case "custom":

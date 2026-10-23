@@ -15,15 +15,16 @@ export interface DayGroup {
 
 /**
  * Upcoming events under day headings, earliest first. An event already
- * running (an exhibition that opened last week) sits under today, not under
- * the day it began.
+ * running (an exhibition that opened last week) sits under today, or under
+ * `from` when the picked time starts later, not under the day it began.
  */
-export function groupByDay(events: MalmoEvent[], today: string): DayGroup[] {
+export function groupByDay(events: MalmoEvent[], today: string, from = today): DayGroup[] {
   const tomorrow = addDays(today, 1);
+  const first = from > today ? from : today;
   const groups = new Map<string, MalmoEvent[]>();
   for (const event of events) {
     const { startDay } = toFilterable(event);
-    const day = startDay < today ? today : startDay;
+    const day = startDay < first ? first : startDay;
     groups.set(day, [...(groups.get(day) ?? []), event]);
   }
   return [...groups.entries()]
