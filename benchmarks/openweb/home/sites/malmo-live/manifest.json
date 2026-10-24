@@ -1,0 +1,8 @@
+{
+  "name": "malmo-live",
+  "version": "1.0.0",
+  "spec_version": "2.0",
+  "site_url": "https://malmolive.se",
+  "requires_auth": false,
+  "quarantined": false
+}

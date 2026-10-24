@@ -12,7 +12,7 @@ People in Malmö deciding what to do: residents and visitors alike (tourists, ne
 
 ## Product Purpose
 
-Make it easy to find events around Malmö and act on them. Malevents gathers listings from the city's venue sites and ticket pages into one place, so a visitor can see what's on tonight, this weekend or on a chosen date, by kind of event and by area, and then get tickets, save it, add it to a calendar or find the way there. Success is a visitor finding something worth going to within seconds, and trusting that the listing is current and correct.
+Make it easy to find events around Malmö and act on them. MÖEVENTS gathers listings from the city's venue sites and ticket pages into one place, so a visitor can see what's on tonight, this weekend or on a chosen date, by kind of event and by area, and then get tickets, save it, add it to a calendar or find the way there. Success is a visitor finding something worth going to within seconds, and trusting that the listing is current and correct.
 
 ## Positioning
 
@@ -22,7 +22,7 @@ One current overview of Malmö's events across venues that otherwise each publis
 
 - Visitors browse on the move and on the sofa; mobile is the primary device, desktop is used for planning.
 - Visitors may not know Malmö's areas or venue names, so places are explained by area and shown on a map.
-- Upstream sites own the tickets: Malevents links out to buy, it does not sell.
+- Upstream sites own the tickets: MÖEVENTS links out to buy, it does not sell.
 - Data refreshes from upstream on a schedule; some sources occasionally fail or lack details (start time, location).
 
 ## Capabilities and Constraints
@@ -30,7 +30,7 @@ One current overview of Malmö's events across venues that otherwise each publis
 - Next.js on Vercel; no accounts, no database, no API keys. Saved events and Admin mode live in the visitor's browser.
 - Sources are scraped or read from public feeds (see README); coverage is limited to the registered sources, and some events lack coordinates, start times or descriptions.
 - Interface language: English. Swedish stays where it is a name: venues, event titles, areas such as Möllan and Västra Hamnen.
-- Browsing by area uses everyday area names (Centrum, Möllan, Västra Hamnen, Davidshall & Triangeln, Rosengård & Värnhem, Limhamn, Hyllie), derived from venue coordinates; borders are approximate.
+- Browsing by area uses everyday area names (Centrum, Möllan, Västra Hamnen, Davidshall & Triangeln, Värnhem, Limhamn, Hyllie), derived from venue coordinates; borders are approximate. Rosengård is left out: its events are not listed.
 - Navigation: five tabs, Tonight first: Tonight, Discover, Map, Venues, Saved. The week view and calendar live inside Discover.
 - Free, keyless tools and data sources only, unless a paid one is clearly worth it.
 - `/admin` is an unprotected internal tool, hidden behind a per-browser toggle; it is not part of the visitor experience.

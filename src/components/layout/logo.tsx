@@ -1,6 +1,6 @@
 import { useId } from "react";
 
-/** The Malevents mark: a gradient tile with a map pin cut into a spark. */
+/** The MÖEVENTS mark: a gradient tile with a map pin cut into a spark. */
 export function Logo({ className }: { className?: string }) {
   const id = useId();
   return (

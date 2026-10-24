@@ -1,0 +1,4 @@
+{
+  "operation_id": "listEvents",
+  "cases": [{ "input": { "per_page": 100, "page": 1, "_fields": "id,link,title,acf,event_medium" }, "assertions": { "status": 200, "response_schema_valid": true } }]
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Logo } from "./logo";
+import { UmlautO } from "./umlaut-o";
 import { HeaderNav, HeaderNavFallback, MobileNav, MobileNavFallback } from "./nav-tabs";
 
 export function SiteHeader() {
@@ -9,9 +10,12 @@ export function SiteHeader() {
     <>
       <header className="glass sticky top-0 z-[1000] border-b">
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
+          <Link href="/" aria-label="MÖEVENTS" className="flex items-center gap-2.5 font-semibold tracking-tight">
             <Logo className="size-7" />
-            <span className="text-[15px]">Malevents</span>
+            <span className="text-[15px]">
+              M<UmlautO />
+              EVENTS
+            </span>
           </Link>
           <Suspense fallback={<HeaderNavFallback />}>
             <HeaderNav />

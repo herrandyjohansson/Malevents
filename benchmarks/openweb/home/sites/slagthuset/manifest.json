@@ -1,0 +1,8 @@
+{
+  "name": "slagthuset",
+  "version": "1.0.0",
+  "spec_version": "2.0",
+  "site_url": "https://slagthuset.se",
+  "requires_auth": false,
+  "quarantined": false
+}

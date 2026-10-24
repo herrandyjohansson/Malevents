@@ -1,0 +1,175 @@
+{
+  "startedAt": "2026-10-24T16:24:10.191Z",
+  "rounds": 5,
+  "openwebStartupMs": 284.8069170000001,
+  "venues": [
+    {
+      "venue": "slagthuset",
+      "current": {
+        "runs": 5,
+        "ok": 5,
+        "errors": [],
+        "ms": {
+          "min": 406.2610420000001,
+          "median": 627.0259589999996,
+          "p95": 715.4773339999999
+        },
+        "events": 68,
+        "completeness": {
+          "startTime": 1,
+          "endTime": 0.22058823529411764,
+          "price": 0.9852941176470589,
+          "description": 1,
+          "image": 0,
+          "ticketUrl": 1
+        },
+        "links": {
+          "checked": 5,
+          "ok": 5
+        },
+        "requiresBrowser": false
+      },
+      "openweb": {
+        "runs": 5,
+        "ok": 5,
+        "errors": [],
+        "ms": {
+          "min": 866.2833339999997,
+          "median": 878.6108329999997,
+          "p95": 986.8463329999995
+        },
+        "events": 68,
+        "completeness": {
+          "startTime": 1,
+          "endTime": 0.22058823529411764,
+          "price": 0.9852941176470589,
+          "description": 1,
+          "image": 0,
+          "ticketUrl": 1
+        },
+        "links": {
+          "checked": 5,
+          "ok": 5
+        },
+        "requiresBrowser": false
+      },
+      "overlap": {
+        "both": 68,
+        "onlyCurrent": 0,
+        "onlyOpenweb": 0
+      }
+    },
+    {
+      "venue": "malmo-live",
+      "current": {
+        "runs": 5,
+        "ok": 5,
+        "errors": [],
+        "ms": {
+          "min": 125.45624999999927,
+          "median": 175.4432080000006,
+          "p95": 1525.3285410000026
+        },
+        "events": 123,
+        "completeness": {
+          "startTime": 1,
+          "endTime": 0,
+          "price": 0.967479674796748,
+          "description": 1,
+          "image": 1,
+          "ticketUrl": 0.8861788617886179
+        },
+        "links": {
+          "checked": 5,
+          "ok": 3
+        },
+        "requiresBrowser": false
+      },
+      "openweb": {
+        "runs": 5,
+        "ok": 5,
+        "errors": [],
+        "ms": {
+          "min": 567.9570830000011,
+          "median": 581.1672909999979,
+          "p95": 679.7172080000018
+        },
+        "events": 123,
+        "completeness": {
+          "startTime": 1,
+          "endTime": 0,
+          "price": 0.967479674796748,
+          "description": 1,
+          "image": 1,
+          "ticketUrl": 0.8861788617886179
+        },
+        "links": {
+          "checked": 5,
+          "ok": 5
+        },
+        "requiresBrowser": false
+      },
+      "overlap": {
+        "both": 123,
+        "onlyCurrent": 0,
+        "onlyOpenweb": 0
+      }
+    },
+    {
+      "venue": "plan-b",
+      "current": {
+        "runs": 5,
+        "ok": 5,
+        "errors": [],
+        "ms": {
+          "min": 89.37383399999817,
+          "median": 119.09616699999606,
+          "p95": 4298.6233340000035
+        },
+        "events": 10,
+        "completeness": {
+          "startTime": 0,
+          "endTime": 0,
+          "price": 0,
+          "description": 0,
+          "image": 1,
+          "ticketUrl": 1
+        },
+        "links": {
+          "checked": 5,
+          "ok": 0
+        },
+        "requiresBrowser": false
+      },
+      "openweb": {
+        "runs": 5,
+        "ok": 5,
+        "errors": [],
+        "ms": {
+          "min": 622.7880839999998,
+          "median": 654.6542090000003,
+          "p95": 11165.142832999998
+        },
+        "events": 65,
+        "completeness": {
+          "startTime": 1,
+          "endTime": 1,
+          "price": 0.9538461538461539,
+          "description": 1,
+          "image": 1,
+          "ticketUrl": 1
+        },
+        "links": {
+          "checked": 5,
+          "ok": 5
+        },
+        "requiresBrowser": false
+      },
+      "overlap": {
+        "both": 10,
+        "onlyCurrent": 0,
+        "onlyOpenweb": 55
+      }
+    }
+  ]
+}

@@ -105,16 +105,18 @@ function networkMessage(err: unknown) {
 }
 
 /**
- * GET a URL and read the body, logging every request: one debug line on
- * success, a warning with the failure reason otherwise. `parse` runs inside
- * the same log line so invalid JSON counts as a failed request.
+ * GET a URL (or POST `body` as JSON) and read the body, logging every
+ * request: one debug line on success, a warning with the failure reason
+ * otherwise. `parse` runs inside the same log line so invalid JSON counts as
+ * a failed request.
  */
-async function get<T>(
+async function request<T>(
   sourceId: string,
   url: string,
   accept: string,
   timeoutMs: number,
   headers: HeadersInit | undefined,
+  body: string | undefined,
   parse: (text: string) => T,
 ): Promise<T> {
   const started = performance.now();
@@ -123,7 +125,14 @@ async function get<T>(
     let res: Response;
     try {
       res = await fetchPublic(sourceId, url, {
-        headers: { Accept: accept, "User-Agent": USER_AGENT, ...headers },
+        method: body === undefined ? "GET" : "POST",
+        body,
+        headers: {
+          Accept: accept,
+          "User-Agent": USER_AGENT,
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+          ...headers,
+        },
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
@@ -152,14 +161,16 @@ async function get<T>(
 /**
  * Thin `fetch` wrapper for source adapters: request timeout, JSON parsing
  * and errors that name the source. Call it from inside a `"use cache"`
- * function so responses are cached per source.
+ * function so responses are cached per source. Pass `body` to POST it as
+ * JSON, for the few listing APIs that only answer POST (bio.se).
  */
 export async function fetchJson<T>(
   sourceId: string,
   url: string,
-  { timeoutMs = 8000, headers }: { timeoutMs?: number; headers?: HeadersInit } = {},
+  { timeoutMs = 8000, headers, body }: { timeoutMs?: number; headers?: HeadersInit; body?: unknown } = {},
 ): Promise<T> {
-  return get(sourceId, url, "application/json", timeoutMs, headers, (text) => {
+  const payload = body === undefined ? undefined : JSON.stringify(body);
+  return request(sourceId, url, "application/json", timeoutMs, headers, payload, (text) => {
     try {
       // The shape is not validated here; an unexpected one fails in the adapter and shows as a source error.
       return JSON.parse(text) as T;
@@ -175,5 +186,5 @@ export async function fetchText(
   url: string,
   { timeoutMs = 8000, headers }: { timeoutMs?: number; headers?: HeadersInit } = {},
 ): Promise<string> {
-  return get(sourceId, url, "text/html", timeoutMs, headers, (text) => text);
+  return request(sourceId, url, "text/html", timeoutMs, headers, undefined, (text) => text);
 }

@@ -9,6 +9,7 @@ Which AI-agent skills and rules this project uses, where they come from, what th
 | `tdd-guide` | Skill | `.claude/skills/tdd-guide/` | Yes, automatically | Unit tests, first for the adapter parsers |
 | `senior-qa` | Skill | `.claude/skills/senior-qa/` | Yes, automatically | Playwright end-to-end tests per route |
 | `a11y-audit` | Skill | `.claude/skills/a11y-audit/` | Yes, automatically | WCAG 2.2 AA audits and contrast checks |
+| `find-malmo-event-source` | Skill | `.claude/skills/find-malmo-event-source/` | Yes, automatically | Finding and vetting new event sources; records them in [event-source-candidates.yaml](event-source-candidates.yaml) |
 | `security-and-owasp` | Rule | `.claude/rules/security-and-owasp.md` | Yes, for `src/**`, `next.config.ts`, `package.json` | Secure coding (OWASP Top 10); compliance in [security-owasp.md](security-owasp.md) |
 | `acquire-codebase-knowledge` | Skill | `.agents/skills/acquire-codebase-knowledge/` | No (not under `.claude/`); followed by hand | Wrote `docs/codebase/` (assignment part A) |
 
@@ -23,6 +24,7 @@ Claude Code picks a skill from its description when a task matches, or you can n
 | `a11y-audit` | same repo, `engineering-team/a11y-audit/skills/a11y-audit` (plugin 2.9.0; only the skill folder is installed, not `plugin.json` or `settings.json`) | same commit |
 | `security-and-owasp` | [github/awesome-copilot](https://github.com/github/awesome-copilot) `instructions/security-and-owasp.instructions.md` | commit `c835373ab01633f23e67e1a5713acc9b783915f8`; front matter changed from `applyTo` to `paths` |
 | `acquire-codebase-knowledge` | github/awesome-copilot skill, v1.3 | see its `SKILL.md` |
+| `find-malmo-event-source` | Written for this project on 2026-10-24 | in this repo |
 
 All are MIT licensed. The skill files are copied unchanged, so they can be compared with upstream.
 
@@ -33,6 +35,10 @@ All are MIT licensed. The skill files are copied unchanged, so they can be compa
 **senior-qa.** Its route scaffolder (`scripts/e2e_test_scaffolder.py`) turns `src/app/` into one Playwright spec per route, a starting point for "every tab renders with `EVENTS_LIVE=false`". The component test generator only writes stubs, and the generated login fixture doesn't apply (there is no login), so neither is planned. Not used yet.
 
 **a11y-audit.** Static WCAG 2.2 scan of `src/` and a contrast checker for the dark theme. Baseline on 2026-10-21: `a11y_scanner.py src --severity major` found no issues in 65 files. It is a pattern scanner, so it doesn't replace testing the map, calendar and bottom sheet with a keyboard and a screen reader (`references/testing-checklist.md`).
+
+**find-malmo-event-source.** Discovers venues not covered yet, finds the JSON or feed behind their event pages and checks that a server can read it (no browser, key or login), then records the result in `docs/event-source-candidates.yaml` and stops for the user to choose. It writes no adapters. `scripts/check-endpoint.sh` makes one plain GET with the `MaleventsBot` user agent and prints the `robots.txt` rules; `scripts/capture.sh` records a page's requests with [OpenWeb](https://github.com/openweb-org/openweb) (`npm install -g @openweb-org/openweb`, MIT), which is how the Plan B (`/api/eventsEdge`) and Panora (`bio.se/api/cinemas/films`) feeds were found. First run 2026-10-24: five sources worth building (Spegeln, Panora via bio.se, Medley, Malmö Arena, Hypnos).
+
+Known quirks: OpenWeb is a global CLI, not a project dependency, so the skill falls back to the DevTools network tab without it. `capture.sh` gives OpenWeb an empty Chrome profile (the default copies the user's Chrome cookies) and opens the page through CDP after capture starts, because `capture start --isolate` attaches after the load and records nothing. It uses port 9222 and stops OpenWeb's managed browser when it exits.
 
 ## Review before installing
 

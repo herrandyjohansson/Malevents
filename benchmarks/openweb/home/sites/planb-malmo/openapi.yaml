@@ -1,0 +1,29 @@
+openapi: '3.1.0'
+info:
+  title: Plan B Malmö
+  version: '1.0.0'
+  x-openweb:
+    spec_version: '2.0'
+    requires_auth: false
+servers:
+  - url: https://www.planbmalmo.com
+    x-openweb:
+      transport: node
+paths:
+  # Found with `openweb capture`: the home page loads the full programme from
+  # this broadcast.events endpoint in the browser. It answers a plain fetch.
+  /api/eventsEdge:
+    get:
+      operationId: listEvents
+      summary: List Plan B's full programme — name, start time, door and end time, tags, price, ticket link, sold-out flag
+      x-openweb:
+        permission: read
+      responses:
+        '200':
+          description: Upcoming events with custom_fields (end_time, show_start_time, cover, ticketUrl, soldOut, eventStatus).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object

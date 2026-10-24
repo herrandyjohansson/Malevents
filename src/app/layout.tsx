@@ -22,8 +22,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Malevents – What's on in Malmö",
-    template: "%s · Malevents",
+    default: "MÖEVENTS – What's on in Malmö",
+    template: "%s · MÖEVENTS",
   },
   description:
     "What's on in Malmö tonight, this weekend and beyond: concerts, stage, clubs, sport and more across the city's venues, by time and area.",

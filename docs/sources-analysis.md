@@ -2,6 +2,8 @@
 
 Which further sources could feed Malevents, how each can be read, what it would add, and in what order to build them.
 
+> The current status of every candidate, including later rounds, is kept in [event-source-candidates.yaml](event-source-candidates.yaml), maintained by the `find-malmo-event-source` skill. This page is the write-up of the first round.
+
 **Status 2026-10-21:** #1–#4 are built (`malmo-stad.ts`, `malmo-konsthall.ts` via `events-calendar.ts`, `skanes-dansteater.ts`, `plan-b.ts`). First live run: 291 + 28 + 67 + 10 events, all sources healthy, 1,281 events in total (from about 885). Plan B's public page only carries its featured events (about 10), not the full programme. Researched and probed on 2026-10-21 with the Malevents user agent (`MaleventsBot/1.0`); every endpoint below was requested once and returned what is described. Event counts are snapshots.
 
 ## Today's coverage

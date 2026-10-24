@@ -6,19 +6,14 @@
  * the browser.
  */
 
+import type { MalmoEvent } from "./types";
+
 export const AREAS = [
   { id: "centrum", name: "Centrum", centres: [[55.6055, 13.0005]] },
   { id: "mollan", name: "Möllan", centres: [[55.591, 13.008]] },
   { id: "vastra-hamnen", name: "Västra Hamnen", centres: [[55.6135, 12.98]] },
   { id: "davidshall-triangeln", name: "Davidshall & Triangeln", centres: [[55.5955, 12.9975]] },
-  {
-    id: "rosengard-varnhem",
-    name: "Rosengård & Värnhem",
-    centres: [
-      [55.5845, 13.04],
-      [55.6035, 13.0235],
-    ],
-  },
+  { id: "varnhem", name: "Värnhem", centres: [[55.6035, 13.0235]] },
   { id: "limhamn", name: "Limhamn", centres: [[55.581, 12.927]] },
   { id: "hyllie", name: "Hyllie", centres: [[55.5635, 12.976]] },
 ] as const satisfies readonly { id: string; name: string; centres: readonly (readonly [number, number])[] }[];
@@ -51,4 +46,23 @@ export function areaAt(lat: number, lng: number): AreaId | undefined {
 
 export function isAreaId(value: string): value is AreaId {
   return AREAS.some((a) => a.id === value);
+}
+
+/**
+ * Rosengård is left out of the site on purpose: its events are dropped when
+ * a source is fetched. The box runs from Amiralsgatan to Inre Ringvägen, so
+ * Plan B, Garaget and Arena 305 just west of it stay in.
+ */
+const EXCLUDED_BOX = { south: 55.576, north: 55.594, west: 13.033, east: 13.066 };
+const EXCLUDED_NAME = /rosengård/i;
+
+/** True for events in Rosengård, by venue coordinates, name or address. */
+export function isInExcludedArea(event: MalmoEvent): boolean {
+  const venue = event.venue;
+  if (!venue) return false;
+  if (EXCLUDED_NAME.test(venue.name) || (venue.address && EXCLUDED_NAME.test(venue.address))) return true;
+  const { lat, lng } = venue;
+  if (lat === undefined || lng === undefined) return false;
+  const box = EXCLUDED_BOX;
+  return lat >= box.south && lat <= box.north && lng >= box.west && lng <= box.east;
 }

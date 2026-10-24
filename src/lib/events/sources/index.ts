@@ -1,14 +1,19 @@
+import { hypnos } from "./hypnos";
 import { inkonst } from "./inkonst";
+import { malmoArena } from "./malmo-arena";
 import { malmoKonsthall } from "./malmo-konsthall";
 import { malmoLive } from "./malmo-live";
 import { malmoOpera } from "./malmo-opera";
 import { malmoStadsteater } from "./malmo-stadsteater";
 import { malmoStad } from "./malmo-stad";
+import { medley } from "./medley";
 import { moriska } from "./moriska";
+import { panora } from "./panora";
 import { planB } from "./plan-b";
 import { skaneCulture } from "./skane-culture";
 import { skanesDansteater } from "./skanes-dansteater";
 import { slagthuset } from "./slagthuset";
+import { spegeln } from "./spegeln";
 import { ticksterMalmo } from "./tickster-malmo";
 import { ticketMarketplace } from "./ticket-marketplace";
 import { LIVE_MODE } from "../config";
@@ -29,6 +34,11 @@ export const SOURCES: EventSource[] = [
   malmoKonsthall,
   skanesDansteater,
   planB,
+  spegeln,
+  panora,
+  medley,
+  malmoArena,
+  hypnos,
   ticksterMalmo,
   ticketMarketplace,
   skaneCulture,

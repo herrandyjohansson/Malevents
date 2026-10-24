@@ -1,4 +1,4 @@
-# Malevents
+# MÖEVENTS
 
 What's on in Malmö: one site that gathers events from many venue sites and ticket listings, cleans them into one shape, and shows them across five tabs: tonight's timeline, a day-by-day list (or month calendar) with time and area filters, a map, venues and your saved events, with a page for every event.
 
@@ -40,7 +40,7 @@ This README is the project's summary report: what the site does, how the code is
 
 ## What the site does
 
-- **Intro** (first visit in a browser session, any page): "MALEVENTS" decrypts letter by letter over the site's aurora (inspired by React Bits' Decrypted Text, rewritten without dependencies in `components/layout/intro.tsx`), while the names of the venues being read decrypt beneath it and the events load behind it; it lifts like a curtain. It lasts exactly as long as the first events take to appear: when the page's skeletons are gone, the letters still scrambling snap into place and the curtain lifts onto the events (about 1.4 s in all on a warm cache, about 4.3 s on a cold one; at most 10 s); a CSS fail-safe removes it even without JavaScript, and reduced-motion visitors get a plain fade.
+- **Intro** (first visit in a browser session, any page): "MÖEVENTS" decrypts letter by letter over the site's aurora (inspired by React Bits' Decrypted Text, rewritten without dependencies in `components/layout/intro.tsx`), while the names of the venues being read decrypt beneath it and the events load behind it; it lifts like a curtain. It lasts exactly as long as the first events take to appear: when the page's skeletons are gone, the letters still scrambling snap into place and the curtain lifts onto the events (about 1.4 s in all on a warm cache, about 4.3 s on a cold one; at most 10 s); a CSS fail-safe removes it even without JavaScript, and reduced-motion visitors get a plain fade.
 - **Tonight** (`/tonight`, the first tab): what's on right now, then the rest of the day by part of day (This afternoon, This evening, Late) on an hour-by-hour timeline, or tomorrow once tonight is over. Called "Today in Malmö" before 15:00. Exhibitions fold into an "Open all day" section.
 - **Discover** (`/`): a short title, the shared filter bar (see [Filters](#filters)) and events grouped under day headings, 24 at a time with "Show more". Image cards on wider screens, compact rows on phones. A List ↔ Calendar switch (from tablet width) shows the same filtered events as a month calendar (`?view=calendar`). A small map of the coming week and the listing sites sit at the foot of the page.
 - **Event page** (`/events/<id>`): image, kind of event, when, where (venue, area, address), price, a button that names where it leads ("Tickets on Tickster"), Directions, Save, Add to calendar, Share, the description when the listing has a real one, and more at the same venue. From a list it opens as a sheet over the list; a shared link opens the full page. Cancelled and sold-out events say so.
@@ -55,7 +55,7 @@ This README is the project's summary report: what the site does, how the code is
 Discover (list and calendar) and Map share one filter bar. When and where are up front; the rest is one tap away:
 
 - **When**: a segmented control (Any time, Tonight, Today, This weekend, Next 7 days, Pick dates; Next 30 days in the panel). "Pick dates" folds a drag-to-select calendar open in the bar. The Map starts on the next 7 days.
-- **Area**: chips for Centrum, Möllan, Västra Hamnen, Davidshall & Triangeln, Rosengård & Värnhem, Limhamn and Hyllie, with live counts; empty areas are hidden. Areas come from venue coordinates (`lib/events/areas.ts`).
+- **Area**: chips for Centrum, Möllan, Västra Hamnen, Davidshall & Triangeln, Värnhem, Limhamn and Hyllie, with live counts; empty areas are hidden. Areas come from venue coordinates (`lib/events/areas.ts`). Events in Rosengård are left out of the site.
 - **Filters panel**: kind of event, free only, hide exhibitions, and listing sites, each with live counts. Active ones show under the bar as chips you can remove, and so does a search on phones (where the search box is in the panel).
 - Categories: Music, Stage (theatre, musicals, opera, dance, comedy), Nightlife, Art & exhibitions, Film, Family, Sports, Food & drink, Talks & workshops, Other.
 
@@ -138,7 +138,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
             ├── calendar-data.ts  events → calendar entries
             ├── venue-data.ts     events grouped into venues with slugs, counts and categories
             ├── venues.ts         coordinates for known Malmö venues
-            ├── http.ts           fetch with timeout, MaleventsBot user agent, SourceError
+            ├── http.ts           fetch (GET, or POST JSON) with timeout, MaleventsBot user agent, SourceError
             ├── fetch-page.ts     cached fetch of event detail pages
             ├── scrape.ts         cheerio helpers: card finding, Swedish date parsing
             ├── jsonld.ts         schema.org Event (JSON-LD) parsing
@@ -197,6 +197,11 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
 | Malmö Konsthall | The Events Calendar REST API | hours | on |
 | Skånes Dansteater | HTML | hours | on |
 | Plan B | Next.js page data | hours | on |
+| Biograf Spegeln | Next.js page data | hours | on |
+| Panora | bio.se booking API (JSON, POST) | hours | on |
+| Medley | The Events Calendar REST API | hours | on |
+| Malmö Arena | HTML | hours | on |
+| Hypnos Theatre | HTML (calendar links) | hours | on |
 | Ticket marketplace | demo fixture | minutes | off in live mode |
 | Skåne culture | demo fixture | days | off in live mode |
 
@@ -217,6 +222,11 @@ None of these venues offers a documented, keyless API, so each adapter uses the 
 | Skånes Dansteater | Server-rendered calendar, one `<article class="performance">` per performance with a `<time datetime>`; performances outside Malmö are skipped. Production pages add image and text. | `https://www.skanesdansteater.se/kalender` |
 | Plan B | The home page's `__NEXT_DATA__` carries the venue's featured events (day only, no start time); the full programme loads in the browser, so only featured events are listed. Events the site promotes at other venues are skipped. | `https://www.planbmalmo.com/` |
 | Inkonst | Its public Tickster organizer page (the event date is in each link), plus each Tickster event page for start time, price and image. `sources/tickster.ts` turns any Tickster organizer page into a source. | `https://www.tickster.com/se/sv/events/by/bkz8z545crn3x5m/inkonst` |
+| Biograf Spegeln | The home page's `__NEXT_DATA__` carries the whole programme (about 160 films, 270 screenings): one event per screening with screen, Tickster link and sold-out flag. The CMS writes image URLs with `http://localhost:8080`; the adapter serves the same path from the site. | `https://biografspegeln.se` |
+| Panora | The bio.se booking API that Panora's programme links to, found with an OpenWeb capture; it only answers POST (`{"cinemaId":2128}`). One event per screening, children's films as Family. Talks on panora.se are not in it. | `https://bio.se/api/cinemas/films` |
+| Medley | The Events Calendar API through `events-calendar.ts`. Its WordPress time zone is "UTC+0" although the times are Malmö times, so `localTimes` reads `start_date` as local; private bookings ("abonnerat") are skipped. | `https://medleymalmo.se/wp-json/tribe/events/v1/events` |
+| Malmö Arena | Server-rendered HubSpot listing, one `.event-listing__item` per event with day and time but no year (inferred). Redhawks home games are Sports. | `https://www.malmoarena.com/evenemang` |
+| Hypnos Theatre | The home page's `.screening-row`s; exact UTC start and end come from each row's "add to Google Calendar" link. | `https://hypnostheatre.com` |
 
 HTML is parsed with [cheerio](https://cheerio.js.org/). `scrape.ts` finds event "cards" by their links rather than by theme class names, and parses Swedish dates ("fre 9 okt 19.00", "26 november 2026 | 18:30"), inferring the year when a listing leaves it out. Detail pages go through `fetchDetailPage`, which caches each page for days, so an hourly refresh only fetches pages for events it hasn't seen; at most 3–4 are fetched at once.
 
@@ -302,7 +312,7 @@ The server writes one JSON object per line (`src/lib/log.ts`), with `ts`, `level
 | --- | --- | --- | --- |
 | `server.started` | info | Server start (`src/instrumentation.ts`) | `liveMode`, `logLevel` |
 | `events.loaded` | info | Every request that loads events | `durationMs`, `events`, `duplicates`, `ok`/`failed`/`disabled`, `slowest`, and per source `state`, `count`, `ms`, `cache` (hit/miss), `ageS` |
-| `source.fetched` | info | A source fetched from its upstream (a cache miss) | `source`, `durationMs`, `events`, `unplaced`, `timeUnknown`, `cacheProfile`, `warnings` |
+| `source.fetched` | info | A source fetched from its upstream (a cache miss) | `source`, `durationMs`, `events`, `excluded` (dropped as Rosengård), `unplaced`, `timeUnknown`, `cacheProfile`, `warnings` |
 | `source.fetch_failed` | warn | A source's fetch failed | `source`, `reason`, `durationMs`, `error` |
 | `source.unavailable` | warn | A request got no events from a source (failure or timeout) | `source`, `durationMs`, `error` |
 | `crawl.listing` | info | A paged listing was read | `source`, `pages`, `maxPages`, `items`, `stop` (`last_page`, `empty_page`, `page_failed`, `max_pages`) |

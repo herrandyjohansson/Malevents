@@ -1,0 +1,27 @@
+openapi: '3.1.0'
+info:
+  title: Malmö Live
+  version: '1.0.0'
+  x-openweb:
+    spec_version: '2.0'
+    requires_auth: false
+servers:
+  - url: https://malmolive.se
+    x-openweb:
+      transport: node
+paths:
+  /api/events:
+    get:
+      operationId: listEvents
+      summary: List upcoming Malmö Live performances from the Drupal REST export behind the site's "Kommande evenemang" listing
+      x-openweb:
+        permission: read
+      responses:
+        '200':
+          description: One row per performance; every value is a string.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object

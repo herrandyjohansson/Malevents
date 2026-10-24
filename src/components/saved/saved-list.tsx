@@ -86,7 +86,7 @@ function SavedContent() {
           {past.length > 0 && ` · ${past.length} past`}
         </p>
         {upcoming.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => downloadIcs(upcoming.map(toIcs), "malevents-saved.ics")}>
+          <Button variant="outline" size="sm" onClick={() => downloadIcs(upcoming.map(toIcs), "moevents-saved.ics")}>
             <Download />
             Add all to calendar
           </Button>

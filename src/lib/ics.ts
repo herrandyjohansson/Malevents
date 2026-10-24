@@ -55,7 +55,7 @@ function fold(line: string) {
 }
 
 export function buildIcs(events: IcsEvent[], now = new Date()) {
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Malevents//Saved events//EN", "CALSCALE:GREGORIAN"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MOEVENTS//Saved events//EN", "CALSCALE:GREGORIAN"];
   for (const e of events) {
     lines.push(
       "BEGIN:VEVENT",

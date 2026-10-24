@@ -8,7 +8,7 @@ The import above is the Next.js rule: this project runs Next.js 16.4, whose APIs
 
 ## What this is
 
-Malevents gathers events in Malmö from venue sites and ticket listings, normalizes them into one `MalmoEvent` shape, and shows them across five tabs: Tonight, Discover (list or month calendar), Map, Venues, Saved, plus Admin when the per-browser "Admin mode" toggle is on. Every event has its own page, `/events/[id]`. `PRODUCT.md` records who the site is for and its product principles. It is deployed on Vercel from `main`. There is no database, no auth and no API keys.
+MÖEVENTS (formerly Malevents) gathers events in Malmö from venue sites and ticket listings, normalizes them into one `MalmoEvent` shape, and shows them across five tabs: Tonight, Discover (list or month calendar), Map, Venues, Saved, plus Admin when the per-browser "Admin mode" toggle is on. Every event has its own page, `/events/[id]`. `PRODUCT.md` records who the site is for and its product principles. It is deployed on Vercel from `main` at moevents.vercel.app. Internal identifiers (`malevents:` localStorage keys, `.malevents-*` CSS classes, the `MaleventsBot` user agent, the ICS UID suffix) keep the old name on purpose: renaming the keys would wipe visitors' saved events. There is no database, no auth and no API keys.
 
 ## Commands
 
@@ -20,9 +20,12 @@ npm run build                   # production build (what Vercel runs)
 npm run start                   # serve the build
 npm run lint                    # ESLint
 npx tsc --noEmit                # type check (run `npx next typegen` first after adding routes)
+npm test                        # Vitest, offline tests only
+npm run test:live               # also calls the real venue sites
+npm run bench:openweb           # OpenWeb vs current adapters, see benchmarks/openweb/README.md
 ```
 
-There is no test framework and no CI workflow. The Vercel preview build on each pull request is the only automated check, so run lint, type check and build before pushing. Use `EVENTS_LIVE=false` where venue sites can't be reached.
+Vitest (`vitest.config.ts`) runs `src/**/*.test.ts` and `benchmarks/**/*.test.ts`; tests that call venue sites only run with `BENCH_LIVE=1` or `BENCH=1`. There is no CI workflow. The Vercel preview build on each pull request is the only automated check, so run lint, type check, tests and build before pushing. Use `EVENTS_LIVE=false` where venue sites can't be reached.
 
 ## Architecture
 
@@ -57,8 +60,9 @@ There is no test framework and no CI workflow. The Vercel preview build on each 
 - Dates are ISO strings in data and shown in Malmö time. Labels rendered on both server and client are formatted by hand (not `Intl`) to avoid hydration mismatches.
 - Shareable state (filters, date ranges) lives in the URL.
 - Free, keyless tools and data sources only, unless a paid one is clearly worth it.
-- To add a source: write `sources/<name>.ts`, add it to `SOURCES`, and add the venue's coordinates to `venues.ts` if it is new.
+- To add a source: write `sources/<name>.ts`, add it to `SOURCES`, and add the venue's coordinates to `venues.ts` if it is new. To find and vet new sources first, use the `find-malmo-event-source` skill; `docs/event-source-candidates.yaml` lists where to look and what has been checked.
+- **Excluded areas**: the site does not list events in Rosengård. `fetch-source.ts` drops them with `isInExcludedArea` (`areas.ts`: a coordinate box plus the venue name or address) before caching. Don't add sources or venues there.
 - One pull request per task, branched from and targeting `main`. Avoid stacking PRs.
 - `/admin` has no protection; flag this before any public launch.
-- Agent skills: `tdd-guide` (unit tests), `senior-qa` (Playwright end-to-end) and `a11y-audit` (WCAG 2.2) are in `.claude/skills/`. `docs/skills.md` lists every skill and rule, where it came from, what it is for here and its known quirks; update it when adding or updating one.
+- Agent skills: `tdd-guide` (unit tests), `senior-qa` (Playwright end-to-end), `a11y-audit` (WCAG 2.2) and `find-malmo-event-source` (new sources, with OpenWeb) are in `.claude/skills/`. `docs/skills.md` lists every skill and rule, where it came from, what it is for here and its known quirks; update it when adding or updating one.
 - Security follows the OWASP rules in `.claude/rules/security-and-owasp.md` (loaded for `src/**`). `docs/security-owasp.md` records how each one is met and the accepted exceptions; update it when a change affects one. Upstream requests go through `http.ts`, which only fetches public http(s) URLs.

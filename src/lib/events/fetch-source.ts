@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { errorMessage, log, since } from "@/lib/log";
 
+import { isInExcludedArea } from "./areas";
 import { SourceError } from "./http";
 import { refineEvent, withSafeLinks } from "./normalize";
 import { getSource } from "./sources";
@@ -65,8 +66,11 @@ export async function fetchSource(id: string): Promise<SourceResult> {
   const warnings: string[] = [];
   const report = { warn: (message: string) => warnings.push(message) };
   let events: MalmoEvent[];
+  let excluded = 0;
   try {
-    events = (await source.fetchEvents(report)).map((e) => refineEvent(withSafeLinks(withCoordinates(e), source.homepage)));
+    const fetched = (await source.fetchEvents(report)).map((e) => refineEvent(withSafeLinks(withCoordinates(e), source.homepage)));
+    events = fetched.filter((e) => !isInExcludedArea(e));
+    excluded = fetched.length - events.length;
   } catch (err) {
     cacheLife(FAILURE_LIFETIME);
     const error = errorMessage(err);
@@ -82,6 +86,7 @@ export async function fetchSource(id: string): Promise<SourceResult> {
     source: id,
     durationMs: since(started),
     events: events.length,
+    excluded,
     unplaced,
     timeUnknown: events.filter((e) => e.timeUnknown).length,
     cacheProfile: profile,

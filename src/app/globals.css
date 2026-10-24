@@ -613,6 +613,59 @@ html[data-intro="seen"] .intro-overlay {
     filter: blur(5px);
   }
 }
+/* The wordmark's Ö (components/layout/umlaut-o.tsx): one letter that keeps
+   switching between O and Ö, its dots fading in and out over a plain O. While
+   the Ö is fully in, the O underneath is hidden so the edges don't double up. */
+.umlaut-o {
+  position: relative;
+  display: inline-block;
+}
+.umlaut-o-dots {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: umlaut-dots 4s ease-in-out var(--umlaut-delay, 400ms) infinite;
+}
+.umlaut-o-base {
+  animation: umlaut-base 4s linear var(--umlaut-delay, 400ms) infinite;
+}
+@keyframes umlaut-dots {
+  0%,
+  35% {
+    opacity: 0;
+  }
+  50%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes umlaut-base {
+  0%,
+  49.9% {
+    visibility: visible;
+  }
+  50%,
+  84.9% {
+    visibility: hidden;
+  }
+  85%,
+  100% {
+    visibility: visible;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .umlaut-o-dots {
+    animation: none;
+    opacity: 1;
+  }
+  .umlaut-o-base {
+    animation: none;
+    visibility: hidden;
+  }
+}
 /* Leaving: the curtain lifts off the page while the wordmark drifts up with it. */
 .intro-overlay.intro-leaving {
   animation: intro-curtain 750ms cubic-bezier(0.76, 0, 0.24, 1) forwards;

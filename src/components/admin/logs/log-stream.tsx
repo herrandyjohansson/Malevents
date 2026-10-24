@@ -44,7 +44,7 @@ export function LogStream({ entries, total }: { entries: LogEntry[]; total: numb
           <span aria-hidden className="bg-destructive/70 size-2.5 rounded-full" />
           <span aria-hidden className="bg-warning/70 size-2.5 rounded-full" />
           <span aria-hidden className="bg-success/70 size-2.5 rounded-full" />
-          <span className="ml-2">malevents · server log</span>
+          <span className="ml-2">moevents · server log</span>
         </span>
         <span>
           {entries.length === total ? `${total} entries` : `newest ${entries.length} of ${total} matching`}

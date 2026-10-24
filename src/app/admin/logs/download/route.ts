@@ -8,7 +8,7 @@ export function GET() {
   return new Response(body, {
     headers: {
       "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Content-Disposition": `attachment; filename="malevents-logs-${stamp}.jsonl"`,
+      "Content-Disposition": `attachment; filename="moevents-logs-${stamp}.jsonl"`,
       "Cache-Control": "no-store",
     },
   });

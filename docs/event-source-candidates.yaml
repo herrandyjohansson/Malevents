@@ -1,0 +1,144 @@
+# Event sources for MÖEVENTS: where to look, and what has been checked.
+#
+# Read and updated by the `find-malmo-event-source` skill
+# (.claude/skills/find-malmo-event-source/). Edit it by hand too: add a site
+# under `candidates` with status `todo` and the skill will probe it next time.
+# The longer write-up of the first round is docs/sources-analysis.md.
+#
+# status:
+#   built     has an adapter; `source` is its id in SOURCES
+#   covered   its events already arrive through another source (`via`)
+#   todo      not probed yet
+#   probed    probed; `verdict` says whether and how to build it
+#   rejected  not viable (needs a key, forbids scraping, browser-only, ...)
+#   excluded  in an area the site does not list (Rosengård, see areas.ts)
+
+# Where to look for venues and organisers that are not covered yet.
+discovery:
+  listings:
+    - name: Visit Malmö events
+      url: https://www.visitmalmo.se/en/events
+      use: curated list of venues; a checklist, not a source
+    - name: Malmö stad evenemangskalender
+      url: https://malmo.se/evenemang
+      use: already a source (malmo-stad); its places list shows venues with their own sites
+    - name: Tickster Malmö
+      url: https://www.tickster.com/se/sv/explore/malmo
+      use: already a source (tickster-malmo); organisers selling here are covered
+    - name: Bandsintown Malmö
+      url: https://bandsintown.com/c/malmo-sweden
+      use: find music venues; not a source (API is per artist)
+    - name: Songkick Malmö
+      url: https://www.songkick.com/metro-areas/32247-sweden-malmo
+      use: find music venues; not a source (no new API keys)
+  # Web searches to run; add the year so results are current.
+  searches:
+    - konserter Malmö {year}
+    - klubb Malmö evenemang
+    - teater Malmö program
+    - standup comedy Malmö
+    - bio Malmö program evenemang
+    - barn familj Malmö evenemang
+    - föreläsning Malmö {month} {year}
+    - live music venue Malmö
+
+candidates:
+  # --- built ---
+  - { id: malmo-stad, name: Malmö stad, url: "https://malmo.se/evenemang", status: built, source: malmo-stad }
+  - { id: malmo-live, name: Malmö Live, url: "https://malmolive.se/program", status: built, source: malmo-live }
+  - { id: slagthuset, name: Slagthuset, url: "https://slagthuset.se/events", status: built, source: slagthuset }
+  - { id: moriska, name: Moriska Paviljongen, url: "https://moriskapaviljongen.se", status: built, source: moriska }
+  - { id: malmo-opera, name: Malmö Opera, url: "https://www.malmoopera.se", status: built, source: malmo-opera }
+  - { id: malmo-stadsteater, name: Malmö Stadsteater, url: "https://www.malmostadsteater.se", status: built, source: malmo-stadsteater }
+  - { id: inkonst, name: Inkonst, url: "https://inkonst.com", status: built, source: inkonst }
+  - { id: malmo-konsthall, name: Malmö Konsthall, url: "https://malmokonsthall.se/evenemang/", status: built, source: malmo-konsthall }
+  - { id: skanes-dansteater, name: Skånes Dansteater, url: "https://www.skanesdansteater.se/kalender", status: built, source: skanes-dansteater }
+  - id: plan-b
+    name: Plan B
+    url: https://www.planbmalmo.com
+    status: built
+    source: plan-b
+    checked: 2026-10-24
+    verdict: >-
+      The adapter reads only the ~10 featured events. OpenWeb capture found
+      /api/eventsEdge with the full programme (65 at Plan B, with times, prices
+      and descriptions), readable with a plain fetch. Switch the adapter to it.
+      Today's event links (/<slug>/<id>) 404; the working form is /events/<slug>/<id>.
+
+  # --- covered elsewhere ---
+  - { id: grand-malmo, name: Grand Malmö, url: "https://www.grandmalmo.se", status: covered, via: tickster-malmo }
+  - { id: babel, name: Babel, url: "https://babelmalmo.se", status: covered, via: tickster-malmo, note: "RSS at /program/kommande/feed if Tickster ever misses it" }
+  - { id: moderna-museet-malmo, name: Moderna Museet Malmö, url: "https://www.modernamuseet.se/malmo/", status: covered, via: malmo-stad }
+  - { id: victoriateatern, name: Victoriateatern, url: "https://www.victoria.se", status: covered, via: malmo-stad }
+  - { id: kul-i-malmo, name: Kul i Malmö, url: "https://kulimalmo.se", status: covered, via: malmo-stad, note: redirects into malmo.se }
+
+  # --- built 2026-10-24 (found by the first find-malmo-event-source run) ---
+  - id: spegeln
+    name: Biograf Spegeln
+    url: https://biografspegeln.se
+    status: built
+    source: spegeln
+    checked: 2026-10-24
+    transport: Next.js page data (__NEXT_DATA__ props.pageProps.programList) in the home page HTML
+    events: 277 screenings, 160 films
+    note: One event per screening. The CMS writes image URLs with http://localhost:8080; the adapter serves the path from the site.
+  - id: panora
+    name: Panora
+    url: https://panora.se/program/
+    status: built
+    source: panora
+    checked: 2026-10-24
+    transport: bio.se JSON API (found with OpenWeb capture of bio.se/biografer/panora-folkets-bio-malmo)
+    endpoint: "POST https://bio.se/api/cinemas/films with {\"cinemaId\":2128}"
+    events: 170 screenings, 103 films (40 family)
+    note: >-
+      Undocumented internal API, no robots.txt: one request per refresh. The
+      talks in panora.se's wp/v2/event have no dates in the API and are not
+      included. Hypnos also sells through bio.se (bio.se/biografer/hypnos).
+  - id: medley
+    name: Medley
+    url: https://medleymalmo.se
+    status: built
+    source: medley
+    checked: 2026-10-24
+    transport: WordPress The Events Calendar (events-calendar.ts)
+    events: 58
+    note: >-
+      Södra Promenaden 51 (Centrum). WordPress time zone is "UTC+0" although
+      times are Malmö times, so the source sets localTimes. Private bookings
+      ("abonnerat") skipped. Slow API (~500 KB per 50 events): 15 s timeout.
+  - id: malmo-arena
+    name: Malmö Arena
+    url: https://www.malmoarena.com/evenemang
+    status: built
+    source: malmo-arena
+    checked: 2026-10-24
+    transport: HTML (HubSpot); capture showed no data API
+    events: 45 (23 Malmö Redhawks home games)
+    note: Day and time without a year; the year is inferred per date (the list is not strictly chronological).
+  - id: hypnos
+    name: Hypnos Theatre
+    url: https://hypnostheatre.com
+    status: built
+    source: hypnos
+    checked: 2026-10-24
+    transport: WordPress home page; exact UTC times from each row's Google Calendar link (one request, no .ics needed)
+    events: 24
+
+  # --- open ---
+  - { id: palladium, name: Palladium Malmö, url: "", status: todo, note: "no own site found (palladiummalmo.se does not resolve); check whether its gigs are on Tickster" }
+  - { id: humorbaren, name: Humorbaren, url: "https://humorbaren.se", status: todo, note: site unreachable 2026-10-24; weekly stand-up club }
+  - { id: malmo-standup-festival, name: Malmö Standup Festival, url: "https://www.malmostandupfestival.se", status: todo, note: seasonal (June); probe in spring }
+
+  # --- not viable ---
+  - { id: eventbrite, name: Eventbrite, url: "https://www.eventbrite.se", status: rejected, note: public search API retired in 2020 }
+  - { id: songkick, name: Songkick, url: "https://www.songkick.com", status: rejected, note: partner key only, no new applications }
+  - { id: bandsintown, name: Bandsintown, url: "https://bandsintown.com", status: rejected, note: API is per artist, not per city }
+  - { id: resident-advisor, name: Resident Advisor, url: "https://ra.co", status: rejected, note: no public API; terms forbid scraping }
+  - { id: ticketmaster, name: Ticketmaster, url: "https://www.ticketmaster.se", status: rejected, note: Discovery API needs a key (keyless rule) }
+  - { id: billetto, name: Billetto, url: "https://billetto.se", status: rejected, note: no keyless city listing }
+  - { id: nortic, name: Nortic, url: "https://www.nortic.se", status: rejected, note: no keyless city listing }
+  - { id: nomo, name: Nomo (weekly guide), url: "https://nomo.substack.com", status: rejected, checked: 2026-10-24, note: "public Google Calendar .ics (5,867 events) but nothing after 2025-12; stale" }
+  - { id: kb, name: KB (Kulturbolaget), url: "https://www.kulturbolaget.se", status: rejected, checked: 2026-10-24, note: club closed for good in 2023 }
+  - { id: nojesteatern, name: Nöjesteatern, url: "https://nojesteatern.se", status: rejected, checked: 2026-10-24, note: "site menu has 'Konkurs 2026'; recheck if it reopens" }
+  - { id: malmo-dockteater, name: Malmö Dockteater, url: "https://www.malmodockteater.com", status: rejected, checked: 2026-10-24, note: Wix site, dates only in free text, many shows outside Malmö }

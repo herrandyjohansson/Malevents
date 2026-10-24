@@ -4,6 +4,7 @@ import { LIVE_MODE } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchJson } from "../http";
+import { malmoLocalToIso } from "../malmo-time";
 import { parsePriceText, toCategory } from "../normalize";
 import type { EventCategory, EventSource, MalmoEvent, SourceReport } from "../types";
 
@@ -16,10 +17,15 @@ export interface TribeEvent {
   id: number;
   title: string;
   excerpt?: string;
+  /** Full HTML text; some sites leave `excerpt` empty. */
+  description?: string;
   url: string;
   /** "2026-10-21 15:30:00", in UTC. */
   utc_start_date: string;
   utc_end_date?: string;
+  /** The same in the site's own time zone. */
+  start_date?: string;
+  end_date?: string;
   all_day?: boolean;
   cost?: string;
   image?: { url?: string } | false;
@@ -44,11 +50,25 @@ export interface EventsCalendarOptions {
   categories?: Record<string, EventCategory>;
   /** For events whose category says nothing more specific. */
   fallback: EventCategory;
+  /** Entries that are not public events, such as private bookings. */
+  skip?: (event: TribeEvent) => boolean;
+  /**
+   * The site's WordPress time zone is set to "UTC+0" although its times are
+   * Malmö times, so its "UTC" dates are really local: read `start_date` as
+   * Malmö time instead.
+   */
+  localTimes?: boolean;
+  timeoutMs?: number;
   demo: () => TribeEvent[];
 }
 
 function utc(value: string) {
   return new Date(`${value.replace(" ", "T")}Z`).toISOString();
+}
+
+/** "2026-10-26 20:00:00" in Malmö time. */
+function local(value: string) {
+  return malmoLocalToIso(value.slice(0, 10), value.slice(11, 16));
 }
 
 /**
@@ -70,14 +90,16 @@ export function eventsCalendarSource(options: EventsCalendarOptions): EventSourc
   }
 
   function toEvent(e: TribeEvent): MalmoEvent {
-    const description = truncate(htmlToText(e.excerpt ?? ""));
+    const description = truncate(htmlToText(e.excerpt || e.description || ""));
+    const localTimes = options.localTimes && e.start_date;
+    const end = localTimes ? e.end_date && local(e.end_date) : e.utc_end_date && utc(e.utc_end_date);
     return {
       id: `${id}:${e.id}`,
       sourceId: id,
       title: decodeEntities(e.title).trim(),
       description,
-      startsAt: utc(e.utc_start_date),
-      endsAt: e.utc_end_date ? utc(e.utc_end_date) : undefined,
+      startsAt: localTimes ? local(e.start_date!) : utc(e.utc_start_date),
+      endsAt: end || undefined,
       timeUnknown: e.all_day ? true : undefined,
       category: category(e),
       venue: { name: venue.name, address: venue.address, city: "Malmö", lat: venue.lat, lng: venue.lng },
@@ -112,7 +134,9 @@ export function eventsCalendarSource(options: EventsCalendarOptions): EventSourc
     kind: LIVE_MODE ? "json-api" : "fixture",
     endpoint,
     demo: !LIVE_MODE,
-    fetchEvents: async (report) => (LIVE_MODE ? await fetchAll(report) : options.demo()).map(toEvent),
+    timeoutMs: options.timeoutMs,
+    fetchEvents: async (report) =>
+      (LIVE_MODE ? await fetchAll(report) : options.demo()).filter((e) => !options.skip?.(e)).map(toEvent),
   };
 }
 

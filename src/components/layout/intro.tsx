@@ -5,13 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import { INTRO_SEEN_KEY } from "@/lib/intro";
 import { cn } from "@/lib/utils";
 
-const WORD = "MALEVENTS";
+import { UmlautO } from "./umlaut-o";
+
+const WORD = "MÖEVENTS";
 /** Glyphs letters cycle through before they lock; Å, Ä and Ö for the city. */
 const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ0123456789#%&*+=?";
 /** The brand's three aurora colours, for glyphs that are still scrambling. */
 const SCRAMBLE_COLORS = ["var(--brand-1)", "var(--brand-2)", "var(--brand-3)"];
 /** What the server renders, so the very first paint is already "encrypted". */
-const SCRAMBLED = "Ø#ÅV?KÄ7S";
+const SCRAMBLED = "Ø#ÅV?KÄ7";
 
 /** Delay before the first letter locks, then between letters. */
 const FIRST_LOCK_MS = 280;
@@ -57,7 +59,7 @@ interface Frame {
 
 /**
  * The first screen of a visit, lasting exactly as long as the first events
- * take to load. "MALEVENTS" decrypts letter by letter (inspired by React
+ * take to load. "MÖEVENTS" decrypts letter by letter (inspired by React
  * Bits' Decrypted Text) while, beneath it, the venues the listings come from
  * decrypt one after another: the events really are being gathered from them
  * behind the curtain. The moment the page has events on screen, the letters
@@ -144,7 +146,10 @@ export function Intro({ venues }: { venues: string[] }) {
             return (
               <span key={i} className="relative inline-block">
                 {/* The real letter holds the slot's width, so scrambling never reflows the word. */}
-                <span className={cn("inline-block", locked ? "intro-letter-lock" : "opacity-0")}>{letter}</span>
+                <span className={cn("inline-block", locked ? "intro-letter-lock" : "opacity-0")}>
+                  {/* The Ö locks as a plain O, then its dots start fading in and out. */}
+                  {letter === "Ö" && locked ? <UmlautO delayMs={250} /> : letter}
+                </span>
                 {!locked && (
                   <span className="absolute inset-0 text-center opacity-80" style={{ color: frame.colors[i] }}>
                     {frame.glyphs[i]}

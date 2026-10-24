@@ -36,7 +36,6 @@ const VENUES: Record<string, [lat: number, lng: number]> = {
   "malmö konsthall": [55.5953, 12.9994],
   "skånes dansteater": [55.6162, 12.9853],
   "plan b": [55.5839, 13.0272],
-  rosengårdsbiblioteket: [55.5852, 13.0446],
   bellevuegårdsbiblioteket: [55.5813, 12.9768],
   husiebiblioteket: [55.5909, 13.0709],
   "katrinetorp landeri": [55.5508, 13.0054],
@@ -44,6 +43,12 @@ const VENUES: Record<string, [lat: number, lng: number]> = {
   ribersborgsstranden: [55.6021, 12.9666],
   "limhamns kalkbrott": [55.5676, 12.9333],
   "arena 305": [55.5849, 13.0177],
+  // Added 2026-10-24 for the Spegeln, Medley and Hypnos sources (find-malmo-event-source);
+  // coordinates from OpenStreetMap Nominatim.
+  "biograf spegeln": [55.6054, 13.0007],
+  spegeln: [55.6054, 13.0007],
+  medley: [55.6034, 13.0066],
+  "hypnos theatre": [55.5856, 13.0261],
   // Other names the city calendar uses for venues already listed above.
   "intiman (malmö stadsteater)": [55.5986, 12.9905],
   "hipp (malmö stadsteater)": [55.6005, 13.0028],
