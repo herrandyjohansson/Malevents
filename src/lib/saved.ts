@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import type { SavedEvent } from "./saved-snapshot";
+import { isSameSaved, type SavedEvent } from "./saved-snapshot";
 
 export type { SavedEvent };
 
@@ -54,9 +54,15 @@ export function useSavedEvents() {
   return useSyncExternalStore(subscribe, read, () => EMPTY);
 }
 
+/** Whether this event is saved, also when it was saved under a listing since merged into it. */
+export function useIsSaved(event: Pick<SavedEvent, "id" | "duplicateIds">) {
+  return useSavedEvents().some((saved) => isSameSaved(saved, event));
+}
+
+/** Unsaving removes every saved copy of the event, under any of its ids. */
 export function toggleSaved(event: Omit<SavedEvent, "savedAt"> & { savedAt?: string }) {
   const list = read();
-  if (list.some((e) => e.id === event.id)) write(list.filter((e) => e.id !== event.id));
+  if (list.some((saved) => isSameSaved(saved, event))) write(list.filter((saved) => !isSameSaved(saved, event)));
   else write([...list, { ...event, savedAt: event.savedAt ?? new Date().toISOString() }]);
 }
 

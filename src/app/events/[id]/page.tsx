@@ -9,16 +9,20 @@ import { EventDetailSkeleton } from "@/components/events/event-detail-skeleton";
 import { EventMissing } from "@/components/events/event-missing";
 import { getEventDetail } from "@/lib/events/event-detail";
 import { CATEGORY_LABELS, formatEventDate } from "@/lib/events/format";
+import { eventHref } from "@/lib/events/event-href";
 
 export async function generateMetadata({ params }: PageProps<"/events/[id]">): Promise<Metadata> {
   // Request-time: looking the event up reads the clock (has it ended?) and the live feed.
   await connection();
-  const detail = await getEventDetail(decodeURIComponent((await params).id));
+  const id = decodeURIComponent((await params).id);
+  const detail = await getEventDetail(id);
   if (!detail) return { title: "Event not found", robots: { index: false } };
   const { event } = detail;
   return {
     title: event.title,
     description: `${CATEGORY_LABELS[event.category]} · ${formatEventDate(event)}${event.venue ? ` · ${event.venue.name}` : ""}`,
+    // Opened through a merged listing's id: point search engines at the kept one.
+    alternates: event.id === id ? undefined : { canonical: eventHref(event.id) },
   };
 }
 

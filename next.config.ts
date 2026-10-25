@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { venueAliasRedirects } from "./src/lib/events/venues";
+
 /**
  * Headers that need no per-request nonce. A script-src CSP is left out: it
  * would need nonces for Next's inline scripts, and MapLibre and event images
@@ -20,11 +22,13 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
   // Week and Calendar used to be tabs; both now live in Discover. Query
-  // strings (shared filters) are passed through to the destination.
+  // strings (shared filters) are passed through to the destination. Pages
+  // of another name for a venue (Slagthusets Teater) go to the venue's page.
   async redirects() {
     return [
       { source: "/week", destination: "/?when=week", permanent: true },
       { source: "/calendar", destination: "/?view=calendar", permanent: true },
+      ...venueAliasRedirects(),
     ];
   },
   // Don't advertise the framework in an X-Powered-By header.

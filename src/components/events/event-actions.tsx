@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { downloadIcs, type IcsEvent } from "@/lib/ics";
-import { toggleSaved, useSavedEvents, type SavedEvent } from "@/lib/saved";
+import { toggleSaved, useIsSaved, type SavedEvent } from "@/lib/saved";
 import { cn } from "@/lib/utils";
 
 const actionClass =
@@ -17,7 +17,7 @@ const actionClass =
  * an icon.
  */
 export function EventActions({ saved: snapshot, ics }: { saved: Omit<SavedEvent, "savedAt">; ics: IcsEvent }) {
-  const isSaved = useSavedEvents().some((e) => e.id === snapshot.id);
+  const isSaved = useIsSaved(snapshot);
   const [message, setMessage] = useState<React.ReactNode>(null);
 
   async function share() {

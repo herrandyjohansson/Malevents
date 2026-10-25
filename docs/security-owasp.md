@@ -20,7 +20,7 @@ This page records how each rule that applies is met, and the exceptions that are
 | S1–S3 Secrets | Met | No secrets, API keys or `NEXT_PUBLIC_` variables; `.env*` is git-ignored. |
 | S6, A10 Errors to visitors | Met | `error.tsx` shows a generic message; visitors don't see upstream error messages (the admin does). |
 | RX2 `process.env` in client code | Met | None. |
-| RX3 Data passed to client components | Met | Map and calendar get only the fields they show (`view-types.ts`). |
+| RX3 Data passed to client components | Met | Map and calendar get only the fields they show (`view-types.ts`). Tonight's MiniSearch index gets compact public event and venue records (`search-data.ts`), not full upstream objects. Queries are limited to 100 characters, rendered as text, and never logged or sent to an external search service. |
 | H3–H7 Security headers | Met | `next.config.ts`: HSTS, `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`. `X-Powered-By` is turned off. |
 | H8 CORS | Met | The app sets no CORS headers and uses no credentials. Vercel adds `Access-Control-Allow-Origin: *` to static responses, which carry no private data. |
 | L1 Security events logged | Met | `admin.*` lines for every admin action, rejected input (`admin.input_rejected`) and cooldown hits (`admin.rate_limited`). |

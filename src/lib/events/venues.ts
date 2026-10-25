@@ -69,3 +69,60 @@ export function withCoordinates(event: MalmoEvent): MalmoEvent {
 export function hasCoordinates(event: MalmoEvent): boolean {
   return event.venue?.lat !== undefined && event.venue?.lng !== undefined;
 }
+
+/** URL-safe slug that keeps Swedish letters readable: "Malmö Opera" → "malmo-opera". */
+export function venueSlug(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
+/**
+ * Other names listings use for a venue, checked by hand (duplicate audit,
+ * 24 Oct 2026). A name that points at one room keeps the room in the
+ * address, so the event still says where in the building it is. Venues
+ * that merely share a building or street (Malmö Opera and Intiman,
+ * Folkets Park and Moriska Paviljongen) stay apart: add a name here only
+ * when it is the same place. Old venue pages redirect (next.config.ts).
+ */
+const VENUE_ALIASES: { alias: string; name: string; room?: string }[] = [
+  { alias: "Slagthusets Teater", name: "Slagthuset", room: "Teatern" },
+  { alias: "Slagthuset Nöje & Event", name: "Slagthuset" },
+  { alias: "Slagthuset - Restaurang", name: "Slagthuset", room: "Restaurang" },
+  { alias: "Slagthuset - Saluhallen", name: "Slagthuset", room: "Saluhallen" },
+  { alias: "Malmö Live", name: "Malmö Live Konserthus" },
+  { alias: "Biograf Panora", name: "Panora" },
+  { alias: "Hipp (Malmö stadsteater)", name: "Hippodromen, Malmö Stadsteater" },
+  { alias: "Intiman (Malmö Stadsteater)", name: "Intiman, Malmö Stadsteater" },
+  { alias: "Folkets Park - Moriska Paviljongen", name: "Moriska Paviljongen" },
+  { alias: "Hyllie Bryggeri AB", name: "Hyllie Bryggeri" },
+];
+
+const ALIAS_BY_KEY = new Map(VENUE_ALIASES.map((a) => [key(a.alias), a]));
+
+/** The event with its venue under the venue's own name (see VENUE_ALIASES); unchanged when it already is. */
+export function withCanonicalVenue(event: MalmoEvent): MalmoEvent {
+  const venue = event.venue;
+  const alias = venue && ALIAS_BY_KEY.get(key(venue.name));
+  if (!venue || !alias) return event;
+  const address = alias.room ? [alias.room, venue.address].filter(Boolean).join(", ") : venue.address;
+  return withCoordinates({ ...event, venue: { ...venue, name: alias.name, address } });
+}
+
+/** The other names of a venue, so searching for an old name still finds it. */
+export function venueAliasNames(name: string) {
+  return VENUE_ALIASES.filter((a) => key(a.name) === key(name)).map((a) => a.alias);
+}
+
+/** Permanent redirects from an alias's venue page to the venue's page (used in next.config.ts). */
+export function venueAliasRedirects() {
+  return VENUE_ALIASES.map((a) => ({
+    source: `/venues/${venueSlug(a.alias)}`,
+    destination: `/venues/${venueSlug(a.name)}`,
+    permanent: true,
+  })).filter((r) => r.source !== r.destination);
+}

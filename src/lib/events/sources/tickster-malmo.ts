@@ -20,6 +20,7 @@ export const ticksterMalmo = ticksterSource({
   // ~300 events at 16 a page; 25 pages reaches the end of the listing.
   maxPages: 25,
   placeFilter: /malmö/i,
+  aggregator: true,
   demo: () => ({
     listingHtml: ticksterDemoListing("Babel", [
       { id: "y0wj7nctdkwe50e", slug: "krismote", title: "Krismöte!", day: 2 },

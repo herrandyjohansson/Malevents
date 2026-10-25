@@ -73,5 +73,6 @@ export const skaneCulture: EventSource = {
   kind: "fixture",
   cacheProfile: "days",
   demo: true,
+  aggregator: true,
   fetchEvents: getSkaneCultureEvents,
 };

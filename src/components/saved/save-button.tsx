@@ -3,7 +3,7 @@
 import { Heart } from "lucide-react";
 import { useState } from "react";
 
-import { toggleSaved, useSavedEvents, type SavedEvent } from "@/lib/saved";
+import { toggleSaved, useIsSaved, type SavedEvent } from "@/lib/saved";
 import { cn } from "@/lib/utils";
 
 /** Heart toggle for one event. It pops and throws a ring of sparks when you save. */
@@ -14,7 +14,7 @@ export function SaveButton({
   event: Omit<SavedEvent, "savedAt">;
   className?: string;
 }) {
-  const saved = useSavedEvents().some((e) => e.id === event.id);
+  const saved = useIsSaved(event);
   // Only animate on the click that saves, not every time a saved heart renders.
   const [popping, setPopping] = useState(false);
   return (

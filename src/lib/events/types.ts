@@ -47,6 +47,12 @@ export interface MalmoEvent {
   soldOut?: boolean;
   /** The upstream marks the event as cancelled ("Inställt"); it stays listed, struck through. */
   cancelled?: true;
+  /**
+   * Ids of other listings of this same occurrence (another source, or a
+   * repeat in the same feed) that the aggregator merged into this record.
+   * Links to and saved copies of those ids resolve to this event.
+   */
+  duplicateIds?: string[];
   /** Free-text extras from the upstream, e.g. age limit or doors time. */
   notes?: string[];
   /**
@@ -85,6 +91,12 @@ export interface EventSource {
   endpoint?: string;
   /** True while the adapter serves fixture data instead of a live API. */
   demo?: boolean;
+  /**
+   * Lists events from many venues (a city calendar or ticket seller). When
+   * it and a venue's own source list the same event, the venue's record is
+   * kept and this one only fills its gaps.
+   */
+  aggregator?: boolean;
   /** How long a successful response is cached. Defaults to "hours". */
   cacheProfile?: CacheProfile;
   /** Per-source budget before the aggregator gives up on it. */

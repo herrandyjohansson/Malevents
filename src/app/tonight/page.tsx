@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AllDay } from "@/components/tonight/all-day";
 import { DayStrip } from "@/components/tonight/day-strip";
 import { TimelineEvent } from "@/components/tonight/timeline-event";
+import { TonightSearch } from "@/components/tonight/tonight-search";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, dayNames, formatDay, isDay } from "@/lib/days";
@@ -17,6 +18,7 @@ import { pendingNames } from "@/lib/events/pending";
 import { endOf, toFilterable } from "@/lib/events/filters";
 import { localDay, localTime } from "@/lib/events/malmo-time";
 import { countByDay, groupDay, groupTonight } from "@/lib/events/tonight-data";
+import { buildSearchDocuments } from "@/lib/events/search-data";
 import type { MalmoEvent } from "@/lib/events/types";
 
 export const metadata: Metadata = { title: "Tonight" };
@@ -85,12 +87,15 @@ async function Tonight({ searchParams }: { searchParams: PageProps<"/tonight">["
   const picked = Array.isArray(params.day) ? params.day[0] : params.day;
   const day = isDay(picked) && picked > today && picked <= stripDays.at(-1)!.day ? picked : today;
   const strip = <DayStrip days={stripDays} today={today} selected={day} />;
+  const documents = buildSearchDocuments(events, now);
 
   if (day !== today) {
     return (
       <>
         {strip}
-        <DayView day={day} isTomorrow={day === tomorrow} events={events} pending={pendingNames(sources)} />
+        <TonightSearch documents={documents} pending={pendingNames(sources)}>
+          <DayView day={day} isTomorrow={day === tomorrow} events={events} pending={pendingNames(sources)} />
+        </TonightSearch>
       </>
     );
   }
@@ -105,71 +110,73 @@ async function Tonight({ searchParams }: { searchParams: PageProps<"/tonight">["
   return (
     <>
       {strip}
-      <PageHeader
-        size="compact"
-        title={nothingLeft ? "Quiet now. Tomorrow has more." : localTime(now) < EVENING_FROM ? "Today in Malmö" : "Tonight in Malmö"}
-        description={`${formatDay(today)}, ${localTime(now)}. ${summary(live.length, later.length)}`}
-      />
-      <PendingSources names={pendingNames(sources)} />
+      <TonightSearch documents={documents} pending={pendingNames(sources)}>
+        <PageHeader
+          size="compact"
+          title={nothingLeft ? "Quiet now. Tomorrow has more." : localTime(now) < EVENING_FROM ? "Today in Malmö" : "Tonight in Malmö"}
+          description={`${formatDay(today)}, ${localTime(now)}. ${summary(live.length, later.length)}`}
+        />
+        <PendingSources names={pendingNames(sources)} />
 
-      {live.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <span className="relative flex size-2.5">
-              <span className="bg-destructive absolute inset-0 animate-ping rounded-full opacity-75" />
-              <span className="bg-destructive relative size-2.5 rounded-full" />
-            </span>
-            Happening now
-          </h2>
-          <ul className="rise-in grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {live.map((e) => (
-              <li key={e.id}>
-                <TimelineEvent event={e} live />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {timeline.length > 0 ? (
-        showTomorrow ? (
+        {live.length > 0 && (
           <section className="flex flex-col gap-3">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <Moon className="text-primary size-4" aria-hidden />
-              Tomorrow, {formatDay(tomorrow)}
+              <span className="relative flex size-2.5">
+                <span className="bg-destructive absolute inset-0 animate-ping rounded-full opacity-75" />
+                <span className="bg-destructive relative size-2.5 rounded-full" />
+              </span>
+              Happening now
             </h2>
-            <Timeline events={timeline} />
+            <ul className="rise-in grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {live.map((e) => (
+                <li key={e.id}>
+                  <TimelineEvent event={e} live />
+                </li>
+              ))}
+            </ul>
           </section>
-        ) : (
-          byPartOfDay(timeline, today, true).map((part) => (
-            <section key={part.id} className="flex flex-col gap-3">
+        )}
+
+        {timeline.length > 0 ? (
+          showTomorrow ? (
+            <section className="flex flex-col gap-3">
               <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <Moon className="text-primary size-4" aria-hidden />
-                {part.label}
+                Tomorrow, {formatDay(tomorrow)}
               </h2>
-              <Timeline events={part.events} />
+              <Timeline events={timeline} />
             </section>
-          ))
-        )
-      ) : (
-        <p className="text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
-          Nothing listed for tomorrow yet.
-        </p>
-      )}
+          ) : (
+            byPartOfDay(timeline, today, true).map((part) => (
+              <section key={part.id} className="flex flex-col gap-3">
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
+                  <Moon className="text-primary size-4" aria-hidden />
+                  {part.label}
+                </h2>
+                <Timeline events={part.events} />
+              </section>
+            ))
+          )
+        ) : (
+          <p className="text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
+            Nothing listed for tomorrow yet.
+          </p>
+        )}
 
-      <AllDay events={allDay} />
+        <AllDay events={allDay} />
 
-      <div className="flex flex-wrap justify-center gap-2 pt-2">
-        <Button asChild variant="outline">
-          <Link href="/?when=weekend">
-            <CalendarDays />
-            See the weekend
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/map?when=tonight">Tonight on the map</Link>
-        </Button>
-      </div>
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <Button asChild variant="outline">
+            <Link href="/?when=weekend">
+              <CalendarDays />
+              See the weekend
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/map?when=tonight">Tonight on the map</Link>
+          </Button>
+        </div>
+      </TonightSearch>
     </>
   );
 }
@@ -288,6 +295,7 @@ function TonightSkeleton() {
         ))}
       </div>
       <Skeleton className="h-4 w-48" />
+      <Skeleton className="h-10 w-full rounded-full" />
       <Skeleton className="h-12 w-80" />
       {Array.from({ length: 5 }, (_, i) => (
         <Skeleton key={i} className="ml-[4.75rem] h-24 rounded-2xl" />

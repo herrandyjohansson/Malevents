@@ -6,7 +6,7 @@ import { LIVE_MODE } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
 import { decodeEntities, truncate } from "../html";
 import { fetchText, SourceError } from "../http";
-import { malmoToday } from "../malmo-time";
+import { malmoLocalToIso, malmoToday } from "../malmo-time";
 import { parsePriceText, toCategory } from "../normalize";
 import { embeddedJsonArray } from "../scrape";
 import type { EventCategory, EventSource, MalmoEvent, SourceReport } from "../types";
@@ -36,7 +36,10 @@ export interface MalmoStadItem {
   dates?: {
     /** "16:30 – 17:30", or empty when the event has no set time. */
     time?: string;
-    /** Start and end as epoch milliseconds. */
+    /**
+     * Start and end as epoch milliseconds holding Malmö wall-clock time as
+     * if it were UTC: an event shown at 19:30 has 19:30Z. See `wallClockToIso`.
+     */
     sortDateTime?: number;
     endSortDateTime?: number;
     isSingleDay?: boolean;
@@ -72,6 +75,16 @@ function category(item: MalmoStadItem): EventCategory {
   return toCategory(...(item.categories ?? []), item.title);
 }
 
+/**
+ * The calendar's epochs are wall-clock time written as UTC (checked against
+ * the displayed `date` and `time` of every item on 24 Oct 2026), so reading
+ * them as real instants put every event one or two hours late.
+ */
+function wallClockToIso(ms: number) {
+  const utc = new Date(ms).toISOString();
+  return malmoLocalToIso(utc.slice(0, 10), utc.slice(11, 16));
+}
+
 export function malmoStadItemToEvent(item: MalmoStadItem): MalmoEvent | undefined {
   const start = item.dates?.sortDateTime;
   if (!item.id || !item.title || !start) return undefined;
@@ -83,8 +96,8 @@ export function malmoStadItemToEvent(item: MalmoStadItem): MalmoEvent | undefine
     sourceId: ID,
     title: decodeEntities(item.title).trim(),
     description,
-    startsAt: new Date(start).toISOString(),
-    endsAt: end && end > start ? new Date(end).toISOString() : undefined,
+    startsAt: wallClockToIso(start),
+    endsAt: end && end > start ? wallClockToIso(end) : undefined,
     // Multi-day items (exhibitions, recurring series) are date ranges; only a single day without a time is "time not announced".
     timeUnknown: !item.dates?.time && item.dates?.isSingleDay !== false ? true : undefined,
     category: category(item),
@@ -124,13 +137,15 @@ export const malmoStad: EventSource = {
   kind: LIVE_MODE ? "html" : "fixture",
   endpoint: LISTING,
   demo: !LIVE_MODE,
+  aggregator: true,
   timeoutMs: 15000,
   fetchEvents: getMalmoStadEvents,
 };
 
 /** Items in the shape the page embeds, with dates kept upcoming. */
 function demoItems(): MalmoStadItem[] {
-  const at = (day: number, time: string) => Date.parse(daysFromTodayAt(day, time));
+  // Wall-clock time written as UTC, like the live calendar (see `wallClockToIso`).
+  const at = (day: number, time: string) => Date.parse(`${daysFromTodayAt(day, time).slice(0, 16)}Z`);
   return [
     {
       id: "5.demo1",

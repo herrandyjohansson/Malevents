@@ -8,10 +8,12 @@ export function SearchBox({
   value,
   onCommit,
   autoFocus,
+  placeholder = "Search events, artists or venues",
 }: {
   value: string;
   onCommit: (q: string) => void;
   autoFocus?: boolean;
+  placeholder?: string;
 }) {
   const [text, setText] = useState(value);
   const [synced, setSynced] = useState(value);
@@ -33,7 +35,7 @@ export function SearchBox({
       <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
       <input
         type="search"
-        placeholder="Search events, artists or venues"
+        placeholder={placeholder}
         aria-label="Search events, artists or venues"
         value={text}
         autoFocus={autoFocus}
@@ -56,4 +58,3 @@ export function SearchBox({
     </div>
   );
 }
-

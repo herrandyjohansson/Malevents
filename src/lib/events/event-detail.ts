@@ -5,6 +5,7 @@ import { AREA_NAMES } from "./areas";
 import { isUpcoming, toFilterable } from "./filters";
 import { getSource } from "./sources";
 import type { MalmoEvent } from "./types";
+import { venueSlug } from "./venues";
 
 export interface EventDetail {
   event: MalmoEvent;
@@ -24,10 +25,11 @@ const MORE_AT_VENUE = 4;
 export async function getEventDetail(id: string): Promise<EventDetail | undefined> {
   // Wait for every source: a link to an event from a slow source must not read as "not found".
   const { events, sources } = await getAllEvents("complete");
-  const event = events.find((e) => e.id === id);
+  // A listing merged into another (same event from another source) still opens, as the kept record.
+  const event = events.find((e) => e.id === id) ?? events.find((e) => e.duplicateIds?.includes(id));
   if (!event) return undefined;
   const now = new Date();
-  const venue = event.venue?.name.trim().toLowerCase();
+  const venue = event.venue && venueSlug(event.venue.name);
   const area = toFilterable(event).area;
   return {
     event,
@@ -36,7 +38,7 @@ export async function getEventDetail(id: string): Promise<EventDetail | undefine
     ended: !isUpcoming(event, now),
     moreAtVenue: venue
       ? events
-          .filter((e) => e.id !== id && e.venue?.name.trim().toLowerCase() === venue && isUpcoming(e, now))
+          .filter((e) => e.id !== event.id && e.venue && venueSlug(e.venue.name) === venue && isUpcoming(e, now))
           .slice(0, MORE_AT_VENUE)
       : [],
   };

@@ -5,11 +5,13 @@ import { cache } from "react";
 import { errorMessage, log, since } from "@/lib/log";
 
 import { DEFAULT_SOURCE_TIMEOUT_MS } from "./config";
+import { mergeDuplicates } from "./dedupe";
 import { fetchSource, type SourceResult } from "./fetch-source";
 import { SourceError } from "./http";
 import { getSourceSettings } from "./settings";
 import { isEnabledByDefault, SOURCES } from "./sources";
 import type { EventSource, MalmoEvent, SourceStatus } from "./types";
+import { withCanonicalVenue } from "./venues";
 
 function withTimeout<T>(source: EventSource, promise: Promise<T>): Promise<T> {
   const ms = source.timeoutMs ?? DEFAULT_SOURCE_TIMEOUT_MS;
@@ -28,18 +30,12 @@ function withTimeout<T>(source: EventSource, promise: Promise<T>): Promise<T> {
   });
 }
 
-function dedupeKey(event: MalmoEvent) {
-  const title = event.title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}]+/gu, "");
-  return `${title}|${new Date(event.startsAt).toISOString().slice(0, 16)}`;
-}
-
-/** How many fields a record has filled in; of two duplicates, the richer one is kept. */
-function filledFieldCount(event: MalmoEvent) {
-  return Object.values(event).filter((v) => v !== undefined && v !== "").length;
-}
+/**
+ * Which listing wins when sources list the same event: a venue's own
+ * source before aggregators, then registry order. Unknown ids go last.
+ */
+const SOURCE_RANK = new Map(SOURCES.map((s, i) => [s.id, (s.aggregator ? SOURCES.length : 0) + i]));
+const sourceRank = (id: string) => SOURCE_RANK.get(id) ?? SOURCES.length * 2;
 
 /**
  * How long a page waits for its sources before rendering with the ones that
@@ -140,20 +136,11 @@ export const getAllEvents = cache(async (
     SOURCES.map((s) => loadSource(s, settings[s.id]?.enabled ?? isEnabledByDefault(s), budget)),
   );
 
-  let merged = 0;
-  const byKey = new Map<string, MalmoEvent>();
-  for (const { events } of results) {
-    merged += events.length;
-    for (const event of events) {
-      const key = dedupeKey(event);
-      const existing = byKey.get(key);
-      if (!existing || filledFieldCount(event) > filledFieldCount(existing)) byKey.set(key, event);
-    }
-  }
-
-  const events = [...byKey.values()].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+  // Venue names are made canonical first, so listings under another name of the venue merge too.
+  const listed = results.flatMap((r) => r.events).map(withCanonicalVenue);
+  const events = mergeDuplicates(listed, sourceRank);
   const sources = results.map((r) => r.status);
-  logAggregate(sources, startedAt, merged, events.length, since(started));
+  logAggregate(sources, startedAt, listed.length, events.length, since(started));
   return { events, sources };
 });
 

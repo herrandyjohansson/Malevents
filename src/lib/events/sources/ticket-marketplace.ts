@@ -68,6 +68,7 @@ export const ticketMarketplace: EventSource = {
   kind: "fixture",
   cacheProfile: "minutes",
   demo: true,
+  aggregator: true,
   fetchEvents: getTicketMarketplaceEvents,
 };
 

@@ -106,6 +106,8 @@ interface TicksterSourceOptions {
   query?: string;
   /** Keep only listings whose place text matches (organizers sometimes tour). */
   placeFilter?: RegExp;
+  /** Lists many venues' events (see `EventSource.aggregator`). */
+  aggregator?: boolean;
   /** Fixtures used when EVENTS_LIVE=false. */
   demo: () => { listingHtml: string; detailHtml: (l: TicksterListing) => string };
 }
@@ -189,6 +191,7 @@ export function ticksterSource(options: TicksterSourceOptions): EventSource {
     kind: LIVE_MODE ? "html" : "fixture",
     endpoint: options.organizerUrl,
     demo: !LIVE_MODE,
+    aggregator: options.aggregator,
     timeoutMs: 45000,
     fetchEvents: getEvents,
   };

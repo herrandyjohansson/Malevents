@@ -3,7 +3,9 @@ import "server-only";
 import { areaAt, type AreaId } from "./areas";
 import { isUpcoming } from "./filters";
 import type { EventCategory, MalmoEvent } from "./types";
-import { hasCoordinates } from "./venues";
+import { hasCoordinates, venueSlug } from "./venues";
+
+export { venueSlug };
 
 export interface Venue {
   slug: string;
@@ -22,17 +24,6 @@ export interface Venue {
   imageUrl?: string;
 }
 
-/** URL-safe slug that keeps Swedish letters readable: "Malmö Opera" → "malmo-opera". */
-export function venueSlug(name: string) {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
-}
-
 /** Every venue with at least one upcoming event, busiest first. */
 export function buildVenues(events: MalmoEvent[], now: Date): Venue[] {
   const bySlug = new Map<string, MalmoEvent[]>();
@@ -45,7 +36,7 @@ export function buildVenues(events: MalmoEvent[], now: Date): Venue[] {
 
   return [...bySlug.entries()]
     .map(([slug, list]) => {
-      list.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      list.sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
       // Prefer the record that knows the most about the place.
       const best =
         list.find((e) => hasCoordinates(e) && e.venue?.address)?.venue ??
