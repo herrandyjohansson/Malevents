@@ -8,12 +8,12 @@ This page records how each rule that applies is met, and the exceptions that are
 
 | Rule | Status | How |
 | --- | --- | --- |
-| I4, FE1 XSS via raw HTML | Met | No `dangerouslySetInnerHTML` or `innerHTML`. Leaflet popups are built with `textContent`. |
+| I4, FE1 XSS via raw HTML | Met | No `dangerouslySetInnerHTML` or `innerHTML`. Leaflet popups are built with `textContent`. The one third-party SVG served from the site's own origin (the coat of arms, `public/brand/` and `src/app/icon.svg`) was checked for scripts, event handlers, `foreignObject` and external references, and has none. |
 | I5 SSRF | Met, with a limit | `http.ts` fetches only public `http(s)` URLs, for GET and for the one JSON POST (bio.se, fixed URL and body set in the adapter). It refuses local names, private, loopback and link-local IPv4 literals and IPv6 literals, and checks every redirect hop. Scraped detail-page links are fetched, so this matters if a venue site changes or is compromised. Host names are not resolved, so a public name pointing at a private address is not caught. |
 | I6 Path traversal | Met | `settings.ts` writes one fixed path; the source id is checked against the registry first. |
 | FE2 eval | Met | None. |
 | FE4 Prototype pollution | Met | Settings keys are registry source ids only. |
-| FE5 Open redirect | Met | The only programmatic redirect goes to `/`. |
+| FE5 Open redirect | Met | The only programmatic redirect goes to `/`. The redirects in `next.config.ts` (old tabs, other names of a venue) go to fixed paths on the site, built from a hand-written table, never from visitor input. |
 | FE6 Sensitive data in localStorage | Met | Only saved events and the admin-mode flag. |
 | FE7 CSRF | Met | Server Actions check the Origin header (Next.js). |
 | FE8, AZ4 Server-side input validation | Met | Search params go through `parseFilters` and `isDay`; Server Action arguments are type-checked at runtime; links from upstreams are reduced to `http(s)` (`normalize.ts`). |

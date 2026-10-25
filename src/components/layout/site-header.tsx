@@ -11,7 +11,7 @@ export function SiteHeader() {
       <header className="glass sticky top-0 z-[1000] border-b">
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
           <Link href="/" aria-label="MÖEVENTS" className="flex items-center gap-2.5 font-semibold tracking-tight">
-            <Logo className="size-7" />
+            <Logo className="h-7 w-auto" />
             <span className="text-[15px]">
               M<UmlautO />
               EVENTS
@@ -26,6 +26,24 @@ export function SiteHeader() {
         <MobileNav />
       </Suspense>
     </>
+  );
+}
+
+/** Credits for the parts of the site others made: the coat of arms in the logo and tab icon. */
+export function SiteFooter() {
+  const link = "hover:text-foreground underline decoration-white/20 underline-offset-2 hover:decoration-current";
+  return (
+    <footer className="text-muted-foreground mx-auto w-full max-w-7xl px-4 py-6 text-xs sm:px-6">
+      Coat of arms of Skåne by Havsjö, after Leonid 2,{" "}
+      <a href="https://commons.wikimedia.org/wiki/File:Sk%C3%A5ne_landskapsvapen.svg" className={link}>
+        Wikimedia Commons
+      </a>
+      ,{" "}
+      <a href="https://creativecommons.org/licenses/by-sa/3.0/" rel="license" className={link}>
+        CC BY-SA 3.0
+      </a>{" "}
+      (scaling box added).
+    </footer>
   );
 }
 

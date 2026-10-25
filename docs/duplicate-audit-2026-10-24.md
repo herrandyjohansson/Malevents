@@ -21,7 +21,8 @@ The biggest observed issues are:
    such as Slagthuset / Slagthusets Teater.
 
 **No production deduplication, event data, source settings or venue routing was
-changed during this investigation.**
+changed during this investigation.** The fixes came after it; see
+[Fixes and results](#fixes-and-results-24-october-2026) at the end.
 
 ## Snapshot and coverage
 
@@ -308,3 +309,75 @@ Snapshot-local IDs identify each record for inspection.
 
 Validation: 10 rule tests plus the fixed-snapshot replay passed; the live
 pipeline measurement passed; ESLint and TypeScript checks passed.
+
+## Fixes and results (24 October 2026)
+
+### City-calendar times
+
+The investigation's open question is answered. Malmö stad's `sortDateTime` epochs
+carry **Malmö wall-clock time written as UTC**: all 178 timed items on the live
+calendar were displayed one hour earlier than their epoch read as a real instant
+(two hours on 24 October, still summer time), and every item's epoch date matched
+its displayed `date`. [`malmo-stad.ts`](../src/lib/events/sources/malmo-stad.ts)
+now reads the epoch's UTC fields as Malmö local time (`wallClockToIso`). Event ids
+still use the raw epoch, so links and saved events keep working.
+[`malmo-stad.test.ts`](../src/lib/events/sources/malmo-stad.test.ts) covers
+winter, summer, both daylight-saving change days, time ranges, multi-day
+exhibitions and untimed days.
+
+### Identity-based merging
+
+[`dedupe.ts`](../src/lib/events/dedupe.ts) replaces the title + minute key in
+[`aggregate.ts`](../src/lib/events/aggregate.ts). It keeps that rule (now refusing
+venues more than 500 m apart) and adds: a shared Tickster booking id or event page,
+from different sources, within 15 minutes. Guards: a group never spans more than
+15 minutes and never holds two start times from one source, so matinees, repeat
+screenings and sessions sharing a booking page stay apart, and listings cannot
+chain into one group through a third. A venue's own source wins over aggregators
+(`aggregator: true`); the others fill gaps but not sold-out or cancelled status.
+The result does not depend on source order.
+[`dedupe.test.ts`](../src/lib/events/dedupe.test.ts) has 14 cases, from the
+report's examples to the must-not-merge ones.
+
+Merged ids are kept in `duplicateIds`. An event page opened under a merged id
+shows the kept event, with a canonical link to it; saved hearts recognise every
+id of an event, and unsaving removes all copies.
+
+### Venue aliases
+
+A hand-checked table in [`venues.ts`](../src/lib/events/venues.ts) files
+Slagthusets Teater, Slagthuset Nöje & Event, Slagthuset - Restaurang and
+Slagthuset - Saluhallen under Slagthuset (keeping the room in the address), and
+merges Malmö Live, Biograf Panora, Hipp, Intiman, Folkets Park - Moriska
+Paviljongen, Hyllie Bryggeri AB, medley – musik, Dansstationen på Palladium and
+Radisson Blu Hotel with their venue's own name. Venues that only share a building
+(Malmö Opera and Intiman, Malmö Konsthall and Grand Malmö) stay apart. Old venue
+pages redirect permanently (`next.config.ts`), search finds a venue by its other
+names, and "More at this venue" compares slugs instead of raw names.
+
+### Measured effect
+
+A fresh live capture (25 October 2026, every source answering, Medley included)
+was merged four ways from the same 1,827 upcoming raw listings:
+
+| Stage | Records kept | Identity-linked surplus | Cross-source title pairs | Venue slugs |
+| --- | ---: | ---: | ---: | ---: |
+| Old code (old city times, title + minute) | 1,761 | 44 | 54 | 107 |
+| + city-calendar time fix | 1,731 | 21 | 22 | 106 |
+| + venue aliases | 1,731 | 21 | 22 | 98 |
+| + identity merging (all fixes) | **1,718** | **3** | **11** | **98** |
+
+All 16 merges whose titles differ were checked by hand; each is one performance
+(for example *Rollspelsklubben SKRÄCK!* and *Skräck!*, *Maggie Reilly* and
+*Maggie Reilly + Cutting Crew* at 19:30 and 19:35). The same-source merges are
+repeats the old rule already merged (one Tickster listing per ticket type, the
+city calendar listing an item twice).
+
+Left for review, not merged:
+
+- Three identity-linked pairs 30–90 minutes apart, where sources disagree on doors
+  versus show time (*Attentat*, *Eva Dahlgren*, *Banna Sona Band*).
+- Eleven cross-source title pairs at the same time without a shared link, mostly
+  Medley listing support acts as "/ support:" where Tickster writes "+".
+- Venue pairs that share a building or have ambiguous names (Clarion Hotel
+  Malmö / Clarion Hotel Malmö Live, Glasklart / Glasklart Malmö).

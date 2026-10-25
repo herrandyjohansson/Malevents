@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Intro } from "@/components/layout/intro";
-import { Backdrop, SiteHeader } from "@/components/layout/site-header";
+import { Backdrop, SiteFooter, SiteHeader } from "@/components/layout/site-header";
 
 import { LIVE_MODE } from "@/lib/events/config";
 import { SOURCE_META } from "@/lib/events/sources";
@@ -64,6 +64,7 @@ export default function RootLayout({ children, sheet }: LayoutProps<"/">) {
         <div id="content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
           {children}
         </div>
+        <SiteFooter />
         {/* An event opened from a list renders here, as a sheet over the page (see app/@sheet). */}
         {sheet}
       </body>

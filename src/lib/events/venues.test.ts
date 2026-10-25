@@ -21,6 +21,8 @@ describe("withCanonicalVenue", () => {
     expect(withCanonicalVenue(at({ name: "Malmö Live" })).venue?.name).toBe("Malmö Live Konserthus");
     expect(withCanonicalVenue(at({ name: "Biograf Panora" })).venue?.name).toBe("Panora");
     expect(withCanonicalVenue(at({ name: "Hipp (Malmö stadsteater)" })).venue?.name).toBe("Hippodromen, Malmö Stadsteater");
+    expect(withCanonicalVenue(at({ name: "medley – musik", city: "Malmö" })).venue)
+      .toMatchObject({ name: "Medley", lat: 55.6034, lng: 13.0066 });
   });
 
   it("keeps coordinates the upstream gave", () => {

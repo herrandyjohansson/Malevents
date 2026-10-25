@@ -100,6 +100,10 @@ const VENUE_ALIASES: { alias: string; name: string; room?: string }[] = [
   { alias: "Intiman (Malmö Stadsteater)", name: "Intiman, Malmö Stadsteater" },
   { alias: "Folkets Park - Moriska Paviljongen", name: "Moriska Paviljongen" },
   { alias: "Hyllie Bryggeri AB", name: "Hyllie Bryggeri" },
+  // Tickster's place text for Medley's own events.
+  { alias: "medley – musik", name: "Medley" },
+  { alias: "Dansstationen på Palladium", name: "Dansstationen" },
+  { alias: "Radisson Blu Hotel", name: "Radisson Blu Hotel Malmö" },
 ];
 
 const ALIAS_BY_KEY = new Map(VENUE_ALIASES.map((a) => [key(a.alias), a]));
