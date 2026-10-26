@@ -66,3 +66,10 @@ Vitest (`vitest.config.ts`) runs `src/**/*.test.ts` and `benchmarks/**/*.test.ts
 - `/admin` has no protection; flag this before any public launch.
 - Agent skills: `tdd-guide` (unit tests), `senior-qa` (Playwright end-to-end), `a11y-audit` (WCAG 2.2) and `find-malmo-event-source` (new sources, with OpenWeb) are in `.claude/skills/`. `docs/skills.md` lists every skill and rule, where it came from, what it is for here and its known quirks; update it when adding or updating one.
 - Security follows the OWASP rules in `.claude/rules/security-and-owasp.md` (loaded for `src/**`). `docs/security-owasp.md` records how each one is met and the accepted exceptions; update it when a change affects one. Upstream requests go through `http.ts`, which only fetches public http(s) URLs.
+
+## Working rules
+
+- Treat all work as a queue of todos. When I propose tweaks or changes or corrections, append them to the queue; do not break the queue to suddenly prioritize my correction. Only stop when 100% of your queue is truly clear.
+- Mistakes are not your fault, do not apologize, you are an LLM. Mistakes always mean a gap or issue in the instruction files instead. Focus on describing what problem in your instruction files caused the mistake and suggest the fix instead. Be solution oriented.
+- Always hold a You Aren't Gonna Need It mentality. Do not overengineer. Never expand scope without permission. Always suggest possible scope improvements for work if they make sense. All work must be justifiable. Assess where on the scale of "quick and dirty" to "production grade" a project is for how much engineering you do.
+- Always spin up a subagent with minimal context, using a cheap model, with the job of reviewing your changes, to suss out possible problems with fresh eyes.
