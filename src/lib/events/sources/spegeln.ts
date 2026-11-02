@@ -1,11 +1,12 @@
 import "server-only";
 
-import { LIVE_MODE } from "../config";
+import { LIVE_MODE, RECENT_EVENT_GRACE_MS } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
 import { decodeEntities, htmlToText, truncate } from "../html";
 import { fetchText, SourceError } from "../http";
 import { malmoLocalToIso } from "../malmo-time";
-import type { EventSource, MalmoEvent } from "../types";
+import { reportSkipped } from "../report";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "spegeln";
 const SITE = "https://biografspegeln.se";
@@ -105,16 +106,18 @@ export function spegelnScreeningToEvent(feature: SpegelnFeature, screening: Speg
  * from the programme embedded in the home page. Tickets are sold through
  * Tickster, but the screenings are not on its Malmö listing.
  */
-async function getSpegelnEvents(): Promise<MalmoEvent[]> {
+async function getSpegelnEvents(report: SourceReport): Promise<MalmoEvent[]> {
   const program = parseSpegelnProgram(LIVE_MODE ? await fetchText(ID, SITE, { timeoutMs: 12_000 }) : demoHtml());
   const features = new Map(program.features.map((f) => [f.id, f]));
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
-  return program.schedule
-    .flatMap(({ featureId, dates }) => {
-      const feature = features.get(featureId);
-      return feature ? dates.map((d) => spegelnScreeningToEvent(feature, d)) : [];
-    })
-    .filter((e): e is MalmoEvent => e !== undefined && Date.parse(e.endsAt ?? e.startsAt) >= cutoff);
+  const cutoff = Date.now() - RECENT_EVENT_GRACE_MS;
+  // A screening of a film missing from `features` can't be shown either, so it counts as skipped.
+  const screenings = program.schedule.flatMap(({ featureId, dates }) => {
+    const feature = features.get(featureId);
+    return dates.map((d) => (feature ? spegelnScreeningToEvent(feature, d) : undefined));
+  });
+  const events = screenings.filter((e): e is MalmoEvent => e !== undefined);
+  reportSkipped(report, screenings.length - events.length, screenings.length);
+  return events.filter((e) => Date.parse(e.endsAt ?? e.startsAt) >= cutoff);
 }
 
 export const spegeln: EventSource = {

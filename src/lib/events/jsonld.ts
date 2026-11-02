@@ -1,5 +1,6 @@
 import "server-only";
 
+import { DEFAULT_REQUEST_TIMEOUT_MS } from "./config";
 import { fetchText } from "./http";
 import { toCategory } from "./normalize";
 import type { MalmoEvent } from "./types";
@@ -70,7 +71,7 @@ export function extractJsonLdEvents(html: string): JsonLdEvent[] {
  * Fetch a page and return its JSON-LD events. Goes through `fetchText`, so it
  * gets the same timeout, User-Agent and source-named errors as other adapters.
  */
-export async function fetchJsonLdEvents(sourceId: string, pageUrl: string, timeoutMs = 8000) {
+export async function fetchJsonLdEvents(sourceId: string, pageUrl: string, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS) {
   return extractJsonLdEvents(await fetchText(sourceId, pageUrl, { timeoutMs }));
 }
 

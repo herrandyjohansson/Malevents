@@ -3,7 +3,15 @@
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import type { DivIcon, LocationEvent, Map as LeafletMapInstance, Marker, MarkerClusterGroup, MarkerOptions } from "leaflet";
+import type {
+  DivIcon,
+  ErrorEvent as LocationErrorEvent,
+  LocationEvent,
+  Map as LeafletMapInstance,
+  Marker,
+  MarkerClusterGroup,
+  MarkerOptions,
+} from "leaflet";
 import { Crosshair, LocateFixed, Minus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -130,12 +138,21 @@ export function LeafletMap({
   const fitRef = useRef<() => void>(() => {});
   const meRef = useRef<Marker | null>(null);
   const onSelectRef = useRef(onSelect);
-  const [locating, setLocating] = useState<"idle" | "busy" | "failed">("idle");
+  const [locating, setLocating] = useState<"idle" | "busy" | "denied" | "failed">("idle");
   const { top: padTop, bottom: padBottom } = padding;
+  const locateFailed = locating === "denied" || locating === "failed";
 
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  // The failure note goes away by itself; the button stays red until the next try.
+  const [noteShown, setNoteShown] = useState(false);
+  useEffect(() => {
+    if (!noteShown) return;
+    const timer = setTimeout(() => setNoteShown(false), 8000);
+    return () => clearTimeout(timer);
+  }, [noteShown]);
 
   // Popup links are plain DOM anchors (Leaflet builds the popups). Route them
   // through the app router so the event opens as a sheet over the map instead
@@ -288,6 +305,7 @@ export function LeafletMap({
     const map = mapRef.current;
     if (!L || !map) return;
     setLocating("busy");
+    setNoteShown(false);
     map
       .once("locationfound", (e: LocationEvent) => {
         setLocating("idle");
@@ -296,7 +314,11 @@ export function LeafletMap({
         else meRef.current = L.marker(e.latlng, { icon, keyboard: false, interactive: false, zIndexOffset: 1000 }).addTo(map);
         map.flyTo(e.latlng, Math.max(map.getZoom(), 14), { duration: 0.6 });
       })
-      .once("locationerror", () => setLocating("failed"));
+      // Code 1 is the browser's PERMISSION_DENIED: only the visitor can lift it, so say how.
+      .once("locationerror", (e: LocationErrorEvent) => {
+        setLocating(e.code === 1 ? "denied" : "failed");
+        setNoteShown(true);
+      });
     map.locate({ enableHighAccuracy: true, timeout: 10000 });
   }
 
@@ -311,11 +333,11 @@ export function LeafletMap({
       <div className="absolute right-3 bottom-8 z-20 flex flex-col gap-2 max-lg:bottom-[calc(var(--sheet-h,0px)+2rem)] max-lg:transition-[bottom] max-lg:duration-300">
         <button
           type="button"
-          className={cn(button, locating === "failed" && "text-destructive")}
+          className={cn(button, locateFailed && "text-destructive")}
           onClick={locate}
           disabled={locating === "busy"}
-          aria-label={locating === "failed" ? "Location unavailable, try again" : "Show my location"}
-          title={locating === "failed" ? "Location unavailable" : "Near me"}
+          aria-label={locateFailed ? "Location unavailable, try again" : "Show my location"}
+          title={locateFailed ? "Location unavailable" : "Near me"}
         >
           <LocateFixed className={cn("size-4.5", locating === "busy" && "animate-pulse")} />
         </button>
@@ -332,8 +354,12 @@ export function LeafletMap({
           </button>
         </div>
       </div>
-      <p aria-live="polite" className="sr-only">
-        {locating === "failed" ? "Your location is unavailable." : ""}
+      <p
+        aria-live="polite"
+        className="bg-popover/90 absolute right-16 bottom-8 z-20 max-w-60 rounded-xl border px-3 py-2 text-xs shadow-lg backdrop-blur-md empty:hidden max-lg:bottom-[calc(var(--sheet-h,0px)+2rem)]"
+      >
+        {noteShown && locating === "denied" && "Location is blocked. Allow it in your browser settings to see what's near you."}
+        {noteShown && locating === "failed" && "Couldn't find your location. Try again in a moment."}
       </p>
     </div>
   );

@@ -33,7 +33,7 @@ Den här uppgiften är byggd kring **The 4Ds** och **spec-driven development**: 
 | Kontroller lokalt | `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` |
 | Hemligheter | Inga API-nycklar, ingen databas, ingen inloggning |
 | Admin | Skrivskyddad – inställningar ändras i Vercel, inte på sajten (se [Go-live](#-go-live-produktionsklar-möevents)) |
-| README | Finns – behöver stämmas av mot README-mallen |
+| README | Komplett: installation, konfiguration, körning, tester och externa beroenden (se [steg 4](#-steg-4--paketering)) |
 
 ---
 
@@ -149,7 +149,7 @@ Välj en plattform som passar din stack:
 
 ## ✨ Steg 3 – Polering med agenten
 
-- [ ] Kör följande prompt mot din kodbas:
+- [x] Kör följande prompt mot din kodbas *(2 november 2026 – resultat i [polering.md](polering.md): 23 fynd)*
 
 > *Gå igenom hela kodbasen systematiskt. Identifiera och lista:*
 >
@@ -164,23 +164,45 @@ Välj en plattform som passar din stack:
 
 **Egna preferenser att lägga till i punkt 6 (förslag):**
 
-- [ ] Loggning som inte går via `log` i `src/lib/log.ts` eller som loggar besökarens indata
-- [ ] Avvikelser från OWASP-reglerna i `.claude/rules/security-and-owasp.md`
-- [ ] Tillgänglighet (WCAG 2.2) i UI-komponenterna
-- [ ] Källadaptrar som inte rapporterar delvisa fel med `report.warn`
-- [ ] …
+- [x] Loggning som inte går via `log` i `src/lib/log.ts` eller som loggar besökarens indata *(fynd 6.3)*
+- [x] Avvikelser från OWASP-reglerna i `.claude/rules/security-and-owasp.md` *(fynd 6.2)*
+- [x] Tillgänglighet (WCAG 2.2) i UI-komponenterna *(fynd 6.4)*
+- [x] Källadaptrar som inte rapporterar delvisa fel med `report.warn` *(fynd 6.1)*
+
+### Resultat av granskningen
+
+**23 fynd**, vart och ett med fil, rad, åtgärd och prioritet. Hela listan finns i [polering.md](polering.md).
+
+| Kategori | Fynd |
+| -------- | :--: |
+| 1. Saknad felhantering för externa anrop | 3 |
+| 2. Otydliga felmeddelanden | 6 |
+| 3. Edge cases | 6 |
+| 4. Dokumentation | 2 |
+| 5. Hårdkodade värden | 2 |
+| 6. Egna preferenser | 4 |
+
+**Viktigast:**
+
+- **2.2** Okända sidor, venues och dagar visar Next.js standardtext "This page could not be found" *(testat)*.
+- **3.1** En sparad post utan giltigt datum kraschar hela Saved-fliken.
+- **3.2 och 6.1** En källa med 0 evenemang visas som *Healthy*, och fem adaptrar hoppar tyst över rader de inte kan läsa. Gör en venue om sin sajt syns det inte i admin.
+- **2.3** När "Near me" misslyckas på mobil syns ingen förklaring – den finns bara i en tooltip.
+- **6.2** `undici` (via `cheerio`) har en hög sårbarhet, och säkerhetsdokumentet säger fortfarande att det inte finns några.
+
+Fyra fynd testades genom körning mot ett lokalt produktionsbygge (2.1, 2.2, 3.5 och 6.2); resten bygger på kodläsning. **2.1 visade sig vara fel diagnos:** felet ligger i Next.js egen router, och i produktion stoppar Vercel trasiga länkar (HTTP 400) innan de når appen, så ingen ändring behövdes.
 
 ### Fynd och åtgärder
 
-Åtgärda **minst tre** punkter från listan.
+Åtgärda **minst tre** punkter från listan. **22 av 23 är åtgärdade** – status per fynd och verifiering finns i [polering.md](polering.md). De tre viktigaste:
 
 | # | Fil | Rad | Fynd | Åtgärd | Klar |
 | - | --- | --- | ---- | ------ | :--: |
-| 1 | | | | | ⬜ |
-| 2 | | | | | ⬜ |
-| 3 | | | | | ⬜ |
+| 3.1 | `src/lib/saved.ts`, `src/lib/saved-snapshot.ts` | 27 | En sparad post utan giltigt `startsAt` kraschar hela Saved-fliken | `parseSaved` kontrollerar id, titel, länk och datum innan listan visas; 3 nya tester | ✅ |
+| 3.2 | `src/lib/events/fetch-source.ts` | 82 | En källa med 0 evenemang visas som *Healthy* och cachas i timmar | Varningen "No events found …" i admin, och omförsök inom 15 minuter i stället för timmar | ✅ |
+| 2.2 | `src/app/not-found.tsx` (ny) | – | Okända sidor, venues och dagar visar Next.js standardtext | Egen 404-sida i samma stil som "event saknas", med vägar tillbaka till listorna | ✅ |
 
-- [ ] Minst tre fynd åtgärdade
+- [x] Minst tre fynd åtgärdade *(22 av 23; lint, typkontroll, 99 tester och build går igenom)*
 - [ ] Committat
 
 ---
@@ -191,11 +213,15 @@ Välj en plattform som passar din stack:
 
 Skriv en komplett README med README-mallen från fliken **Tips**. Kontrollera att den täcker:
 
-- [ ] Vad projektet gör
-- [ ] Hur man installerar
-- [ ] Hur man konfigurerar
-- [ ] Hur man kör
-- [ ] Vilka externa beroenden som krävs
+- [x] Vad projektet gör – intro med vilket problem sajten löser, live-URL och snabbstart, sedan *At a glance*, *What the site does* och *Filters*
+- [x] Hur man installerar – nytt avsnitt *Installation*: `git clone`, `cd`, `npm install`, inget mer
+- [x] Hur man konfigurerar – *Configuration* med exempel på `.env.local` och alla miljövariabler och inställningar i koden
+- [x] Hur man kör – *Running it locally* (dev, fixtures, produktionsbygge) och nytt avsnitt *Tests and checks*
+- [x] Vilka externa beroenden som krävs – nytt avsnitt *Requirements and external dependencies*: vad man installerar (Node.js ≥ 20.9, npm, Git) och vilka tjänster sajten anropar (16 källsajter, OpenFreeMap, OSM, Google Fonts vid build, Vercel)
+
+**Så gjordes det (2 november 2026):** README:n var en lång projektrapport utan avsnitt för installation och externa beroenden. Den har nu två delar: *Getting started* (de nio första avsnitten, som täcker punkterna ovan) och *How it works* (rapporten). Den rättades också där den inte längre stämde med koden: den sa att det inte fanns något testramverk (Vitest finns), räknade 13 källor (18), nämnde Server Actions och `actions.ts` (borttagna) och beskrev kartan med vanliga OSM-tiles (nu OpenFreeMap med OSM som reserv). `/days/[day]` och `/admin/logs` saknades.
+
+**Verifierat** med en ny klon av repot: `npm install` (4 s), `npx next typegen` + `npx tsc --noEmit`, `npm test` (87 godkända) och `EVENTS_LIVE=false npm run build` + `npm run start` (alla flikar ger 200). `tsc` fallerar på en ny klon om `typegen` inte körts först, så README:n säger det. Alla interna länkar och filsökvägar i README:n finns.
 
 ### CV-punkt
 
@@ -205,19 +231,23 @@ Formatet:
 
 Se avsnittet **"CV-mall"** i fliken **Tips** för exempel på bra och dåliga formuleringar.
 
-- [ ] Skriv CV-punkten
+- [x] Skriv CV-punkten *(utkast)*
 - [ ] Jämför mot exemplen i CV-mallen
 
-**Min CV-punkt:**
+**Min CV-punkt (utkast):**
 
-> Designade och utvecklade … med … med hjälp av agentdriven utveckling (Claude Code). Projektet … och är tillgängligt på <https://moevents.vercel.app>.
+> Designade och utvecklade MÖEVENTS, en evenemangsguide för Malmö, med Next.js 16, React 19, TypeScript och Tailwind CSS på Vercel med hjälp av agentdriven utveckling (Claude Code). Projektet samlar evenemang som annars är utspridda över 16 venue- och biljettsajter, de flesta utan öppna API:er, i en gemensam lista, karta och kalender, och är tillgängligt på <https://moevents.vercel.app>.
 
 ### Repot
 
 - [x] Publikt
-- [ ] README på plats
-- [ ] Inga känsliga filer committade (kontrollera med agenten)
-- [ ] CI/CD-badge i README *(valfritt – visar pipeline-status)*
+- [x] README på plats *(uppdaterad 2 november 2026, inte committad än)*
+- [x] Inga känsliga filer committade (kontrollera med agenten) – kontrollerat 2 november 2026:
+  - Inga `.env`-filer, nycklar (`.pem`, `.key`) eller `.vercel/` är committade nu eller i historiken; `.gitignore` utesluter dem.
+  - Ingen committad fil innehåller något som liknar en hemlighet (API-nycklar, tokens, lösenord, privata nycklar, GitHub-/AWS-/Vercel-tokens). Träffarna på `token` i `.agents/skills/impeccable/` är kod som bygger URL:er med en variabel, inte hemligheter.
+  - `.claude/settings.local.json` är committad men innehåller bara Impeccable-hookar, inga hemligheter eller sökvägar till privata filer.
+  - Projektet har inga hemligheter att läcka: ingen databas, ingen inloggning, inga API-nycklar.
+- [ ] CI/CD-badge i README *(valfritt – visar pipeline-status; det finns ingen GitHub Actions-workflow än, se steg 2)*
 
 ---
 
@@ -242,12 +272,17 @@ Förbered en presentation på **max 3 minuter** till träff 5.
 
 ---
 
+
+# CV punkt
+
+Designade och utvecklade Moevents (fyndlig förkortning för Malmö events) med NextJS med hjälp av agentdriven utveckling (Claude Code). Projektet gör det enkelt för användar att hitta aktiviter i Malmö och är tillgängligt på https://moevents.vercel.app.
+
 ## 🏁 Klart till träff 5
 
 - [ ] Kärnfunktionaliteten är klar och demonstrerbar
 - [ ] Projektet är live och går att nå utan mig
 - [ ] Minst tre polerings-fynd är åtgärdade och committade
-- [ ] README är komplett
-- [ ] CV-punkten är skriven
+- [x] README är komplett
+- [X] CV-punkten är skriven
 - [ ] Repot är publikt och fritt från känsliga filer
 - [ ] Demon är övad och håller sig under 3 minuter

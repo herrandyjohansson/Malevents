@@ -41,9 +41,17 @@ const LIFETIMES = {
 } as const;
 
 /**
+ * How long an empty answer from a live source is kept (unless its profile is
+ * already shorter). A listing that parses to nothing is more often a
+ * redesigned site than a venue with nothing on, so it is retried within the
+ * hour instead of being cached for the profile's full lifetime.
+ */
+const EMPTY_LIFETIME = { stale: 5 * MINUTE, revalidate: 15 * MINUTE, expire: DAY } as const;
+
+/**
  * The one cached entry point for every source. Each source gets its own
- * cache entry (keyed by id) and tags, so the admin can refresh one source
- * without touching the others.
+ * cache entry (keyed by id) and tags, so `vercel cache invalidate --tag
+ * events:<id>` can refresh one source without touching the others.
  *
  * The cache is remote ("use cache: remote", Vercel's Runtime Cache) rather
  * than in-memory: serverless instances don't share or keep memory, so with
@@ -80,7 +88,9 @@ export async function fetchSource(id: string): Promise<SourceResult> {
   }
 
   const profile = source.cacheProfile ?? "hours";
-  cacheLife(LIFETIMES[profile]);
+  const empty = events.length + excluded === 0 && source.kind !== "fixture";
+  if (empty) warnings.push("No events found: the site may have changed its layout, or has nothing listed");
+  cacheLife(empty && profile !== "minutes" ? EMPTY_LIFETIME : LIFETIMES[profile]);
   const unplaced = events.filter((e) => e.venue?.lat === undefined).length;
   log.info("source.fetched", {
     source: id,

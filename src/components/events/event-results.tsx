@@ -74,6 +74,9 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
   // With a later time picked (next weekend), events already running sit under its first day.
   const groups = takeEvents(groupByDay(visible, today, resolveRange(filters, today)?.from), show);
+  // A listing site picked in the link that has no events now (unknown, or down): say so instead of blaming the filters.
+  const listedIds = new Set(enabledSources.map((s) => s.id));
+  const siteWithoutEvents = filters.sources.some((id) => !listedIds.has(id));
   const moreParams = filtersToParams(filters);
   moreParams.set("show", String(show + PAGE));
 
@@ -134,14 +137,26 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
         <div className="bg-card/40 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-4 py-16 text-center">
           <CalendarX className="text-muted-foreground size-8" />
           <p className="font-medium">
-            {filters.q ? <>Nothing matches &ldquo;{filters.q}&rdquo; with these filters</> : "No events match these filters"}
+            {upcoming.length === 0 ? (
+              "No events to show right now"
+            ) : siteWithoutEvents ? (
+              "That listing site has no events right now"
+            ) : filters.q ? (
+              <>Nothing matches &ldquo;{filters.q}&rdquo; with these filters</>
+            ) : (
+              "No events match these filters"
+            )}
           </p>
           <p className="text-muted-foreground max-w-sm text-sm">
-            {filters.when !== "all"
-              ? "Try a wider time, like Any time, or remove an area or kind of event."
-              : "Try another area or kind of event, or check the spelling."}
+            {upcoming.length === 0
+              ? "Check back in a minute."
+              : siteWithoutEvents
+                ? "Clear the filters to see everything else that's on."
+                : filters.when !== "all"
+                  ? "Try a wider time, like Any time, or remove an area or kind of event."
+                  : "Try another area or kind of event, or check the spelling."}
           </p>
-          <ClearFiltersButton />
+          {upcoming.length > 0 && <ClearFiltersButton />}
         </div>
       )}
       <SourceList sources={sources} />

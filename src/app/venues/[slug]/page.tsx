@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { EventCard } from "@/components/events/event-card";
+import { Missing } from "@/components/events/event-missing";
 import { EventGridSkeleton } from "@/components/events/event-grid-skeleton";
 import { SpotlightList } from "@/components/events/spotlight-list";
 import { PageHeader } from "@/components/layout/page-header";
@@ -19,6 +20,7 @@ import { CATEGORY_LABELS } from "@/lib/events/format";
 import { localDay } from "@/lib/events/malmo-time";
 import { buildMapEvents } from "@/lib/events/map-data";
 import { buildVenues } from "@/lib/events/venue-data";
+import { knownVenueName } from "@/lib/events/venues";
 
 export async function generateMetadata({ params }: PageProps<"/venues/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -26,9 +28,8 @@ export async function generateMetadata({ params }: PageProps<"/venues/[slug]">):
   await connection();
   const { events } = await getAllEvents();
   const venue = buildVenues(events, new Date()).find((v) => v.slug === slug);
-  return venue
-    ? { title: venue.name, description: `${venue.events.length} upcoming events at ${venue.name}, Malmö.` }
-    : { title: "Venue not found", robots: { index: false } };
+  if (venue) return { title: venue.name, description: `${venue.events.length} upcoming events at ${venue.name}, Malmö.` };
+  return { title: knownVenueName(slug) ?? "Venue not found", robots: { index: false } };
 }
 
 export default function VenuePage({ params }: PageProps<"/venues/[slug]">) {
@@ -60,7 +61,16 @@ async function VenueDetail({ params }: { params: Promise<{ slug: string }> }) {
     ({ events, sources } = await getAllEvents("complete"));
     venue = buildVenues(events, now).find((v) => v.slug === slug);
   }
-  if (!venue) notFound();
+  if (!venue) {
+    // A venue we know, with nothing listed right now (or its only source is down): not a dead link.
+    const name = knownVenueName(slug);
+    if (!name) notFound();
+    return (
+      <Missing title={`Nothing listed at ${name} right now`}>
+        Check back later: venues add events all the time.
+      </Missing>
+    );
+  }
 
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
   const mapEvents = buildMapEvents(venue.events, sources, now);

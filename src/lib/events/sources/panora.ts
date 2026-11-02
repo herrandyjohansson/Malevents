@@ -1,11 +1,12 @@
 import "server-only";
 
-import { LIVE_MODE } from "../config";
+import { LIVE_MODE, RECENT_EVENT_GRACE_MS } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
 import { decodeEntities, htmlToText, truncate } from "../html";
-import { fetchJson } from "../http";
+import { fetchJson, SourceError } from "../http";
 import { malmoLocalToIso } from "../malmo-time";
-import type { EventSource, MalmoEvent } from "../types";
+import { reportSkipped } from "../report";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "panora";
 const SITE = "https://panora.se";
@@ -76,14 +77,16 @@ export function panoraSessionToEvent(film: BioFilm, session: BioFilm["sessions"]
  * children's matinées, from the bio.se booking API its programme page uses.
  * The API only answers POST. Talks and workshops on panora.se are not in it.
  */
-async function getPanoraEvents(): Promise<MalmoEvent[]> {
+async function getPanoraEvents(report: SourceReport): Promise<MalmoEvent[]> {
   const films = LIVE_MODE
-    ? (await fetchJson<{ movies: BioFilm[] }>(ID, API, { body: { cinemaId: CINEMA_ID }, timeoutMs: 12_000 })).movies
+    ? (await fetchJson<{ movies?: BioFilm[] }>(ID, API, { body: { cinemaId: CINEMA_ID }, timeoutMs: 12_000 })).movies
     : demoFilms();
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
-  return films
-    .flatMap((film) => film.sessions.map((s) => panoraSessionToEvent(film, s)))
-    .filter((e): e is MalmoEvent => e !== undefined && Date.parse(e.endsAt ?? e.startsAt) >= cutoff);
+  if (!Array.isArray(films)) throw new SourceError(ID, "Unexpected response: no list of films", "invalid_json");
+  const cutoff = Date.now() - RECENT_EVENT_GRACE_MS;
+  const sessions = films.flatMap((film) => (film.sessions ?? []).map((s) => panoraSessionToEvent(film, s)));
+  const events = sessions.filter((e): e is MalmoEvent => e !== undefined);
+  reportSkipped(report, sessions.length - events.length, sessions.length);
+  return events.filter((e) => Date.parse(e.endsAt ?? e.startsAt) >= cutoff);
 }
 
 export const panora: EventSource = {

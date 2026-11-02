@@ -1,12 +1,13 @@
 import "server-only";
 
-import { LIVE_MODE } from "../config";
+import { LIVE_MODE, RECENT_EVENT_GRACE_MS } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
 import { malmoLocalToIso } from "../malmo-time";
 import { decodeEntities, truncate } from "../html";
-import { fetchJson } from "../http";
+import { fetchJson, SourceError } from "../http";
 import { toCategory } from "../normalize";
-import type { EventSource, MalmoEvent } from "../types";
+import { reportSkipped } from "../report";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "malmo-live";
 const SITE = "https://malmolive.se";
@@ -92,11 +93,13 @@ export function malmoLiveRowToEvent(row: MalmoLiveRow): MalmoEvent {
  * Malmö Live building). The site has no documented API, but its programme
  * page loads a public JSON feed, which this adapter reads directly.
  */
-async function getMalmoLiveEvents(): Promise<MalmoEvent[]> {
+async function getMalmoLiveEvents(report: SourceReport): Promise<MalmoEvent[]> {
   const rows = LIVE_MODE ? await fetchJson<MalmoLiveRow[]>(ID, ENDPOINT) : demoRows();
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
-  return rows
-    .filter((row) => row.title && row.field_date_time)
+  if (!Array.isArray(rows)) throw new SourceError(ID, "Unexpected response: not a list of events", "invalid_json");
+  const cutoff = Date.now() - RECENT_EVENT_GRACE_MS;
+  const readable = rows.filter((row) => row.title && row.field_date_time);
+  reportSkipped(report, rows.length - readable.length, rows.length);
+  return readable
     .map(malmoLiveRowToEvent)
     .filter((e) => Date.parse(e.startsAt) >= cutoff);
 }

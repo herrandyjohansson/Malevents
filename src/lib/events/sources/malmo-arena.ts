@@ -4,8 +4,9 @@ import { LIVE_MODE } from "../config";
 import { fetchText } from "../http";
 import { localDay } from "../malmo-time";
 import { toCategory } from "../normalize";
+import { reportSkipped } from "../report";
 import { loadHtml, parseSwedishDate, textOf, toIso } from "../scrape";
-import type { EventCategory, EventSource, MalmoEvent } from "../types";
+import type { EventCategory, EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "malmo-arena";
 const SITE = "https://www.malmoarena.com";
@@ -81,11 +82,16 @@ export function arenaRowToEvent(row: ArenaRow, today?: string): MalmoEvent | und
  * the server-rendered listing. The listing gives day and time without a
  * year, so the year is the next one with that date.
  */
-async function getArenaEvents(): Promise<MalmoEvent[]> {
+async function getArenaEvents(report: SourceReport): Promise<MalmoEvent[]> {
   const html = LIVE_MODE ? await fetchText(ID, LISTING_URL) : demoHtml();
-  return parseArenaListing(html)
+  const $ = loadHtml(html);
+  const items = $(".event-listing__item").length;
+  const events = parseArenaListing(html)
     .map((row) => arenaRowToEvent(row))
     .filter((e): e is MalmoEvent => e !== undefined);
+  // Rows without a link, title or readable day count as skipped alike.
+  reportSkipped(report, items - events.length, items);
+  return events;
 }
 
 export const malmoArena: EventSource = {

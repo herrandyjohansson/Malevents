@@ -2,6 +2,8 @@ import "server-only";
 
 import { errorMessage, log, since } from "@/lib/log";
 
+import { DEFAULT_REQUEST_TIMEOUT_MS } from "./config";
+
 /** Why an upstream read failed, for grouping failures in the logs. */
 export type FailureReason = "timeout" | "network" | "http" | "too_large" | "invalid_json" | "blocked_url" | "other";
 
@@ -105,6 +107,21 @@ function networkMessage(err: unknown) {
 }
 
 /**
+ * A failure while connecting or while reading the body, as a SourceError
+ * with its reason. The timeout covers both, so a response that starts but
+ * never finishes is reported as a timeout too, not as a bare "terminated".
+ */
+function requestError(sourceId: string, url: string, timeoutMs: number, err: unknown, reading: boolean) {
+  if (err instanceof SourceError) return err;
+  if (err instanceof Error && err.name === "TimeoutError") {
+    const host = new URL(url).host;
+    const what = reading ? `The response from ${host} didn't finish` : `No response from ${host}`;
+    return new SourceError(sourceId, `${what} within ${timeoutMs} ms`, "timeout");
+  }
+  return new SourceError(sourceId, networkMessage(err), "network");
+}
+
+/**
  * GET a URL (or POST `body` as JSON) and read the body, logging every
  * request: one debug line on success, a warning with the failure reason
  * otherwise. `parse` runs inside the same log line so invalid JSON counts as
@@ -136,18 +153,20 @@ async function request<T>(
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
-      if (err instanceof SourceError) throw err;
-      if (err instanceof Error && err.name === "TimeoutError") {
-        throw new SourceError(sourceId, `No response from ${new URL(url).host} within ${timeoutMs} ms`, "timeout");
-      }
-      throw new SourceError(sourceId, networkMessage(err), "network");
+      throw requestError(sourceId, url, timeoutMs, err, false);
     }
     status = res.status;
     if (!res.ok) {
       await res.body?.cancel();
       throw new SourceError(sourceId, `HTTP ${res.status} from ${new URL(url).host}`, "http");
     }
-    const { text, bytes } = await readText(sourceId, res);
+    let read: { text: string; bytes: number };
+    try {
+      read = await readText(sourceId, res);
+    } catch (err) {
+      throw requestError(sourceId, url, timeoutMs, err, true);
+    }
+    const { text, bytes } = read;
     const result = parse(text);
     log.debug("http.response", { source: sourceId, url, status, bytes, durationMs: since(started) });
     return result;
@@ -167,7 +186,7 @@ async function request<T>(
 export async function fetchJson<T>(
   sourceId: string,
   url: string,
-  { timeoutMs = 8000, headers, body }: { timeoutMs?: number; headers?: HeadersInit; body?: unknown } = {},
+  { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, headers, body }: { timeoutMs?: number; headers?: HeadersInit; body?: unknown } = {},
 ): Promise<T> {
   const payload = body === undefined ? undefined : JSON.stringify(body);
   return request(sourceId, url, "application/json", timeoutMs, headers, payload, (text) => {
@@ -184,7 +203,7 @@ export async function fetchJson<T>(
 export async function fetchText(
   sourceId: string,
   url: string,
-  { timeoutMs = 8000, headers }: { timeoutMs?: number; headers?: HeadersInit } = {},
+  { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, headers }: { timeoutMs?: number; headers?: HeadersInit } = {},
 ): Promise<string> {
   return request(sourceId, url, "text/html", timeoutMs, headers, undefined, (text) => text);
 }

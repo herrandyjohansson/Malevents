@@ -22,3 +22,12 @@ export const TIME_ZONE = "Europe/Stockholm";
 
 /** Default per-source budget before the aggregator gives up on it. */
 export const DEFAULT_SOURCE_TIMEOUT_MS = 8000;
+
+/** Default timeout for one upstream request; a source may make several within its own budget. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 8000;
+
+/**
+ * How long after it ended (or started, when the feed gives no end) an event
+ * is still kept from a feed, so tonight's shows don't vanish at curtain-up.
+ */
+export const RECENT_EVENT_GRACE_MS = 6 * 60 * 60 * 1000;
