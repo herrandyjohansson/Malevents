@@ -43,10 +43,10 @@ Implementera kvarvarande kärnfunktionalitet i ditt projekt. Allt som behövs f�
 
 Använd Claude Code genom hela cykeln:
 
-- [ ] **Analysera** uppgiften
-- [ ] **Planera** – ta fram en plan
-- [ ] **Implementera**
-- [ ] **Verifiera** – lint, typkontroll, tester och build går igenom
+- [x] **Analysera** uppgiften
+- [x] **Planera** – ta fram en plan
+- [x] **Implementera**
+- [x] **Verifiera** – lint, typkontroll, tester och build går igenom *(99 tester, 2 november 2026)*
 
 **Kvarvarande funktionalitet att bli klar med:**
 
@@ -57,7 +57,6 @@ Använd Claude Code genom hela cykeln:
   - [x] Pusha till `main` och kontrollera att produktionen fungerar
   - Varför: 16.4.0 hade tre publicerade sårbarheter, varav två kritiska (fjärrkörning av kod i `use cache`-funktioner och i bildoptimering med SVG). Appen använder `"use cache: remote"`, så den var exponerad.
 - [x] **Gör sajten produktionsklar inför go-live** – se [Go-live](#-go-live-produktionsklar-möevents) nedan
-- [ ] …
 
 ---
 
@@ -110,7 +109,8 @@ Använd Claude Code genom hela cykeln:
 - [x] Committa och pusha till `main` (commit `3587b37`, live på moevents.vercel.app 2 november 2026)
 - [x] Kontrollera i produktion: `/admin` har inga switchar eller knappar, och besökarsidorna inga källmeddelanden
 - [ ] *(Valfritt)* Lösenordsskydda `/admin` med Vercel om även läsåtkomsten ska stängas – den visar källornas URL:er, felmeddelanden och loggar, men inga hemligheter eller besökardata
-- [ ] Åtgärda kvarvarande `npm audit`-fynd: `undici` (hög, via `cheerio`, används i produktion), samt `vitest`/`tinypool` och `zod` (bara i utvecklingsverktyg)
+- [x] Åtgärda `npm audit`-fyndet i produktion: `undici` (hög, via `cheerio`) uppdaterad till 7.30.1 – `npm audit --omit=dev` visar 0 *(commit `59f718d`)*
+- [ ] *(Valfritt)* Kvar bara i utvecklingsverktyg: `vitest`/`tinypool` (kräver Vitest 5) och `zod` under `eslint-plugin-react-hooks`
 
 ---
 
@@ -128,7 +128,7 @@ Välj en plattform som passar din stack:
 - [ ] GitHub Pages (gratis)
 - [ ] Annat: …
 
-- [ ] Projektet går att nå eller köra utan att du sitter bredvid (om det inte är ett repo som andra kan dra ner och använda)
+- [x] Projektet går att nå eller köra utan att du sitter bredvid *(<https://moevents.vercel.app>, kontrollerat 2 november 2026)*
 
 ### 💡 Tips: CI/CD-pipeline
 
@@ -140,10 +140,10 @@ Välj en plattform som passar din stack:
 
 ### Verifiera
 
-- [ ] Gör en ändring i koden
-- [ ] Pusha till `main`
-- [ ] Bekräfta att pipelinen kör
-- [ ] Bekräfta att ändringen syns i den deployade versionen
+- [x] Gör en ändring i koden *(t.ex. skrivskyddad admin, `3587b37`)*
+- [x] Pusha till `main`
+- [x] Bekräfta att pipelinen kör *(Vercels bygge vid push – ingen GitHub Actions-workflow)*
+- [x] Bekräfta att ändringen syns i den deployade versionen *(live efter ~40 s, kontrollerat 2 november 2026)*
 
 ---
 
@@ -182,13 +182,13 @@ Välj en plattform som passar din stack:
 | 5. Hårdkodade värden | 2 |
 | 6. Egna preferenser | 4 |
 
-**Viktigast:**
+**Viktigast** *(alla åtgärdade i commit `59f718d`)*:
 
-- **2.2** Okända sidor, venues och dagar visar Next.js standardtext "This page could not be found" *(testat)*.
-- **3.1** En sparad post utan giltigt datum kraschar hela Saved-fliken.
-- **3.2 och 6.1** En källa med 0 evenemang visas som *Healthy*, och fem adaptrar hoppar tyst över rader de inte kan läsa. Gör en venue om sin sajt syns det inte i admin.
-- **2.3** När "Near me" misslyckas på mobil syns ingen förklaring – den finns bara i en tooltip.
-- **6.2** `undici` (via `cheerio`) har en hög sårbarhet, och säkerhetsdokumentet säger fortfarande att det inte finns några.
+- **2.2** Okända sidor, venues och dagar visade Next.js standardtext "This page could not be found" *(testat)*. *Nu: en egen 404-sida.*
+- **3.1** En sparad post utan giltigt datum kraschade hela Saved-fliken. *Nu: ogiltiga poster filtreras bort.*
+- **3.2 och 6.1** En källa med 0 evenemang visades som *Healthy*, och fem adaptrar hoppade tyst över rader de inte kunde läsa. *Nu: båda ger en varning i admin.*
+- **2.3** När "Near me" misslyckades på mobil syntes ingen förklaring. *Nu: en synlig rad säger om platsen är blockerad eller inte hittades.*
+- **6.2** `undici` (via `cheerio`) hade en hög sårbarhet, och säkerhetsdokumentet sa att det inte fanns några. *Nu: uppdaterad till 7.30.1 och dokumentet rättat.*
 
 Fyra fynd testades genom körning mot ett lokalt produktionsbygge (2.1, 2.2, 3.5 och 6.2); resten bygger på kodläsning. **2.1 visade sig vara fel diagnos:** felet ligger i Next.js egen router, och i produktion stoppar Vercel trasiga länkar (HTTP 400) innan de når appen, så ingen ändring behövdes.
 
@@ -203,7 +203,7 @@ Fyra fynd testades genom körning mot ett lokalt produktionsbygge (2.1, 2.2, 3.5
 | 2.2 | `src/app/not-found.tsx` (ny) | – | Okända sidor, venues och dagar visar Next.js standardtext | Egen 404-sida i samma stil som "event saknas", med vägar tillbaka till listorna | ✅ |
 
 - [x] Minst tre fynd åtgärdade *(22 av 23; lint, typkontroll, 99 tester och build går igenom)*
-- [ ] Committat
+- [x] Committat *(commit `59f718d`, pushad och live)*
 
 ---
 
@@ -231,17 +231,21 @@ Formatet:
 
 Se avsnittet **"CV-mall"** i fliken **Tips** för exempel på bra och dåliga formuleringar.
 
-- [x] Skriv CV-punkten *(utkast)*
+- [x] Skriv CV-punkten
 - [ ] Jämför mot exemplen i CV-mallen
 
-**Min CV-punkt (utkast):**
+**Min CV-punkt:**
+
+> Designade och utvecklade MÖEVENTS (en fyndig förkortning för Malmö events) med Next.js med hjälp av agentdriven utveckling (Claude Code). Projektet gör det enkelt för användare att hitta aktiviteter i Malmö och är tillgängligt på <https://moevents.vercel.app>.
+
+**Alternativ, mer detaljerad:**
 
 > Designade och utvecklade MÖEVENTS, en evenemangsguide för Malmö, med Next.js 16, React 19, TypeScript och Tailwind CSS på Vercel med hjälp av agentdriven utveckling (Claude Code). Projektet samlar evenemang som annars är utspridda över 16 venue- och biljettsajter, de flesta utan öppna API:er, i en gemensam lista, karta och kalender, och är tillgängligt på <https://moevents.vercel.app>.
 
 ### Repot
 
 - [x] Publikt
-- [x] README på plats *(uppdaterad 2 november 2026, inte committad än)*
+- [x] README på plats *(uppdaterad 2 november 2026, commit `59f718d`)*
 - [x] Inga känsliga filer committade (kontrollera med agenten) – kontrollerat 2 november 2026:
   - Inga `.env`-filer, nycklar (`.pem`, `.key`) eller `.vercel/` är committade nu eller i historiken; `.gitignore` utesluter dem.
   - Ingen committad fil innehåller något som liknar en hemlighet (API-nycklar, tokens, lösenord, privata nycklar, GitHub-/AWS-/Vercel-tokens). Träffarna på `token` i `.agents/skills/impeccable/` är kod som bygger URL:er med en variabel, inte hemligheter.
@@ -255,34 +259,18 @@ Se avsnittet **"CV-mall"** i fliken **Tips** för exempel på bra och dåliga fo
 
 Förbered en presentation på **max 3 minuter** till träff 5.
 
-| Del | Innehåll | Tid |
-| --- | -------- | --- |
-| 1 | **Vad är byggt?** Visa live, inte slides | ~1:15 |
-| 2 | **Hur hjälpte AI konkret?** Ge ett exempel, inte en generell beskrivning | ~1:00 |
-| 3 | **Vad gör du annorlunda nästa gång?** | ~0:45 |
-
-- [ ] Vad är byggt? – välj vad som visas live: …
-- [ ] Hur hjälpte AI konkret? – mitt exempel: …
-- [ ] Vad gör jag annorlunda nästa gång? – …
-- [ ] Testa att live-sidan fungerar strax före demon
-- [ ] Ha en reservplan om nätet eller en källa strular (t.ex. `EVENTS_LIVE=false npm run dev` lokalt)
-- [ ] Öva tills den håller sig under 3 minuter
+Manus, tidsplan och förberedda svar finns i [demo.md](demo.md).
 
 > ⏱️ **3 minuter är en hård gräns. Öva tills du klarar det.**
 
 ---
 
-
-# CV punkt
-
-Designade och utvecklade Moevents (fyndlig förkortning för Malmö events) med NextJS med hjälp av agentdriven utveckling (Claude Code). Projektet gör det enkelt för användar att hitta aktiviter i Malmö och är tillgängligt på https://moevents.vercel.app.
-
 ## 🏁 Klart till träff 5
 
-- [ ] Kärnfunktionaliteten är klar och demonstrerbar
-- [ ] Projektet är live och går att nå utan mig
-- [ ] Minst tre polerings-fynd är åtgärdade och committade
+- [x] Kärnfunktionaliteten är klar och demonstrerbar
+- [x] Projektet är live och går att nå utan mig
+- [x] Minst tre polerings-fynd är åtgärdade och committade
 - [x] README är komplett
 - [X] CV-punkten är skriven
-- [ ] Repot är publikt och fritt från känsliga filer
+- [x] Repot är publikt och fritt från känsliga filer
 - [ ] Demon är övad och håller sig under 3 minuter
