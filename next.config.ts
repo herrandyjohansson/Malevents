@@ -36,6 +36,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
+    // `next dev` and `next build` remind when the installed Next.js has a
+    // security advisory, and `next upgrade --agent` defaults to that policy.
+    agentUpgrade: "security",
     // Keep visited pages in the browser's router cache for 30 s, so hopping
     // between Events, Map and Calendar doesn't re-request each page.
     staleTimes: { dynamic: 30 },
