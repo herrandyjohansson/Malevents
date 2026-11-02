@@ -1,11 +1,10 @@
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Lock, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { AdminNav } from "@/components/admin/admin-nav";
-import { RefreshAllButton, RefreshSourceButton, SourceToggle } from "@/components/admin/source-controls";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getAllEvents } from "@/lib/events/aggregate";
+import { DISABLED_SOURCE_IDS } from "@/lib/events/config";
 import { isUpcoming } from "@/lib/events/filters";
 import { formatRelative } from "@/lib/events/format";
-import { SOURCE_META } from "@/lib/events/sources";
+import { getSource, SOURCE_META } from "@/lib/events/sources";
 import { hasCoordinates } from "@/lib/events/venues";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false } };
@@ -25,17 +25,17 @@ export default function AdminPage() {
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 pb-10 sm:px-6">
       <PageHeader
         title="Event sources"
-        description="Check each API's health, refresh its cached data, or switch it off without a deploy."
+        description="Each API's health and cached data, read-only. Sources are switched on and off in Vercel."
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <AdminNav />
-          <RefreshAllButton />
-        </div>
+        <AdminNav />
       </PageHeader>
       <Suspense fallback={<AdminSkeleton />}>
         <AdminOverview />
       </Suspense>
-      <AddSourceHelp />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ManagedInVercel />
+        <AddSourceHelp />
+      </div>
     </main>
   );
 }
@@ -142,12 +142,11 @@ async function AdminOverview() {
                     {s.durationMs !== undefined ? `${s.durationMs} ms` : "–"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{m.cacheProfile}</TableCell>
-                  <TableCell>
-                    <SourceToggle id={s.id} name={s.name} enabled={s.enabled} />
+                  <TableCell className={s.enabled ? undefined : "text-muted-foreground"}>
+                    {s.enabled ? "On" : DISABLED_SOURCE_IDS.includes(s.id) ? "Off in Vercel" : "Off (demo)"}
                   </TableCell>
                   <TableCell className="pr-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <RefreshSourceButton id={s.id} name={s.name} />
+                    <div className="flex items-center justify-end">
                       <Link
                         href={`/admin/sources/${s.id}`}
                         aria-label={`View ${s.name}`}
@@ -164,6 +163,41 @@ async function AdminOverview() {
         </Table>
       </Card>
     </div>
+  );
+}
+
+/**
+ * The admin has no login, so it changes nothing: switching sources and
+ * flushing caches are done in Vercel, where only the project's members can.
+ */
+function ManagedInVercel() {
+  const unknown = DISABLED_SOURCE_IDS.filter((id) => !getSource(id));
+  const code = "text-foreground font-mono text-xs";
+  return (
+    <Card className="bg-card/50 border-dashed">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Lock className="size-4" />
+          Changes are made in Vercel
+        </CardTitle>
+        <CardDescription className="flex flex-col gap-2">
+          <p>
+            Switch a source off: add its id to <code className={code}>EVENTS_DISABLED_SOURCES</code> (comma-separated)
+            under Settings → Environment Variables, then redeploy. Now:{" "}
+            <code className={code}>{DISABLED_SOURCE_IDS.join(",") || "not set"}</code>.
+          </p>
+          <p>
+            Fetch fresh data: <code className={code}>vercel cache invalidate --tag events</code> for every source, or{" "}
+            <code className={code}>--tag events:&lt;id&gt;</code> for one.
+          </p>
+          {unknown.length > 0 && (
+            <p className="text-warning">
+              Not a source id, so ignored: <code className="font-mono text-xs">{unknown.join(", ")}</code>
+            </p>
+          )}
+        </CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 

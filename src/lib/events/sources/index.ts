@@ -16,7 +16,7 @@ import { slagthuset } from "./slagthuset";
 import { spegeln } from "./spegeln";
 import { ticksterMalmo } from "./tickster-malmo";
 import { ticketMarketplace } from "./ticket-marketplace";
-import { LIVE_MODE } from "../config";
+import { DISABLED_SOURCE_IDS, LIVE_MODE } from "../config";
 import type { EventSource } from "../types";
 
 /**
@@ -57,12 +57,12 @@ export const SOURCE_META = SOURCES.map(({ id, name, homepage, description, kind,
 }));
 
 /**
- * Whether a source is on when the admin hasn't chosen. In live mode,
- * sources that only have demo fixtures stay off so made-up events never
- * mix with real ones; the admin can still switch them on.
+ * Whether a source's events are shown to visitors: on unless it is listed in
+ * EVENTS_DISABLED_SOURCES. In live mode, sources that only have demo
+ * fixtures stay off so made-up events never mix with real ones.
  */
-export function isEnabledByDefault(source: Pick<EventSource, "demo">) {
-  return !(LIVE_MODE && source.demo);
+export function isSourceEnabled(source: Pick<EventSource, "id" | "demo">) {
+  return !DISABLED_SOURCE_IDS.includes(source.id) && !(LIVE_MODE && source.demo);
 }
 
 export function getSource(id: string) {

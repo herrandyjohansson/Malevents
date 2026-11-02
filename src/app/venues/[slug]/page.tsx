@@ -50,7 +50,7 @@ export default function VenuePage({ params }: PageProps<"/venues/[slug]">) {
 
 async function VenueDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  // Request-time: reads admin settings and hides events that have ended.
+  // Request-time: hides events that have ended.
   await connection();
   const now = new Date();
   let { events, sources } = await getAllEvents();

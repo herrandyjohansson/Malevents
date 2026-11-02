@@ -33,7 +33,8 @@ One current overview of Malmö's events across venues that otherwise each publis
 - Browsing by area uses everyday area names (Centrum, Möllan, Västra Hamnen, Davidshall & Triangeln, Värnhem, Limhamn, Hyllie), derived from venue coordinates; borders are approximate. Rosengård is left out: its events are not listed.
 - Navigation: five tabs, Tonight first: Tonight, Discover, Map, Venues, Saved. The week view and calendar live inside Discover.
 - Free, keyless tools and data sources only, unless a paid one is clearly worth it.
-- `/admin` is an unprotected internal tool, hidden behind a per-browser toggle; it is not part of the visitor experience.
+- `/admin` is a read-only internal tool, hidden behind a per-browser toggle; it is not part of the visitor experience. Settings (which sources are shown, cache refreshes) are changed in Vercel, never from the site.
+- Visitors never see backend problems: a source that is down or slow is simply missing until it is back. Its state is shown in `/admin`.
 
 ## Evidence on Hand
 

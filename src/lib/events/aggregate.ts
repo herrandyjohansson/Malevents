@@ -8,8 +8,7 @@ import { DEFAULT_SOURCE_TIMEOUT_MS } from "./config";
 import { mergeDuplicates } from "./dedupe";
 import { fetchSource, type SourceResult } from "./fetch-source";
 import { SourceError } from "./http";
-import { getSourceSettings } from "./settings";
-import { isEnabledByDefault, SOURCES } from "./sources";
+import { isSourceEnabled, SOURCES } from "./sources";
 import type { EventSource, MalmoEvent, SourceStatus } from "./types";
 import { withCanonicalVenue } from "./venues";
 
@@ -130,11 +129,8 @@ export const getAllEvents = cache(async (
 ): Promise<{ events: MalmoEvent[]; sources: SourceStatus[] }> => {
   const started = performance.now();
   const startedAt = Date.now();
-  const settings = await getSourceSettings();
   const budget = mode === "fast" ? FIRST_PAINT_MS : undefined;
-  const results = await Promise.all(
-    SOURCES.map((s) => loadSource(s, settings[s.id]?.enabled ?? isEnabledByDefault(s), budget)),
-  );
+  const results = await Promise.all(SOURCES.map((s) => loadSource(s, isSourceEnabled(s), budget)));
 
   // Venue names are made canonical first, so listings under another name of the venue merge too.
   const listed = results.flatMap((r) => r.events).map(withCanonicalVenue);

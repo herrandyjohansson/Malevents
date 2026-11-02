@@ -4,7 +4,7 @@ What's on in Malmö: one site that gathers events from many venue sites and tick
 
 This README is the project's summary report: what the site does, how the code is laid out, which libraries it uses, how data flows from the venue sites to the page, how it is deployed on Vercel, and how work on it is done.
 
-> **Not protected yet.** There is no login anywhere, by choice while the site is being built. The Admin tab is hidden behind an "Admin mode" button, but `/admin` and its actions are open to anyone who knows the URL: anyone can switch sources off or clear the cache. Add protection (for example Vercel Deployment Protection, or auth in front of `/admin` and its Server Actions) before a public launch.
+> **The admin is read-only.** There is no login anywhere. The Admin tab is hidden behind an "Admin mode" button, and `/admin` can be opened by anyone who knows the URL, but it only shows: nothing on the site can switch sources, clear caches or change settings. Those changes are made in Vercel, where only the project's members can make them (see [Deployment](#deployment-on-vercel)).
 
 ## Contents
 
@@ -48,7 +48,7 @@ This README is the project's summary report: what the site does, how the code is
 - **Venues** (`/venues`): every venue with upcoming events, searchable and filterable by area and kind of event; `/venues/<slug>` shows a venue's area, programme and location.
 - The old `/week` and `/calendar` addresses redirect into Discover (`?when=week`, `?view=calendar`), keeping any filters.
 - **Saved** (`/saved`): events you hearted on any card, grouped by day, with "add to calendar" (.ics) for one event or all. Kept in the browser's localStorage, no account.
-- **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Per source: health, event count, last fetch, response time and cache lifetime; refresh one source or all; switch a source off for visitors without a deploy; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location.
+- **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Read-only. Per source: health, error and warnings, event count, last fetch, response time, cache lifetime and whether visitors see it; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location. Backend problems (a site that is down, slow or returns partial data) are shown here and in `/admin/logs`, never to visitors.
 
 ## Filters
 
@@ -116,7 +116,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── tonight/          timeline-event
     │   ├── venues/           venue-grid (searchable directory), venue-map
     │   ├── saved/            save-button (the heart on cards), saved-list
-    │   ├── admin/            source-controls, status-badge
+    │   ├── admin/            admin-nav, status-badge, logs/
     │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, segmented-control, select, sheet, skeleton, switch, table
     └── lib/
         ├── utils.ts          cn()
@@ -128,11 +128,10 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
         ├── ics.ts            iCalendar (.ics) export for "add to calendar"
         └── events/
             ├── types.ts          MalmoEvent, EventSource, SourceStatus, categories
-            ├── config.ts         EVENTS_LIVE, time zone (Europe/Stockholm), default timeout
+            ├── config.ts         EVENTS_LIVE, EVENTS_DISABLED_SOURCES, time zone (Europe/Stockholm), default timeout
             ├── sources/          one adapter per upstream; index.ts is the registry
             ├── fetch-source.ts   the one cached entry point per source
             ├── aggregate.ts      fan-out, timeouts, failure isolation, de-duplication
-            ├── settings.ts       admin on/off per source (.data/source-settings.json)
             ├── filters.ts        the shared filter model: URL params ↔ filters, matcher, facet counts; Malmö-local days
             ├── map-data.ts       events → map pins (week preview and date ranges)
             ├── calendar-data.ts  events → calendar entries
@@ -153,7 +152,7 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
                                                      │
                                                      ▼
                        getAllEvents()  (aggregate.ts, React cache() per request)
-                       • reads admin on/off settings
+                       • skips sources listed in EVENTS_DISABLED_SOURCES
                        • runs every enabled source in parallel, each with its own timeout
                        • "fast" mode: renders after 3 s with the sources that have answered;
                          the rest keep fetching in the background and the page refreshes itself
@@ -177,10 +176,10 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
    The long expiry means visitors get the cached copy immediately while a slow scrape runs behind the scenes. A failure is cached for seconds only, and is returned rather than thrown so the real error message reaches the admin in production.
 3. **Aggregation.** `getAllEvents()` runs all enabled sources with a per-source timeout (8 s by default; 30–45 s for the scraped sites), records a status per source, and merges events. Venue names are first made canonical (`withCanonicalVenue` in `venues.ts`: Slagthusets Teater → Slagthuset with the room kept in the address, Malmö Live → Malmö Live Konserthus, …; old venue pages redirect). `mergeDuplicates` (`dedupe.ts`) then merges listings of one occurrence: the same normalized title and start minute, or a shared Tickster booking id or event page from different sources starting within 15 minutes; never venues more than 500 m apart, never two start times from one source, and never a group spanning more than 15 minutes, so matinees, repeat screenings and sessions stay separate. A venue's own source wins over aggregators (sources with `aggregator: true`: Malmö stad, Tickster · Malmö); the others fill its gaps (description, image, ticket link, price, coordinates) but not its sold-out or cancelled status. Merged ids are kept in `duplicateIds`, so old event links and saved hearts still resolve. It is wrapped in React's `cache()` so the home page's map and list share one lookup. See [the duplicate audit](docs/duplicate-audit-2026-10-24.md).
 
-   On a cold cache the scraped sites take up to about 20 s. So the lists, map, Tonight and venue pages call it in **"fast" mode**: a source that hasn't answered within 3 s comes back as `pending` and the page renders with the rest (about 450 events after 4 s on a cold start). The pending fetch carries on in the background, kept alive past the response with `after()`, and fills the cache. A "Still fetching events from …" notice (`PendingSources`) refreshes the page every few seconds, one refresh at a time, until nothing is pending (all ~1,280 events after about 10 s), keeping scroll, filters and any open sheet. A refresh joins a fetch already in progress in the same server process instead of scraping the site again. The event page and the admin use **"complete" mode** and wait for every source, so a link to an event from a slow source never reads as "not found".
+   On a cold cache the scraped sites take up to about 20 s. So the lists, map, Tonight and venue pages call it in **"fast" mode**: a source that hasn't answered within 3 s comes back as `pending` and the page renders with the rest (about 450 events after 4 s on a cold start). The pending fetch carries on in the background, kept alive past the response with `after()`, and fills the cache. A neutral "Loading more events…" line (`PendingSources`, which never names the slow site) refreshes the page every few seconds, one refresh at a time, until nothing is pending (all ~1,280 events after about 10 s), keeping scroll, filters and any open sheet. A refresh joins a fetch already in progress in the same server process instead of scraping the site again. The event page and the admin use **"complete" mode** and wait for every source, so a link to an event from a slow source never reads as "not found".
 4. **Locations.** Adapters pass through coordinates when the upstream has them; otherwise `venues.ts` looks up the venue name in a list of known Malmö venues. Events still without coordinates are left off the map and flagged in the admin.
-5. **Rendering.** Pages keep a static shell (header, intro) that is prerendered, and stream the data-dependent part behind a skeleton inside `<Suspense>`. Data parts call `connection()` because they depend on the current time and the admin settings.
-6. **Admin actions.** `src/app/admin/actions.ts` holds Server Actions: switching a source on or off writes `settings.ts` and calls `refresh()`; refreshing calls `updateTag("events:<id>")` or `updateTag("events")` so the next request fetches fresh data.
+5. **Rendering.** Pages keep a static shell (header, intro) that is prerendered, and stream the data-dependent part behind a skeleton inside `<Suspense>`. Data parts call `connection()` because they depend on the current time.
+6. **Admin.** Read-only, with no Server Actions. A source is switched off with the `EVENTS_DISABLED_SOURCES` environment variable (`config.ts`, read by `isSourceEnabled` in `sources/index.ts`); cached data is refreshed with `vercel cache invalidate --tag events` (or `events:<id>`). Both are done in Vercel (see [Deployment](#deployment-on-vercel)). Visitors never see a source's state: a failing or slow source is simply missing from the list until it is back, and the admin shows why.
 
 ## Event sources
 
@@ -232,7 +231,7 @@ HTML is parsed with [cheerio](https://cheerio.js.org/). `scrape.ts` finds event 
 
 ### Live and demo data
 
-Sources with a live endpoint fetch it by default. Sources that only have demo fixtures start switched off in live mode, so made-up events never mix with real ones; the admin can switch them on. With `EVENTS_LIVE=false`, every source serves bundled fixtures in its upstream's real shape (marked "demo" in the UI), with dates relative to today.
+Sources with a live endpoint fetch it by default. Sources that only have demo fixtures start switched off in live mode, so made-up events never mix with real ones. With `EVENTS_LIVE=false`, every source serves bundled fixtures in its upstream's real shape (marked "demo" in the UI), with dates relative to today.
 
 ### Adding a source
 
@@ -252,7 +251,7 @@ Sources with a live endpoint fetch it by default. Sources that only have demo fi
 | `/venues` | `app/venues/page.tsx` | `VenueGrid` | Request-time; search and category filter run in the browser |
 | `/venues/[slug]` | `app/venues/[slug]/page.tsx` | `VenueMap`, `EventCard` | Request-time; the venue is looked up from the live events, so unknown slugs 404 |
 | `/saved` | `app/saved/page.tsx` | `SavedList` | Static shell; the list is read from localStorage in the browser, with .ics export |
-| `/admin` | `app/admin/page.tsx` | `StatusBadge`, `SourceToggle`, `RefreshSourceButton`, `RefreshAllButton`, shadcn `Table`/`Card` | Request-time; `robots: noindex` |
+| `/admin` | `app/admin/page.tsx` | `StatusBadge`, shadcn `Table`/`Card`; read-only | Request-time; `robots: noindex` |
 | `/admin/sources/[id]` | `app/admin/sources/[id]/page.tsx` | event table for one source | Request-time |
 
 Shared pieces:
@@ -276,13 +275,13 @@ Shared pieces:
 | --- | --- | --- |
 | `EVENTS_LIVE=false` | env var | Every adapter serves its fixtures instead of calling the live site (for offline work or sandboxes that can't reach the venue sites). Unset means live. |
 | `LOG_LEVEL` | env var | Lowest server log level written: `debug`, `info` (default), `warn` or `error`. `debug` adds a line per upstream request. See [Logs](#logs). |
+| `EVENTS_DISABLED_SOURCES` | env var | Comma-separated source ids hidden from visitors, e.g. `malmo-stad,hypnos`. Set in Vercel; takes effect on the next deployment. Unknown ids are ignored and flagged in `/admin`. |
 | `DEMO_SOURCE_FAILURE=true` | env var | Makes the Skåne culture source fail, to see how the page degrades. |
 | `cacheComponents: true` | `next.config.ts` | Turns on `"use cache"`, `cacheLife`, `cacheTag` and partial prerendering. |
 | `partialPrefetching: true` | `next.config.ts` | Prefetches only the static part of linked pages. |
 | `experimental.staleTimes.dynamic: 30` | `next.config.ts` | Keeps visited pages in the browser's router cache for 30 s, so switching tabs doesn't re-request them. |
-| Source on/off | `/admin` → `.data/source-settings.json` | Git-ignored file written by the admin toggle (see limits below). |
 
-No environment variables are required; `.env*` files are git-ignored if you add any.
+No environment variables are required; `.env*` files are git-ignored if you add any. Nothing in this table can be changed from the site.
 
 ## Running it locally
 
@@ -320,8 +319,6 @@ The server writes one JSON object per line (`src/lib/log.ts`), with `ts`, `level
 | `crawl.details` | info | Detail pages were read | `source`, `urls`, `attempted`, `failed`, `skipped`, `durationMs` |
 | `http.response` | debug | Each upstream request that succeeded | `source`, `url`, `status`, `bytes`, `durationMs` |
 | `http.failed` | warn | Each upstream request that failed | `source`, `url`, `status`, `reason` (`timeout`, `network`, `http`, `too_large`, `invalid_json`, `blocked_url`), `error` |
-| `admin.source_toggled`, `admin.cache_refreshed` | info | Admin actions (the admin has no login) | `source`, `enabled` |
-| `admin.input_rejected`, `admin.rate_limited` | warn | An admin action got an unknown source or bad value, or a refresh came within the 60 s cooldown | `action`, `reason`, `source`, `tag`, `retryInS` |
 | `request.failed` | error | A server error while rendering or in an action | `path` (without query), `route`, `routeType`, `digest`, `error` |
 
 Logs hold events and numbers, never visitor input: request paths are logged without their query string.
@@ -348,9 +345,9 @@ The site runs on Vercel, connected to this GitHub repository through Vercel's Gi
 - **Preview deployments** are built for every pull request branch. The Vercel check on the pull request is the project's only CI: a failed build shows up there. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
 - **Rendering on Vercel.** Static shells are prerendered at build time and served from the CDN. Request-time parts run as serverless Vercel Functions.
 - **Runtime Cache.** `fetchSource` uses `"use cache: remote"`, which on Vercel is stored in Vercel's Runtime Cache, shared by all function instances and provided automatically (no setup or keys). Plain in-memory `"use cache"` would be per instance, so every cold instance would re-scrape every venue site. Entries are keyed per build, so the first visits after a new deployment do a cold fetch (up to the source timeouts), and later visits are served from cache while refreshing in the background.
-- **Refreshing data.** Data refreshes on its own per the cache profiles. To force it, use "Refresh" in `/admin`, which clears the source's cache tag.
-- **Environment variables.** None are needed in production. `EVENTS_LIVE=false` can be set in the Vercel project settings to make a deployment use demo data.
-- **Admin settings don't persist on Vercel.** `settings.ts` writes a JSON file, and Vercel Functions have a read-only, per-instance file system, so toggling a source off doesn't stick in production. Swapping `settings.ts` for a key-value store (for example Upstash Redis or Edge Config from the Vercel Marketplace, keeping the same two functions) fixes this.
+- **Refreshing data.** Data refreshes on its own per the cache profiles, and a new deployment starts with a fresh cache. To force it without a deploy, run `vercel cache invalidate --tag events` (every source) or `--tag events:<id>` (one source) with the Vercel CLI. The site has no refresh button, so visitors can't make it re-scrape the venue sites.
+- **Environment variables.** None are needed in production. Set them under the project's Settings → Environment Variables and redeploy (Deployments → ⋯ → Redeploy), since a change only reaches new deployments. `EVENTS_DISABLED_SOURCES` hides sources from visitors; `EVENTS_LIVE=false` makes a deployment use demo data.
+- **Switching a source off.** Add its id (shown in `/admin/sources/<id>`) to `EVENTS_DISABLED_SOURCES` and redeploy. `/admin` shows the current value and marks the source "Off in Vercel".
 - **Rolling back.** Promote an earlier deployment in the Vercel dashboard (Deployments → ⋯ → Promote / Instant Rollback), or revert the merge on `main`.
 
 ## Development workflow
@@ -372,8 +369,7 @@ Conventions worth keeping:
 ## Known limits and next steps
 
 - **Duplicate events and venue aliases.** The [24 October duplicate audit](docs/duplicate-audit-2026-10-24.md) found listings of one show from several sources, a one-hour error in the city calendar's times, and venues split over several names. All three are fixed (identity-based merging, corrected times, reviewed venue aliases); on the same raw data, identity-linked duplicates fell from 44 surplus rows to 3. The remaining ones disagree on time by 30–90 minutes (doors vs show) and are left for review; fuzzy title matches are only reported, never merged.
-- **No protection** on `/admin` or its actions (see the note at the top). Handle this before a public launch. Refreshes have a 60 s cooldown per server instance. All OWASP exceptions are listed in [docs/security-owasp.md](docs/security-owasp.md).
-- **Admin on/off settings don't persist on Vercel** (see Deployment).
+- **`/admin` is open to read.** It changes nothing (see the note at the top), but anyone with the URL can see source health, upstream URLs, error messages and `/admin/logs`, none of which hold secrets or visitor data. To hide it as well, put a login or Vercel's password protection in front of it. All OWASP exceptions are listed in [docs/security-owasp.md](docs/security-owasp.md).
 - **Events without coordinates** don't appear on the map. Add their venues to `venues.ts`, or geocode them with a free service such as OpenStreetMap Nominatim within its usage policy.
 - **Page size.** Discover renders 24 events at a time; the Map and the calendar view still send all events to the browser.
 - **OSM tiles** are fine for a low-traffic site that shows the attribution, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Move to a hosted tile plan if traffic grows.

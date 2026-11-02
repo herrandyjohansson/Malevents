@@ -7,7 +7,7 @@ import { EventMapView } from "@/components/map/event-map-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PendingSources } from "@/components/events/pending-sources";
 import { getAllEvents } from "@/lib/events/aggregate";
-import { pendingNames } from "@/lib/events/pending";
+import { listedSources, pendingNames } from "@/lib/events/pending";
 import { isUpcoming } from "@/lib/events/filters";
 import { localDay } from "@/lib/events/malmo-time";
 import { buildMapEvents } from "@/lib/events/map-data";
@@ -33,7 +33,7 @@ export default function MapPage() {
 }
 
 async function MapData() {
-  // Request-time: reads admin settings and filters by the current time.
+  // Request-time: filters by the current time.
   await connection();
   const { events, sources } = await getAllEvents();
   const now = new Date();
@@ -46,7 +46,7 @@ async function MapData() {
       events={buildMapEvents(events, sources, now)}
       today={localDay(now)}
       unplacedCount={unplaced}
-      sources={sources.filter((s) => s.enabled).map(({ id, name }) => ({ id, name }))}
+      sources={listedSources(sources).map(({ id, name }) => ({ id, name }))}
       />
     </>
   );
