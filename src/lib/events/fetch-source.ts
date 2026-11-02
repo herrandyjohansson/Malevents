@@ -19,6 +19,14 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /**
+ * Every cache miss below is a write to Vercel's Runtime Cache, which the free
+ * plan caps (200,000 writes a month), and the cache is per region and per
+ * deployment, so each refresh is paid several times over. The lifetimes are
+ * therefore as long as the data allows: venue listings change a few times a
+ * week, not by the hour.
+ */
+
+/**
  * How long a failure is kept. `expire` sits just past `revalidate` so a
  * failure is never served stale with a background refresh behind it: on
  * Vercel that refresh is not kept alive, the instance freezes mid-fetch,
@@ -26,7 +34,7 @@ const DAY = 24 * HOUR;
  * even when the upstream is back. The next request refetches in the
  * foreground instead, where the aggregator keeps it alive with `after`.
  */
-const FAILURE_LIFETIME = { stale: 30, revalidate: 15, expire: 16 } as const;
+const FAILURE_LIFETIME = { stale: 30, revalidate: 10 * MINUTE, expire: 10 * MINUTE + 1 } as const;
 
 /**
  * How often each profile refreshes in the background (`revalidate`) and how
@@ -36,7 +44,7 @@ const FAILURE_LIFETIME = { stale: 30, revalidate: 15, expire: 16 } as const;
  */
 const LIFETIMES = {
   minutes: { stale: MINUTE, revalidate: MINUTE, expire: DAY },
-  hours: { stale: 5 * MINUTE, revalidate: HOUR, expire: 7 * DAY },
+  hours: { stale: 5 * MINUTE, revalidate: 6 * HOUR, expire: 7 * DAY },
   days: { stale: 5 * MINUTE, revalidate: DAY, expire: 30 * DAY },
 } as const;
 

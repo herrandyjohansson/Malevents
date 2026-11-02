@@ -318,12 +318,12 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
 ```
 
 1. **Adapters.** Each file in `src/lib/events/sources/` knows one upstream. Its `fetchEvents()` fetches JSON or HTML and maps it into `MalmoEvent` (id `<source>:<upstream id>`, title, start and end as ISO strings, category, venue, price, `isFree`, image, URL, ticket URL, sold out, notes). The rest of the app only sees that shape.
-2. **Caching.** `fetch-source.ts` is the cached entry point for each source (`fetch-page.ts` additionally caches event detail pages for days, also in the remote cache). Each source has its own entry and the tags `events` and `events:<id>`. Lifetimes come from the source's `cacheProfile`:
+2. **Caching.** `fetch-source.ts` is the cached entry point for each source (`fetch-page.ts` additionally caches event detail pages, refreshed weekly, also in the remote cache). Each source has its own entry and the tags `events` and `events:<id>`. Lifetimes come from the source's `cacheProfile`:
 
    | Profile | Refreshes in the background every | Stale copy may be served for |
    | --- | --- | --- |
    | `minutes` | 1 minute | 1 day |
-   | `hours` (default) | 1 hour | 7 days |
+   | `hours` (default) | 6 hours | 7 days |
    | `days` | 1 day | 30 days |
 
    The long expiry means visitors get the cached copy immediately while a slow scrape runs behind the scenes. A failure is cached for seconds only, and is returned rather than thrown so the real error message reaches the admin in production.
@@ -380,7 +380,7 @@ None of these venues offers a documented, keyless API, so each adapter uses the 
 | Malmö Arena | Server-rendered HubSpot listing, one `.event-listing__item` per event with day and time but no year (inferred). Redhawks home games are Sports. | `https://www.malmoarena.com/evenemang` |
 | Hypnos Theatre | The home page's `.screening-row`s; exact UTC start and end come from each row's "add to Google Calendar" link. | `https://hypnostheatre.com` |
 
-HTML is parsed with [cheerio](https://cheerio.js.org/). `scrape.ts` finds event "cards" by their links rather than by theme class names, and parses Swedish dates ("fre 9 okt 19.00", "26 november 2026 | 18:30"), inferring the year when a listing leaves it out. Detail pages go through `fetchDetailPage`, which caches each page for days, so an hourly refresh only fetches pages for events it hasn't seen; at most 3–4 are fetched at once.
+HTML is parsed with [cheerio](https://cheerio.js.org/). `scrape.ts` finds event "cards" by their links rather than by theme class names, and parses Swedish dates ("fre 9 okt 19.00", "26 november 2026 | 18:30"), inferring the year when a listing leaves it out. Detail pages go through `fetchDetailPage`, which caches each page for a week, so a listing refresh only fetches pages for events it hasn't seen; at most 3–4 are fetched at once.
 
 ### Live and demo data
 
@@ -456,6 +456,22 @@ jq -c 'select(.level == "warn" or .level == "error")' logs.jsonl
 ```
 
 On Vercel the same lines appear under the project's Logs, searchable by text (e.g. `source.fetched`); set `LOG_LEVEL` in the project's environment variables.
+
+## Deployment on Vercel
+
+The site runs on Vercel, connected to this GitHub repository through Vercel's Git integration. There is no `vercel.json` and no GitHub Actions workflow: Vercel detects Next.js and uses its defaults (`npm install`, `next build`).
+
+- **Production** is built and deployed automatically on every push to `main`, which in practice means every merged pull request.
+- **Docs-only commits are not deployed.** `vercel.json` has an `ignoreCommand` that skips the build when a commit only changes Markdown files, `docs/`, `review/` or `ASSIGNMENT_*/`. Every deployment starts with an empty Runtime Cache, so each one re-scrapes every venue and rewrites every cache entry.
+- **Preview deployments** are built for every pull request branch (except docs-only commits). The Vercel check on the pull request is the project's only CI: a failed build shows up there. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
+- **Rendering on Vercel.** Static shells are prerendered at build time and served from the CDN. Request-time parts run as serverless Vercel Functions.
+- **Runtime Cache.** `fetchSource` uses `"use cache: remote"`, which on Vercel is stored in Vercel's Runtime Cache, shared by all function instances and provided automatically (no setup or keys). Plain in-memory `"use cache"` would be per instance, so every cold instance would re-scrape every venue site. Entries are keyed per build, so the first visits after a new deployment do a cold fetch (up to the source timeouts), and later visits are served from cache while refreshing in the background.
+
+  The Hobby plan includes 200,000 Runtime Cache writes a month. Every cache miss is a write, the cache is per region, and a new deployment starts empty, so lifetimes are kept long: sources refresh every 6 hours, detail pages weekly, and failures are kept for 10 minutes. On 2 November 2026 the team hit 100% of that limit with hourly source refreshes, daily detail-page refreshes, 15-second failure entries and a deploy for every docs commit. Check usage under Usage → Runtime Cache in the Vercel dashboard.
+- **Refreshing data.** Data refreshes on its own per the cache profiles. To force it, use "Refresh" in `/admin`, which clears the source's cache tag.
+- **Environment variables.** None are needed in production. `EVENTS_LIVE=false` can be set in the Vercel project settings to make a deployment use demo data.
+- **Admin settings don't persist on Vercel.** `settings.ts` writes a JSON file, and Vercel Functions have a read-only, per-instance file system, so toggling a source off doesn't stick in production. Swapping `settings.ts` for a key-value store (for example Upstash Redis or Edge Config from the Vercel Marketplace, keeping the same two functions) fixes this.
+- **Rolling back.** Promote an earlier deployment in the Vercel dashboard (Deployments → ⋯ → Promote / Instant Rollback), or revert the merge on `main`.
 
 ## Development workflow
 
