@@ -60,6 +60,8 @@ export function parseSwedishDate(text: string, today?: string): ParsedDate | und
   const day = Number(dayText);
   if (month < 1 || day < 1 || day > 31) return undefined;
   const year = yearText ? Number(yearText) : inferYear(month, day, today);
+  // "31 nov" isn't a date; left in, it would turn into 1 December.
+  if (day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return undefined;
   return {
     ymd: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
     time: hour ? `${hour.padStart(2, "0")}:${minute}` : undefined,

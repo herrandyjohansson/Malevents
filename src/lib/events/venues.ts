@@ -66,6 +66,16 @@ export function withCoordinates(event: MalmoEvent): MalmoEvent {
   return coords ? { ...event, venue: { ...venue, lat: coords[0], lng: coords[1] } } : event;
 }
 
+/**
+ * The name of a venue in the list above by its page slug, title-cased
+ * ("malmö live" → "Malmö Live"). Lets a shared venue link say "nothing on
+ * right now" while its events are missing, instead of "not found".
+ */
+export function knownVenueName(slug: string) {
+  const name = Object.keys(VENUES).find((n) => venueSlug(n) === slug);
+  return name?.replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase());
+}
+
 export function hasCoordinates(event: MalmoEvent): boolean {
   return event.venue?.lat !== undefined && event.venue?.lng !== undefined;
 }

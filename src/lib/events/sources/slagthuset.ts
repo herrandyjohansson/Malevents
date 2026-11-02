@@ -1,6 +1,6 @@
 import "server-only";
 
-import { LIVE_MODE } from "../config";
+import { LIVE_MODE, RECENT_EVENT_GRACE_MS } from "../config";
 import { daysFromTodayAt } from "../demo-dates";
 import { malmoLocalToIso } from "../malmo-time";
 import { decodeEntities, htmlToText, truncate } from "../html";
@@ -131,7 +131,7 @@ async function fetchPosts(report: SourceReport): Promise<SlagthusetPost[]> {
  */
 async function getSlagthusetEvents(report: SourceReport): Promise<MalmoEvent[]> {
   const posts = LIVE_MODE ? await fetchPosts(report) : demoPosts();
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+  const cutoff = Date.now() - RECENT_EVENT_GRACE_MS;
   return posts
     .map(slagthusetPostToEvent)
     .filter((e): e is MalmoEvent => e !== undefined && Date.parse(e.endsAt ?? e.startsAt) >= cutoff);

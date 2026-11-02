@@ -4,17 +4,15 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { RefreshSourceButton, SourceToggle } from "@/components/admin/source-controls";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { loadSource } from "@/lib/events/aggregate";
-import { DEFAULT_SOURCE_TIMEOUT_MS } from "@/lib/events/config";
+import { DEFAULT_SOURCE_TIMEOUT_MS, DISABLED_SOURCE_IDS } from "@/lib/events/config";
 import { CATEGORY_COLORS, CATEGORY_LABELS, formatEventDate, formatPrice, formatRelative } from "@/lib/events/format";
-import { getSourceSettings } from "@/lib/events/settings";
-import { getSource, isEnabledByDefault } from "@/lib/events/sources";
+import { getSource, isSourceEnabled } from "@/lib/events/sources";
 import { hasCoordinates } from "@/lib/events/venues";
 
 export default function SourcePage({ params }: PageProps<"/admin/sources/[id]">) {
@@ -40,8 +38,7 @@ async function SourceDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!source) notFound();
 
   await connection();
-  const settings = await getSourceSettings();
-  const enabled = settings[id]?.enabled ?? isEnabledByDefault(source);
+  const enabled = isSourceEnabled(source);
   // Always load for the preview, even when the source is switched off for visitors.
   const { status, events } = await loadSource(source, true);
   const now = new Date();
@@ -84,11 +81,24 @@ async function SourceDetail({ params }: { params: Promise<{ id: string }> }) {
             <ExternalLink className="size-3.5" />
           </a>
         </div>
-        <div className="bg-card flex items-center gap-3 rounded-lg border px-3 py-1.5">
-          <span className="text-sm">Show to visitors</span>
-          <SourceToggle id={source.id} name={source.name} enabled={enabled} />
-          <RefreshSourceButton id={source.id} name={source.name} />
-        </div>
+        <p className="bg-card text-muted-foreground rounded-lg border px-3 py-2 text-sm">
+          {enabled ? (
+            <>
+              <span className="text-foreground font-medium">Shown to visitors.</span> To hide it, add{" "}
+              <code className="font-mono text-xs">{source.id}</code> to EVENTS_DISABLED_SOURCES in Vercel.
+            </>
+          ) : DISABLED_SOURCE_IDS.includes(source.id) ? (
+            <>
+              <span className="text-foreground font-medium">Hidden from visitors</span> by EVENTS_DISABLED_SOURCES in
+              Vercel.
+            </>
+          ) : (
+            <>
+              <span className="text-foreground font-medium">Hidden from visitors:</span> demo data, used only with
+              EVENTS_LIVE=false.
+            </>
+          )}
+        </p>
       </section>
 
       {status.error && (

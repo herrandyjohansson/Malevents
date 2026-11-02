@@ -44,7 +44,7 @@ export function Sparkline({
     <div className="relative">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-11 w-full overflow-visible outline-none"
+        className="focus-visible:ring-ring h-11 w-full overflow-visible rounded-sm outline-none focus-visible:ring-2"
         role="img"
         aria-label={`${label}: ${points.length} values, latest ${points[last].display}, highest ${highest.display}`}
         tabIndex={0}

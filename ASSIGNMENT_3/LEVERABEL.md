@@ -1,5 +1,10 @@
 ### 📄 Leverabel
 
+## Kort sammanfattning
+
+**Vad var fel?** Malmö stads tjänst hade ett kort avbrott. Appen cachade felet och försökte hämta om i bakgrunden. På Vercel kunde det försöket avbrytas, så källan fortsatte att verka nere.
+
+**Hur fixades det?** Fel cachas nu bara kort. När cachen går ut görs nästa försök i förgrunden, där hämtningen kan hållas igång. Fixen finns i koden men är ännu inte verifierad i produktion.
 
 # Problemet du analyserade
 Det började med att jag märkte att Malmo stad API web scrape inte fungerade. Så här gjorde ett val att analysera och fixa det utifrån loggarna. Det jag gjorde var att jag installerade ett en skill från Vercel officella dokumentation för att hämta och hantera loggarna. Sparade dessa loggarna till en markdown fil som heter `malmo-stad-prod-logs-cli.md`. 

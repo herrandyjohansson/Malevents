@@ -28,7 +28,7 @@ export default function VenuesPage() {
 }
 
 async function VenueData() {
-  // Request-time: reads admin settings and hides events that have ended.
+  // Request-time: hides events that have ended.
   await connection();
   const { events, sources } = await getAllEvents();
   const venues = buildVenues(events, new Date());

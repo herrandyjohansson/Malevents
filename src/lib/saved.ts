@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import { isSameSaved, type SavedEvent } from "./saved-snapshot";
+import { isSameSaved, parseSaved, type SavedEvent } from "./saved-snapshot";
 
 export type { SavedEvent };
 
@@ -21,24 +21,24 @@ function read(): SavedEvent[] {
   }
   // Same string, same array: useSyncExternalStore needs a stable snapshot.
   if (raw === cache.raw) return cache.list;
-  let list: SavedEvent[] = EMPTY;
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) list = parsed.filter((e) => e && typeof e.id === "string" && typeof e.title === "string");
-  } catch {
-    // Corrupt value: start over.
-  }
+  const list = parseSaved(raw);
   cache = { raw, list };
   return list;
 }
 
+/** Shown when the browser refuses to store saved events. */
+export const SAVE_BLOCKED_MESSAGE = "Couldn't save: this browser is blocking storage (private mode?).";
+
+/** Store the list; false when the browser refused it (storage full or blocked). */
 function write(list: SavedEvent[]) {
+  let stored = true;
   try {
     localStorage.setItem(KEY, JSON.stringify(list));
   } catch {
-    // Storage full or unavailable (private mode); saving just won't persist.
+    stored = false;
   }
   window.dispatchEvent(new Event(EVENT));
+  return stored;
 }
 
 function subscribe(onChange: () => void) {
@@ -59,13 +59,13 @@ export function useIsSaved(event: Pick<SavedEvent, "id" | "duplicateIds">) {
   return useSavedEvents().some((saved) => isSameSaved(saved, event));
 }
 
-/** Unsaving removes every saved copy of the event, under any of its ids. */
+/** Unsaving removes every saved copy of the event, under any of its ids. False when the browser didn't store the change. */
 export function toggleSaved(event: Omit<SavedEvent, "savedAt"> & { savedAt?: string }) {
   const list = read();
-  if (list.some((saved) => isSameSaved(saved, event))) write(list.filter((saved) => !isSameSaved(saved, event)));
-  else write([...list, { ...event, savedAt: event.savedAt ?? new Date().toISOString() }]);
+  if (list.some((saved) => isSameSaved(saved, event))) return write(list.filter((saved) => !isSameSaved(saved, event)));
+  return write([...list, { ...event, savedAt: event.savedAt ?? new Date().toISOString() }]);
 }
 
 export function removeSaved(ids: string[]) {
-  write(read().filter((e) => !ids.includes(e.id)));
+  return write(read().filter((e) => !ids.includes(e.id)));
 }

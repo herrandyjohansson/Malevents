@@ -1,28 +1,47 @@
 # MÖEVENTS
 
-What's on in Malmö: one site that gathers events from many venue sites and ticket listings, cleans them into one shape, and shows them across five tabs: tonight's timeline, a day-by-day list (or month calendar) with time and area filters, a map, venues and your saved events, with a page for every event.
+**What's on in Malmö, in one place.** Malmö's concerts, theatre, films, club nights, exhibitions and family events are spread over dozens of venue sites and ticket listings, each with its own layout. MÖEVENTS reads them, cleans them into one shape and shows them together across five tabs: tonight's timeline, a day-by-day list (or month calendar) with time and area filters, a map, venues and your saved events, with a page for every event. Tickets are bought from the venue or ticket site the event links to.
 
-This README is the project's summary report: what the site does, how the code is laid out, which libraries it uses, how data flows from the venue sites to the page, how it is deployed on Vercel, and how work on it is done.
+- **Live site:** <https://moevents.vercel.app>
+- **Code:** <https://github.com/herrandyjohansson/Malevents>
+- **Needs:** Node.js 20.9 or newer and npm. No database, no accounts, no API keys.
 
-> **Not protected yet.** There is no login anywhere, by choice while the site is being built. The Admin tab is hidden behind an "Admin mode" button, but `/admin` and its actions are open to anyone who knows the URL: anyone can switch sources off or clear the cache. Add protection (for example Vercel Deployment Protection, or auth in front of `/admin` and its Server Actions) before a public launch.
+```bash
+git clone https://github.com/herrandyjohansson/Malevents.git
+cd Malevents
+npm install
+npm run dev        # http://localhost:3000
+```
+
+The first half of this README covers what the site does and how to install, configure, run and test it, and what it depends on outside the repo. The second half is the project's report on how it works: how the code is laid out, which libraries it uses, how data flows from the venue sites to the page, and how work on it is done.
+
+> **The admin is read-only.** There is no login anywhere. The Admin tab is hidden behind an "Admin mode" button, and `/admin` can be opened by anyone who knows the URL, but it only shows: nothing on the site can switch sources, clear caches or change settings. Those changes are made in Vercel, where only the project's members can make them (see [Deployment](#deployment-on-vercel)).
 
 ## Contents
+
+**Getting started**
 
 1. [At a glance](#at-a-glance)
 2. [What the site does](#what-the-site-does)
 3. [Filters](#filters)
-4. [Tech stack](#tech-stack)
-5. [Project structure](#project-structure)
-6. [How event data flows](#how-event-data-flows)
-7. [Event sources](#event-sources)
-8. [Pages and components](#pages-and-components)
-9. [Styling and UI components](#styling-and-ui-components)
-10. [Configuration](#configuration)
-11. [Running it locally](#running-it-locally)
-12. [Logs](#logs)
-13. [Deployment on Vercel](#deployment-on-vercel)
-14. [Development workflow](#development-workflow)
-15. [Known limits and next steps](#known-limits-and-next-steps)
+4. [Requirements and external dependencies](#requirements-and-external-dependencies)
+5. [Installation](#installation)
+6. [Configuration](#configuration)
+7. [Running it locally](#running-it-locally)
+8. [Tests and checks](#tests-and-checks)
+9. [Deployment on Vercel](#deployment-on-vercel)
+
+**How it works**
+
+10. [Tech stack](#tech-stack)
+11. [Project structure](#project-structure)
+12. [How event data flows](#how-event-data-flows)
+13. [Event sources](#event-sources)
+14. [Pages and components](#pages-and-components)
+15. [Styling and UI components](#styling-and-ui-components)
+16. [Logs](#logs)
+17. [Development workflow](#development-workflow)
+18. [Known limits and next steps](#known-limits-and-next-steps)
 
 ## At a glance
 
@@ -31,12 +50,13 @@ This README is the project's summary report: what the site does, how the code is
 | Framework | Next.js 16.4 (App Router, Cache Components, Turbopack), React 19.3, TypeScript 5 |
 | Styling | Tailwind CSS v4, shadcn/ui components (new-york style, Radix primitives), lucide icons, dark theme only |
 | Tabs | Tonight, Discover (list or month calendar), Map, Venues, Saved, plus Admin when Admin mode is on; every event has its own page |
-| Map | Leaflet with the standard OpenStreetMap tiles (no API key), darkened with CSS |
-| Data | 13 source adapters (11 live: the city calendar, venue sites and ticket listings; 2 demo fixtures), scraped or read from JSON, normalized into one `MalmoEvent` type |
+| Map | Leaflet with clustered pins over OpenFreeMap's keyless "Fiord" vector basemap (drawn with MapLibre); OpenStreetMap raster tiles, darkened with CSS, as the fallback |
+| Data | 18 source adapters (16 live: the city calendar, venue sites and ticket listings; 2 demo fixtures), scraped or read from JSON, normalized into one `MalmoEvent` type |
 | Caching | `"use cache: remote"` per source (Vercel Runtime Cache), served stale while refreshing in the background |
 | Hosting | Vercel, deployed from GitHub (production from `main`, a preview per pull request) |
 | Auth | None (see the note above) |
 | API keys | None needed |
+| Tests | Vitest unit tests that run offline; tests against the live venue sites are opt-in |
 
 ## What the site does
 
@@ -48,7 +68,7 @@ This README is the project's summary report: what the site does, how the code is
 - **Venues** (`/venues`): every venue with upcoming events, searchable and filterable by area and kind of event; `/venues/<slug>` shows a venue's area, programme and location.
 - The old `/week` and `/calendar` addresses redirect into Discover (`?when=week`, `?view=calendar`), keeping any filters.
 - **Saved** (`/saved`): events you hearted on any card, grouped by day, with "add to calendar" (.ics) for one event or all. Kept in the browser's localStorage, no account.
-- **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Per source: health, event count, last fetch, response time and cache lifetime; refresh one source or all; switch a source off for visitors without a deploy; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location.
+- **Admin** (`/admin`): shown in the tabs when "Admin mode" is switched on in the header. Read-only. Per source: health, error and warnings, event count, last fetch, response time, cache lifetime and whether visitors see it; and `/admin/sources/[id]` drills into a source's normalized events and flags events without a map location. Backend problems (a site that is down, slow or returns partial data) are shown here and in `/admin/logs`, never to visitors.
 
 ## Filters
 
@@ -61,33 +81,160 @@ Discover (list and calendar) and Map share one filter bar. When and where are up
 
 Filters live in the URL (`q`, `cat`, `src`, `when` or `from`/`to`, `free`, `nolong`), so links are shareable and the Discover, Map and Calendar tabs carry them over. Discover filters on the server; Map and Calendar filter in the browser with the same functions from `src/lib/events/filters.ts`. Older `?category=`, `?source=` and map `?from=&to=` links still work. On the phone map the bar becomes a row of floating chips with the rest in a bottom sheet.
 
+## Requirements and external dependencies
+
+### What you need to install
+
+| Requirement | Why |
+| --- | --- |
+| Node.js 20.9 or newer (developed on Node 22) | Next.js 16 requires at least 20.9 |
+| npm (comes with Node.js) | Installs the packages in `package.json`; `package-lock.json` pins their versions |
+| Git | Cloning the repository |
+| Internet access for `npm install` and `npm run build` | Packages come from the npm registry, and `next/font` downloads the Geist fonts during the build |
+
+Nothing else is needed: no database, no Docker, no API keys and no accounts. The npm packages and what each is for are listed under [Tech stack](#tech-stack).
+
+Optional, for maintainers only:
+
+- The [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`), to refresh the production cache by hand (`vercel cache invalidate --tag events`).
+- The [OpenWeb CLI](https://github.com/openweb-org/openweb) (`npm install -g @openweb-org/openweb`), for the OpenWeb benchmark and the `find-malmo-event-source` skill. The offline tests skip the OpenWeb checks when it isn't installed.
+
+### Outside services the site uses
+
+All of them are free and need no key or sign-up.
+
+| Service | What for | Who contacts it, and when |
+| --- | --- | --- |
+| The 16 venue sites and ticket listings in [Event sources](#event-sources) (Malmö stad, Tickster, Malmö Live, Slagthuset, …) | The events themselves | The server, when a source's cache entry is missing or stale. A source that fails is left out of the lists and shown as failing in `/admin`. `EVENTS_LIVE=false` uses bundled fixtures instead. |
+| [OpenFreeMap](https://openfreemap.org) (`tiles.openfreemap.org`) | The map's dark "Fiord" vector basemap, drawn with MapLibre | The visitor's browser, on every map |
+| OpenStreetMap's tile server (`tile.openstreetmap.org`) | Fallback raster basemap | The visitor's browser, only when WebGL or OpenFreeMap is unavailable |
+| Google Fonts | The Geist and Geist Mono fonts | Only `npm run build` and `npm run dev`: `next/font` downloads them and serves them from the site, so visitors' browsers never contact Google |
+| Google Maps | The event page's Directions button | Only when a visitor taps it (a plain link, not an API) |
+| [Vercel](https://vercel.com) | Hosting, and the Runtime Cache behind `"use cache: remote"` | Production only. Locally the cache is kept in the Next.js process's memory. |
+
+Upstream requests go through `src/lib/events/http.ts`, which sends a `MaleventsBot` user agent, applies a timeout to every request and only fetches public http(s) URLs.
+
+## Installation
+
+```bash
+git clone https://github.com/herrandyjohansson/Malevents.git
+cd Malevents
+npm install
+```
+
+That is all. No environment file or setup step is needed. `npm run dev` and `npm run build` first copy MapLibre's web worker from `node_modules` into `public/vendor/` (`scripts/copy-maplibre-worker.mjs`, git-ignored), so the map works without any manual step.
+
+To check the install, run `npm test`. It runs the offline test suite in a few seconds without touching the network.
+
+## Configuration
+
+The site runs without any configuration: with no environment variables set, it reads the live venue sites and logs at `info`. To change that, set environment variables in your shell, in a `.env.local` file in the project root (Next.js loads it, and `.env*` files are git-ignored), or in Vercel under Settings → Environment Variables.
+
+```bash
+# .env.local (example)
+EVENTS_LIVE=false                          # bundled fixtures instead of the venue sites
+EVENTS_DISABLED_SOURCES=malmo-stad,hypnos  # hide these sources from visitors
+LOG_LEVEL=debug                            # one log line per upstream request
+```
+
+| Setting | Where | Effect |
+| --- | --- | --- |
+| `EVENTS_LIVE=false` | env var | Every adapter serves its fixtures instead of calling the live site (for offline work or sandboxes that can't reach the venue sites). Unset means live. |
+| `EVENTS_DISABLED_SOURCES` | env var | Comma-separated source ids hidden from visitors, e.g. `malmo-stad,hypnos`. Ids are shown in `/admin`. Read when the server starts: restart `npm run dev` locally, or redeploy in Vercel. Unknown ids are ignored and flagged in `/admin`. |
+| `LOG_LEVEL` | env var | Lowest server log level written: `debug`, `info` (default), `warn` or `error`. `debug` adds a line per upstream request. See [Logs](#logs). |
+| `DEMO_SOURCE_FAILURE=true` | env var | Makes the Skåne culture demo source fail, to see how the page degrades. |
+| `cacheComponents: true` | `next.config.ts` | Turns on `"use cache"`, `cacheLife`, `cacheTag` and partial prerendering. |
+| `partialPrefetching: true` | `next.config.ts` | Prefetches only the static part of linked pages. |
+| `experimental.staleTimes.dynamic: 30` | `next.config.ts` | Keeps visited pages in the browser's router cache for 30 s, so switching tabs doesn't re-request them. |
+| `cacheProfile`, `timeoutMs` | each adapter's `EventSource` in `src/lib/events/sources/` | How long a source's data is cached (`minutes`, `hours` or `days`, see [How event data flows](#how-event-data-flows)) and how long the aggregator waits for it (8 s by default, 15–45 s for the slower sites). |
+| `TIME_ZONE` | `src/lib/events/config.ts` | `Europe/Stockholm`: dates are stored as ISO strings and shown in Malmö time. |
+
+Test-only switches (`BENCH_LIVE`, `BENCH`, `BENCH_ROUNDS`, `DUPLICATE_AUDIT_*`) are set by the npm scripts below or described in [benchmarks/openweb/README.md](benchmarks/openweb/README.md) and [the duplicate audit](docs/duplicate-audit-2026-10-24.md).
+
+Nothing in this section can be changed from the site.
+
+## Running it locally
+
+```bash
+npm run dev                     # http://localhost:3000, live data
+EVENTS_LIVE=false npm run dev   # bundled fixtures only, no network needed
+```
+
+To run the production build, the same way Vercel serves it:
+
+```bash
+npm run build
+npm run start                   # http://localhost:3000
+```
+
+The first request with live data is slow, because every venue site is scraped (up to about 20 s on a cold cache). Lists render with the sources that answer within 3 s and fill in on their own; after that the cache answers. Locally the cache lives in the server process's memory, so a restart starts cold again.
+
+To see how the sources are doing, switch on "Admin mode" in the header (or open `/admin`), and `/admin/logs` for the server logs.
+
+## Tests and checks
+
+```bash
+npm test                 # Vitest, offline tests only (src/**/*.test.ts, benchmarks/**/*.test.ts)
+npm run test:live        # also calls the real venue sites
+npm run bench:openweb    # OpenWeb vs current adapters, see benchmarks/openweb/README.md
+npm run lint             # ESLint
+npx next typegen         # route types: on a fresh clone and after adding routes
+npx tsc --noEmit         # type check
+npm run build            # the production build Vercel runs
+```
+
+There is no CI workflow in the repo. Vercel's build of each pull request and of `main` is the only automated check, so run lint, type check, tests and build before pushing. Use `EVENTS_LIVE=false` where the venue sites can't be reached.
+
+## Deployment on Vercel
+
+The site runs on Vercel, connected to this GitHub repository through Vercel's Git integration. There is no `vercel.json` and no GitHub Actions workflow: Vercel detects Next.js and uses its defaults (`npm install`, `next build`).
+
+- **Production** is built and deployed automatically on every push to `main`, which in practice means every merged pull request.
+- **Preview deployments** are built for every pull request branch. The Vercel check on the pull request is the project's only CI: a failed build shows up there. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
+- **Rendering on Vercel.** Static shells are prerendered at build time and served from the CDN. Request-time parts run as serverless Vercel Functions.
+- **Runtime Cache.** `fetchSource` uses `"use cache: remote"`, which on Vercel is stored in Vercel's Runtime Cache, shared by all function instances and provided automatically (no setup or keys). Plain in-memory `"use cache"` would be per instance, so every cold instance would re-scrape every venue site. Entries are keyed per build, so the first visits after a new deployment do a cold fetch (up to the source timeouts), and later visits are served from cache while refreshing in the background.
+- **Refreshing data.** Data refreshes on its own per the cache profiles, and a new deployment starts with a fresh cache. To force it without a deploy, run `vercel cache invalidate --tag events` (every source) or `--tag events:<id>` (one source) with the Vercel CLI. The site has no refresh button, so visitors can't make it re-scrape the venue sites.
+- **Environment variables.** None are needed in production. Set them under the project's Settings → Environment Variables and redeploy (Deployments → ⋯ → Redeploy), since a change only reaches new deployments. `EVENTS_DISABLED_SOURCES` hides sources from visitors; `EVENTS_LIVE=false` makes a deployment use demo data.
+- **Switching a source off.** Add its id (shown in `/admin/sources/<id>`) to `EVENTS_DISABLED_SOURCES` and redeploy. `/admin` shows the current value and marks the source "Off in Vercel".
+- **Rolling back.** Promote an earlier deployment in the Vercel dashboard (Deployments → ⋯ → Promote / Instant Rollback), or revert the merge on `main`.
+
 ## Tech stack
 
 | Package | Used for |
 | --- | --- |
-| `next` 16.4 | App Router, Server Components, `"use cache"` / Cache Components, Server Actions, `next/font` (Geist) |
-| `react`, `react-dom` 19.3 | UI; `useSyncExternalStore` for the admin-mode toggle |
+| `next` 16.4 | App Router, Server Components, `"use cache"` / Cache Components, `after()`, `next/font` (Geist) |
+| `react`, `react-dom` 19.3 | UI; `useSyncExternalStore` for saved events and the admin-mode toggle |
 | `tailwindcss` v4 + `@tailwindcss/turbopack` | Styling; CSS is compiled through a Turbopack loader rule in `next.config.ts` |
 | `tw-animate-css` | Animation utilities used by the shadcn/ui components |
-| `radix-ui` | Accessible primitives behind the dialog, select and switch components |
+| `radix-ui` | Accessible primitives behind the dialog, sheet, select and switch components |
 | `class-variance-authority`, `clsx`, `tailwind-merge` | Component variants and the `cn()` helper in `src/lib/utils.ts` |
 | `lucide-react` | Icons |
-| `leaflet` (+ `@types/leaflet`) | The interactive maps |
+| `leaflet` (+ `@types/leaflet`), `leaflet.markercluster` | The interactive maps, with pins grouped into clusters when zoomed out |
+| `maplibre-gl`, `@maplibre/maplibre-gl-leaflet` | Draws the OpenFreeMap vector basemap under Leaflet's pins (WebGL) |
+| `minisearch` | Tonight's search over upcoming events and venues: prefix, typo-tolerant and accent-insensitive |
 | `cheerio` | Parsing HTML from venue sites that have no JSON API |
 | `server-only` | Keeps adapters, caching and settings code out of client bundles |
+| `typescript` 5 | Type checking (`npx tsc --noEmit`) |
 | `eslint` 9 + `eslint-config-next` | Linting (`npm run lint`) |
+| `vitest` 3 | Unit tests (`npm test`) |
 
-There is no database, no test framework and no CI workflow in the repo; Vercel's build is the check that runs on every pull request.
+There is no database and no CI workflow in the repo; Vercel's build is the automated check on every pull request, and the tests run locally (see [Tests and checks](#tests-and-checks)).
 
 ## Project structure
 
 ```
 .
-├── AGENTS.md                 Note for coding agents: read the Next.js docs in node_modules/next/dist/docs/
+├── AGENTS.md, CLAUDE.md      Notes for coding agents (read the Next.js docs in node_modules/next/dist/docs/)
+├── PRODUCT.md                who the site is for and its product principles
 ├── components.json           shadcn/ui config (new-york, neutral, CSS variables, lucide)
-├── next.config.ts            cacheComponents, partialPrefetching, staleTimes, Tailwind loader
+├── next.config.ts            cacheComponents, partialPrefetching, staleTimes, Tailwind loader, /week and /calendar redirects
 ├── eslint.config.mjs
 ├── tsconfig.json             "@/*" → src/*
+├── vitest.config.ts          runs src/**/*.test.ts and benchmarks/**/*.test.ts
+├── scripts/                  copy-maplibre-worker.mjs (runs before dev and build)
+├── benchmarks/openweb/       test-only OpenWeb vs adapter benchmark
+├── docs/                     security (OWASP), duplicate audit, source candidates, agent skills
+├── .claude/                  agent skills and rules used in this project (see docs/skills.md)
 ├── public/                   static assets
 └── src/
     ├── app/                  routes (App Router)
@@ -96,6 +243,7 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── page.tsx          /            Discover
     │   ├── map/page.tsx      /map         Map
     │   ├── tonight/page.tsx  /tonight     Tonight
+    │   ├── days/[day]/page.tsx  /days/:day  one date by area (from the calendar)
     │   ├── events/[id]/page.tsx /events/:id  one event (full page)
     │   ├── @sheet/           the same event as a sheet over a list (intercepting route)
     │   ├── venues/
@@ -105,22 +253,23 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
     │   ├── admin/
     │   │   ├── page.tsx                  /admin               source overview
     │   │   ├── sources/[id]/page.tsx     /admin/sources/:id   one source's events
-    │   │   └── actions.ts                Server Actions: toggle, refresh one, refresh all
+    │   │   └── logs/                     /admin/logs          log dashboard (+ JSONL download)
     │   └── error.tsx         error boundary
     ├── components/
     │   ├── layout/           site-header (+ aurora Backdrop), logo, page-header, nav-config (tab list), nav-tabs (desktop pill tabs, phone tab bar, Admin mode toggle)
     │   ├── events/           event-card, event-art (image over a category-colored placeholder), remote-image (hides itself if a venue's image fails), event-results, spotlight-list, skeletons, source-status
-    │   ├── map/              leaflet-map, event-map-view, range-calendar, week-map preview/card, legend
+    │   ├── map/              leaflet-map, basemap (OpenFreeMap with OSM fallback), event-map-view, range-calendar, week-map preview/card, legend
     │   ├── filters/          the shared filter bar: inline buttons (filter-bar), phone-map filter sheet (filter-panel), search box, useFilters (URL state)
     │   ├── calendar/         calendar-view
     │   ├── tonight/          timeline-event
     │   ├── venues/           venue-grid (searchable directory), venue-map
     │   ├── saved/            save-button (the heart on cards), saved-list
-    │   ├── admin/            source-controls, status-badge
+    │   ├── admin/            admin-nav, status-badge, logs/
     │   └── ui/               shadcn/ui: alert, badge, button, card, dialog, input, segmented-control, select, sheet, skeleton, switch, table
     └── lib/
         ├── utils.ts          cn()
-        ├── log.ts            structured JSON server logs (LOG_LEVEL)
+        ├── log.ts            structured JSON server logs (LOG_LEVEL) and the in-memory buffer behind /admin/logs
+        ├── log-analysis.ts   the numbers on /admin/logs
         ├── admin-mode.ts     per-browser Admin mode flag (localStorage)
         ├── days.ts           YYYY-MM-DD day helpers and month grids (map, calendar, filters)
         ├── saved.ts          hearted events in localStorage (useSyncExternalStore)
@@ -128,12 +277,15 @@ There is no database, no test framework and no CI workflow in the repo; Vercel's
         ├── ics.ts            iCalendar (.ics) export for "add to calendar"
         └── events/
             ├── types.ts          MalmoEvent, EventSource, SourceStatus, categories
-            ├── config.ts         EVENTS_LIVE, time zone (Europe/Stockholm), default timeout
+            ├── config.ts         EVENTS_LIVE, EVENTS_DISABLED_SOURCES, time zone (Europe/Stockholm), default timeout
             ├── sources/          one adapter per upstream; index.ts is the registry
             ├── fetch-source.ts   the one cached entry point per source
             ├── aggregate.ts      fan-out, timeouts, failure isolation, de-duplication
-            ├── settings.ts       admin on/off per source (.data/source-settings.json)
+            ├── dedupe.ts         merges listings of one occurrence from several sources
+            ├── normalize.ts      category from keywords or the venue, cancelled flag
+            ├── areas.ts          venue coordinates → Malmö areas; the Rosengård exclusion
             ├── filters.ts        the shared filter model: URL params ↔ filters, matcher, facet counts; Malmö-local days
+            ├── search.ts         MiniSearch index for Tonight's search
             ├── map-data.ts       events → map pins (week preview and date ranges)
             ├── calendar-data.ts  events → calendar entries
             ├── venue-data.ts     events grouped into venues with slugs, counts and categories
@@ -153,7 +305,7 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
                                                      │
                                                      ▼
                        getAllEvents()  (aggregate.ts, React cache() per request)
-                       • reads admin on/off settings
+                       • skips sources listed in EVENTS_DISABLED_SOURCES
                        • runs every enabled source in parallel, each with its own timeout
                        • "fast" mode: renders after 3 s with the sources that have answered;
                          the rest keep fetching in the background and the page refreshes itself
@@ -174,13 +326,13 @@ venue site / API ──► adapter (sources/*.ts) ──► fetchSource()  "use 
    | `hours` (default) | 6 hours | 7 days |
    | `days` | 1 day | 30 days |
 
-   The long expiry means visitors get the cached copy immediately while a slow scrape runs behind the scenes. A failure is cached for 10 minutes, and is returned rather than thrown so the real error message reaches the admin in production.
-3. **Aggregation.** `getAllEvents()` runs all enabled sources with a per-source timeout (8 s by default; 30–45 s for the scraped sites), records a status per source, and merges events. Venue names are first made canonical (`withCanonicalVenue` in `venues.ts`: Slagthusets Teater → Slagthuset with the room kept in the address, Malmö Live → Malmö Live Konserthus, …; old venue pages redirect). `mergeDuplicates` (`dedupe.ts`) then merges listings of one occurrence: the same normalized title and start minute, or a shared Tickster booking id or event page from different sources starting within 15 minutes; never venues more than 500 m apart, never two start times from one source, and never a group spanning more than 15 minutes, so matinees, repeat screenings and sessions stay separate. A venue's own source wins over aggregators (sources with `aggregator: true`: Malmö stad, Tickster · Malmö); the others fill its gaps (description, image, ticket link, price, coordinates) but not its sold-out or cancelled status. Merged ids are kept in `duplicateIds`, so old event links and saved hearts still resolve. It is wrapped in React's `cache()` so the home page's map and list share one lookup. See [the duplicate audit](docs/duplicate-audit-2026-10-24.md).
+   The long expiry means visitors get the cached copy immediately while a slow scrape runs behind the scenes. A failure is cached for seconds only, and is returned rather than thrown so the real error message reaches the admin in production.
+3. **Aggregation.** `getAllEvents()` runs all enabled sources with a per-source timeout (8 s by default; 15–45 s for the slower sites), records a status per source, and merges events. Venue names are first made canonical (`withCanonicalVenue` in `venues.ts`: Slagthusets Teater → Slagthuset with the room kept in the address, Malmö Live → Malmö Live Konserthus, …; old venue pages redirect). `mergeDuplicates` (`dedupe.ts`) then merges listings of one occurrence: the same normalized title and start minute, or a shared Tickster booking id or event page from different sources starting within 15 minutes; never venues more than 500 m apart, never two start times from one source, and never a group spanning more than 15 minutes, so matinees, repeat screenings and sessions stay separate. A venue's own source wins over aggregators (sources with `aggregator: true`: Malmö stad, Tickster · Malmö); the others fill its gaps (description, image, ticket link, price, coordinates) but not its sold-out or cancelled status. Merged ids are kept in `duplicateIds`, so old event links and saved hearts still resolve. It is wrapped in React's `cache()` so the home page's map and list share one lookup. See [the duplicate audit](docs/duplicate-audit-2026-10-24.md).
 
-   On a cold cache the scraped sites take up to about 20 s. So the lists, map, Tonight and venue pages call it in **"fast" mode**: a source that hasn't answered within 3 s comes back as `pending` and the page renders with the rest (about 450 events after 4 s on a cold start). The pending fetch carries on in the background, kept alive past the response with `after()`, and fills the cache. A "Still fetching events from …" notice (`PendingSources`) refreshes the page every few seconds, one refresh at a time, until nothing is pending (all ~1,280 events after about 10 s), keeping scroll, filters and any open sheet. A refresh joins a fetch already in progress in the same server process instead of scraping the site again. The event page and the admin use **"complete" mode** and wait for every source, so a link to an event from a slow source never reads as "not found".
+   On a cold cache the scraped sites take up to about 20 s. So the lists, map, Tonight and venue pages call it in **"fast" mode**: a source that hasn't answered within 3 s comes back as `pending` and the page renders with the rest (about 450 events after 4 s on a cold start). The pending fetch carries on in the background, kept alive past the response with `after()`, and fills the cache. A neutral "Loading more events…" line (`PendingSources`, which never names the slow site) refreshes the page every few seconds, one refresh at a time, until nothing is pending (all ~1,280 events after about 10 s), keeping scroll, filters and any open sheet. A refresh joins a fetch already in progress in the same server process instead of scraping the site again. The event page and the admin use **"complete" mode** and wait for every source, so a link to an event from a slow source never reads as "not found".
 4. **Locations.** Adapters pass through coordinates when the upstream has them; otherwise `venues.ts` looks up the venue name in a list of known Malmö venues. Events still without coordinates are left off the map and flagged in the admin.
-5. **Rendering.** Pages keep a static shell (header, intro) that is prerendered, and stream the data-dependent part behind a skeleton inside `<Suspense>`. Data parts call `connection()` because they depend on the current time and the admin settings.
-6. **Admin actions.** `src/app/admin/actions.ts` holds Server Actions: switching a source on or off writes `settings.ts` and calls `refresh()`; refreshing calls `updateTag("events:<id>")` or `updateTag("events")` so the next request fetches fresh data.
+5. **Rendering.** Pages keep a static shell (header, intro) that is prerendered, and stream the data-dependent part behind a skeleton inside `<Suspense>`. Data parts call `connection()` because they depend on the current time.
+6. **Admin.** Read-only, with no Server Actions. A source is switched off with the `EVENTS_DISABLED_SOURCES` environment variable (`config.ts`, read by `isSourceEnabled` in `sources/index.ts`); cached data is refreshed with `vercel cache invalidate --tag events` (or `events:<id>`). Both are done in Vercel (see [Deployment](#deployment-on-vercel)). Visitors never see a source's state: a failing or slow source is simply missing from the list until it is back, and the admin shows why.
 
 ## Event sources
 
@@ -232,7 +384,7 @@ HTML is parsed with [cheerio](https://cheerio.js.org/). `scrape.ts` finds event 
 
 ### Live and demo data
 
-Sources with a live endpoint fetch it by default. Sources that only have demo fixtures start switched off in live mode, so made-up events never mix with real ones; the admin can switch them on. With `EVENTS_LIVE=false`, every source serves bundled fixtures in its upstream's real shape (marked "demo" in the UI), with dates relative to today.
+Sources with a live endpoint fetch it by default. Sources that only have demo fixtures start switched off in live mode, so made-up events never mix with real ones. With `EVENTS_LIVE=false`, every source serves bundled fixtures in its upstream's real shape (marked "demo" in the UI), with dates relative to today.
 
 ### Adding a source
 
@@ -248,17 +400,19 @@ Sources with a live endpoint fetch it by default. Sources that only have demo fi
 | `/` | `app/page.tsx` | `PageHeader`, `WeekMapPreview` (7-day map), `EventResults` → `FilterBar`, `SpotlightList` + `EventCard`, `SourceStatus` | Static shell; filters read from search params and applied on the server |
 | `/map` | `app/map/page.tsx` | `EventMapView` → `FilterBar`, `RangeCalendar`, `LeafletMap`, `MapLegend` | Server prepares pins; filters and range are client-side and written to the URL with `history.replaceState` |
 | `/tonight` | `app/tonight/page.tsx` | `TimelineEvent`, `SaveButton` | Request-time; anchored on the current Malmö time |
+| `/days/[day]` | `app/days/[day]/page.tsx` | `TimelineEvent`, `AllDay` | Request-time; one date grouped by area, reached from the calendar with the shared filters |
 | `/events/[id]` | `app/events/[id]/page.tsx`, `app/@sheet/(.)events/[id]/page.tsx` | `EventDetail`, `EventActions`, `EventSheet` | Request-time; the full page on a direct visit, a sheet over the current page when opened from a list |
 | `/venues` | `app/venues/page.tsx` | `VenueGrid` | Request-time; search and category filter run in the browser |
 | `/venues/[slug]` | `app/venues/[slug]/page.tsx` | `VenueMap`, `EventCard` | Request-time; the venue is looked up from the live events, so unknown slugs 404 |
 | `/saved` | `app/saved/page.tsx` | `SavedList` | Static shell; the list is read from localStorage in the browser, with .ics export |
-| `/admin` | `app/admin/page.tsx` | `StatusBadge`, `SourceToggle`, `RefreshSourceButton`, `RefreshAllButton`, shadcn `Table`/`Card` | Request-time; `robots: noindex` |
+| `/admin` | `app/admin/page.tsx` | `StatusBadge`, shadcn `Table`/`Card`; read-only | Request-time; `robots: noindex` |
 | `/admin/sources/[id]` | `app/admin/sources/[id]/page.tsx` | event table for one source | Request-time |
+| `/admin/logs` | `app/admin/logs/page.tsx`, `logs/download/route.ts` | log dashboard: load times, cache hit rate, per-source rows, filterable stream | Request-time; reads this instance's in-memory log buffer; the download is a read-only `GET` |
 
 Shared pieces:
 
 - `SiteHeader`, `Logo` and `NavTabs` (`components/layout/`) render the header, the tabs and the Admin mode button; `SiteFooter` (same file as the header) credits the coat of arms in the logo. The tab list lives in `nav-config.ts`. On desktop the tabs are a row with a sliding active pill; on phones the visitor tabs move to a fixed bottom tab bar like a native app, and Admin moves to an icon in the header (rendered outside the header, whose backdrop blur would trap a fixed child; `--tabbar-h` in `globals.css` pads the page above it). Admin mode is a `localStorage` flag read through `useSyncExternalStore` (`lib/admin-mode.ts`); it only shows or hides the tab.
-- `LeafletMap` is a client component that loads Leaflet in the browser, draws category-colored pins and keeps the OSM attribution. `globals.css` inverts `.malevents-map .leaflet-tile-pane` to make the light tiles dark.
+- `LeafletMap` is a client component that loads Leaflet in the browser and draws category-colored pins, clustered with `leaflet.markercluster`. `basemap.ts` adds the map underneath: OpenFreeMap's dark "Fiord" vector style through MapLibre when the browser has WebGL, otherwise the standard OSM raster tiles, which `globals.css` darkens. Either way the attribution is kept.
 - `Backdrop` (in the root layout) draws the slowly drifting aurora behind every page, and `PageHeader` gives each tab the same eyebrow, title and description.
 - `EventCard` is image-led: `EventArt` shows the event's picture over a category-colored gradient with an emoji, which also covers images that fail to load. Cards have a cursor "spotlight" hover effect and skeletons a shimmer, both hand-written in Tailwind and CSS.
 
@@ -269,41 +423,6 @@ Shared pieces:
 - **shadcn/ui** components are copied into `src/components/ui/` (configured by `components.json`) and edited like any other code. They build on Radix primitives from the `radix-ui` package. Add more with `npx shadcn@latest add <component>`.
 - **Fonts**: Geist and Geist Mono through `next/font/google`.
 - **Logo and tab icon**: Skåne's coat of arms (landskapsvapen), by Havsjö after Leonid 2 on [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Sk%C3%A5ne_landskapsvapen.svg), licensed [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). The file is `public/brand/skane-landskapsvapen.svg`, with a copy at `src/app/icon.svg` for the favicon; the only change is an added `viewBox` so it scales. The licence requires the credit, which `SiteFooter` shows on every page; keep it, and share changed versions of the image under the same licence. Official insignia can be restricted separately from copyright: the provincial arms are used here for a non-commercial site, and Malmö's registered city arms are deliberately not used (SFS 1970:498 restricts registered municipal arms in business use). There is no `favicon.ico` or `apple-icon`.
-
-## Configuration
-
-| Setting | Where | Effect |
-| --- | --- | --- |
-| `EVENTS_LIVE=false` | env var | Every adapter serves its fixtures instead of calling the live site (for offline work or sandboxes that can't reach the venue sites). Unset means live. |
-| `LOG_LEVEL` | env var | Lowest server log level written: `debug`, `info` (default), `warn` or `error`. `debug` adds a line per upstream request. See [Logs](#logs). |
-| `DEMO_SOURCE_FAILURE=true` | env var | Makes the Skåne culture source fail, to see how the page degrades. |
-| `cacheComponents: true` | `next.config.ts` | Turns on `"use cache"`, `cacheLife`, `cacheTag` and partial prerendering. |
-| `partialPrefetching: true` | `next.config.ts` | Prefetches only the static part of linked pages. |
-| `experimental.staleTimes.dynamic: 30` | `next.config.ts` | Keeps visited pages in the browser's router cache for 30 s, so switching tabs doesn't re-request them. |
-| Source on/off | `/admin` → `.data/source-settings.json` | Git-ignored file written by the admin toggle (see limits below). |
-
-No environment variables are required; `.env*` files are git-ignored if you add any.
-
-## Running it locally
-
-Requirements: Node.js 20 or newer and npm.
-
-```bash
-npm install
-npm run dev          # http://localhost:3000, live data
-EVENTS_LIVE=false npm run dev   # demo fixtures only, no network needed
-```
-
-Other scripts:
-
-```bash
-npm run build        # production build (what Vercel runs)
-npm run start        # serve the build
-npm run lint         # ESLint
-npx tsc --noEmit     # type check (run `npx next typegen` first after adding routes)
-```
-
-The first request with live data is slow because every venue site is scraped; after that the cache answers.
 
 ## Logs
 
@@ -320,8 +439,6 @@ The server writes one JSON object per line (`src/lib/log.ts`), with `ts`, `level
 | `crawl.details` | info | Detail pages were read | `source`, `urls`, `attempted`, `failed`, `skipped`, `durationMs` |
 | `http.response` | debug | Each upstream request that succeeded | `source`, `url`, `status`, `bytes`, `durationMs` |
 | `http.failed` | warn | Each upstream request that failed | `source`, `url`, `status`, `reason` (`timeout`, `network`, `http`, `too_large`, `invalid_json`, `blocked_url`), `error` |
-| `admin.source_toggled`, `admin.cache_refreshed` | info | Admin actions (the admin has no login) | `source`, `enabled` |
-| `admin.input_rejected`, `admin.rate_limited` | warn | An admin action got an unknown source or bad value, or a refresh came within the 60 s cooldown | `action`, `reason`, `source`, `tag`, `retryInS` |
 | `request.failed` | error | A server error while rendering or in an action | `path` (without query), `route`, `routeType`, `digest`, `error` |
 
 Logs hold events and numbers, never visitor input: request paths are logged without their query string.
@@ -359,7 +476,7 @@ The site runs on Vercel, connected to this GitHub repository through Vercel's Gi
 ## Development workflow
 
 1. **One pull request per task.** Each change is made on its own branch (`claude/<task>-<id>` for changes made by Claude in the project) and opened as a pull request against `main`.
-2. **Check before pushing.** Run `npm run lint`, `npx tsc --noEmit` and `npm run build` locally. Use `EVENTS_LIVE=false` where the venue sites can't be reached.
+2. **Check before pushing.** Run `npm run lint`, `npx tsc --noEmit`, `npm test` and `npm run build` locally. Use `EVENTS_LIVE=false` where the venue sites can't be reached.
 3. **Preview.** Vercel builds a preview of the branch; the PR's Vercel check must be green.
 4. **Review and merge.** Merging into `main` deploys to production.
 5. **Next.js version.** This project uses Next.js 16.4, which differs from older versions in APIs and conventions. Read the guides in `node_modules/next/dist/docs/` before writing Next.js code (see `AGENTS.md`).
@@ -375,10 +492,9 @@ Conventions worth keeping:
 ## Known limits and next steps
 
 - **Duplicate events and venue aliases.** The [24 October duplicate audit](docs/duplicate-audit-2026-10-24.md) found listings of one show from several sources, a one-hour error in the city calendar's times, and venues split over several names. All three are fixed (identity-based merging, corrected times, reviewed venue aliases); on the same raw data, identity-linked duplicates fell from 44 surplus rows to 3. The remaining ones disagree on time by 30–90 minutes (doors vs show) and are left for review; fuzzy title matches are only reported, never merged.
-- **No protection** on `/admin` or its actions (see the note at the top). Handle this before a public launch. Refreshes have a 60 s cooldown per server instance. All OWASP exceptions are listed in [docs/security-owasp.md](docs/security-owasp.md).
-- **Admin on/off settings don't persist on Vercel** (see Deployment).
+- **`/admin` is open to read.** It changes nothing (see the note at the top), but anyone with the URL can see source health, upstream URLs, error messages and `/admin/logs`, none of which hold secrets or visitor data. To hide it as well, put a login or Vercel's password protection in front of it. All OWASP exceptions are listed in [docs/security-owasp.md](docs/security-owasp.md).
 - **Events without coordinates** don't appear on the map. Add their venues to `venues.ts`, or geocode them with a free service such as OpenStreetMap Nominatim within its usage policy.
 - **Page size.** Discover renders 24 events at a time; the Map and the calendar view still send all events to the browser.
-- **OSM tiles** are fine for a low-traffic site that shows the attribution, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Move to a hosted tile plan if traffic grows.
+- **Map tiles.** OpenFreeMap is free with no key or usage cap, but it is a community service with no uptime promise. The OSM raster fallback is fine for a low-traffic site that shows the attribution, per the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Move to a hosted tile plan if traffic grows.
 - **Scrapers depend on venue sites' markup.** If a venue changes its site, its source shows as failing in `/admin`, and the other sources keep working.
 - **Saved events live in one browser.** Hearts are kept in localStorage, so they don't follow you to another device and are lost if site data is cleared.

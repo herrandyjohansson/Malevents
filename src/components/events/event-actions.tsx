@@ -1,11 +1,11 @@
 "use client";
 
-import { CalendarPlus, Check, Heart, Share2 } from "lucide-react";
+import { CalendarPlus, Check, CircleAlert, Heart, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { downloadIcs, type IcsEvent } from "@/lib/ics";
-import { toggleSaved, useIsSaved, type SavedEvent } from "@/lib/saved";
+import { SAVE_BLOCKED_MESSAGE, toggleSaved, useIsSaved, type SavedEvent } from "@/lib/saved";
 import { cn } from "@/lib/utils";
 
 const actionClass =
@@ -19,6 +19,7 @@ const actionClass =
 export function EventActions({ saved: snapshot, ics }: { saved: Omit<SavedEvent, "savedAt">; ics: IcsEvent }) {
   const isSaved = useIsSaved(snapshot);
   const [message, setMessage] = useState<React.ReactNode>(null);
+  const [failed, setFailed] = useState(false);
 
   async function share() {
     const url = window.location.href;
@@ -28,6 +29,7 @@ export function EventActions({ saved: snapshot, ics }: { saved: Omit<SavedEvent,
         return;
       }
       await navigator.clipboard.writeText(url);
+      setFailed(false);
       setMessage("Link copied.");
     } catch {
       // Closing the share sheet rejects too; nothing to report then.
@@ -41,9 +43,12 @@ export function EventActions({ saved: snapshot, ics }: { saved: Omit<SavedEvent,
           type="button"
           aria-pressed={isSaved}
           onClick={() => {
-            toggleSaved(snapshot);
+            const stored = toggleSaved(snapshot);
+            setFailed(!stored);
             setMessage(
-              isSaved ? (
+              !stored ? (
+                SAVE_BLOCKED_MESSAGE
+              ) : isSaved ? (
                 "Removed from Saved."
               ) : (
                 <>
@@ -64,6 +69,7 @@ export function EventActions({ saved: snapshot, ics }: { saved: Omit<SavedEvent,
           type="button"
           onClick={() => {
             downloadIcs([ics], `${ics.title.replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 60) || "event"}.ics`);
+            setFailed(false);
             setMessage("Calendar file downloaded. Open it to add the event.");
           }}
           className={actionClass}
@@ -77,7 +83,12 @@ export function EventActions({ saved: snapshot, ics }: { saved: Omit<SavedEvent,
         </button>
       </div>
       <p className="text-muted-foreground flex min-h-5 items-center gap-1.5 text-sm" aria-live="polite">
-        {message && <Check className="text-success size-4 shrink-0" aria-hidden />}
+        {message &&
+          (failed ? (
+            <CircleAlert className="text-destructive size-4 shrink-0" aria-hidden />
+          ) : (
+            <Check className="text-success size-4 shrink-0" aria-hidden />
+          ))}
         {message}
       </p>
     </div>

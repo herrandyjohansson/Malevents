@@ -24,6 +24,36 @@ export interface SavedEvent {
   savedAt: string;
 }
 
+const isDate = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
+
+function isSavedEvent(value: unknown): value is SavedEvent {
+  if (!value || typeof value !== "object") return false;
+  const { id, title, url, startsAt, endsAt } = value as Record<string, unknown>;
+  return (
+    typeof id === "string" &&
+    typeof title === "string" &&
+    typeof url === "string" &&
+    isDate(startsAt) &&
+    (endsAt === undefined || isDate(endsAt))
+  );
+}
+
+/**
+ * Saved events from their stored JSON. Entries the Saved tab can't show (no
+ * id, title or link, or a missing or invalid date) are dropped, so one bad
+ * entry, from an older version or edited by hand, can't break the whole tab.
+ */
+export function parseSaved(raw: string | null): SavedEvent[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isSavedEvent) : [];
+  } catch {
+    // Corrupt value: start over.
+    return [];
+  }
+}
+
 /** Whether a saved entry is this event, under its own id or the id of a listing merged into it. */
 export function isSameSaved(saved: Pick<SavedEvent, "id" | "duplicateIds">, event: Pick<SavedEvent, "id" | "duplicateIds">) {
   const ids = new Set([event.id, ...(event.duplicateIds ?? [])]);

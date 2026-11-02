@@ -25,9 +25,10 @@ interface ListingCrawl<T> {
 
 /**
  * Read a paged listing one page at a time. The first page is required, so its
- * failure throws and fails the source. A later page failing ends the crawl
- * with what was read so far and is reported, so a shortened listing shows up
- * in the admin instead of passing as "the site has no more pages".
+ * failure throws and fails the source. A later page that fails to load or to
+ * parse ends the crawl with what was read so far and is reported, so a
+ * shortened listing shows up in the admin instead of passing as "the site has
+ * no more pages".
  */
 export async function crawlListing<T>({ sourceId, report, maxPages, pageUrl, parse, hasNextPage }: ListingCrawl<T>) {
   const started = performance.now();
@@ -45,13 +46,24 @@ export async function crawlListing<T>({ sourceId, report, maxPages, pageUrl, par
       break;
     }
     pages++;
-    const found = parse(html);
+    let found: T[];
+    let more: boolean;
+    try {
+      found = parse(html);
+      more = found.length > 0 && hasNextPage(html, page);
+    } catch (err) {
+      // Like a failed fetch: unreadable markup on a later page keeps the pages before it.
+      if (page === 0) throw err;
+      report.warn(`Listing page ${page + 1} couldn't be read, so the listing stops there: ${message(err)}`);
+      stop = "page_failed";
+      break;
+    }
     if (found.length === 0) {
       stop = "empty_page";
       break;
     }
     items.push(...found);
-    if (!hasNextPage(html, page)) {
+    if (!more) {
       stop = "last_page";
       break;
     }

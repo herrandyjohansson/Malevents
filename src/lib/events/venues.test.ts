@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MalmoEvent } from "./types";
-import { venueAliasNames, venueAliasRedirects, venueSlug, withCanonicalVenue } from "./venues";
+import { knownVenueName, venueAliasNames, venueAliasRedirects, venueSlug, withCanonicalVenue } from "./venues";
 
 const at = (venue: MalmoEvent["venue"]): MalmoEvent => ({
   id: "t:1", sourceId: "t", title: "Show", startsAt: "2026-11-07T19:30:00+01:00",
@@ -60,5 +60,16 @@ describe("venue alias links", () => {
   it("keeps the slug rules venue pages already use", () => {
     expect(venueSlug("Malmö Opera")).toBe("malmo-opera");
     expect(venueSlug("Hippodromen, Malmö Stadsteater")).toBe("hippodromen-malmo-stadsteater");
+  });
+});
+
+describe("knownVenueName", () => {
+  it("names a known venue from its page slug, so its link isn't a dead end while nothing is listed", () => {
+    expect(knownVenueName("malmo-live-konserthus")).toBe("Malmö Live Konserthus");
+    expect(knownVenueName("plan-b")).toBe("Plan B");
+  });
+
+  it("knows nothing about other slugs", () => {
+    expect(knownVenueName("no-such-venue")).toBeUndefined();
   });
 });

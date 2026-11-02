@@ -5,7 +5,29 @@
  */
 export const LIVE_MODE = process.env.EVENTS_LIVE !== "false";
 
+/**
+ * Sources switched off for visitors: EVENTS_DISABLED_SOURCES, a comma-separated
+ * list of source ids (`malmo-stad,hypnos`). It is set in the Vercel project's
+ * environment variables and takes effect on the next deployment. The site has
+ * no switch for it, so nobody can change it from a browser.
+ */
+export const DISABLED_SOURCE_IDS = parseIdList(process.env.EVENTS_DISABLED_SOURCES);
+
+/** Ids from a comma- or space-separated list, without blanks or repeats. */
+export function parseIdList(value: string | undefined) {
+  return [...new Set((value ?? "").split(/[\s,]+/).filter(Boolean))];
+}
+
 export const TIME_ZONE = "Europe/Stockholm";
 
 /** Default per-source budget before the aggregator gives up on it. */
 export const DEFAULT_SOURCE_TIMEOUT_MS = 8000;
+
+/** Default timeout for one upstream request; a source may make several within its own budget. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 8000;
+
+/**
+ * How long after it ended (or started, when the feed gives no end) an event
+ * is still kept from a feed, so tonight's shows don't vanish at curtain-up.
+ */
+export const RECENT_EVENT_GRACE_MS = 6 * 60 * 60 * 1000;

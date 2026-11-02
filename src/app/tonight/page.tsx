@@ -113,7 +113,15 @@ async function Tonight({ searchParams }: { searchParams: PageProps<"/tonight">["
       <TonightSearch documents={documents} pending={pendingNames(sources)}>
         <PageHeader
           size="compact"
-          title={nothingLeft ? "Quiet now. Tomorrow has more." : localTime(now) < EVENING_FROM ? "Today in Malmö" : "Tonight in Malmö"}
+          title={
+            nothingLeft
+              ? tomorrowEvents.length > 0
+                ? "Quiet now. Tomorrow has more."
+                : "Nothing listed yet."
+              : localTime(now) < EVENING_FROM
+                ? "Today in Malmö"
+                : "Tonight in Malmö"
+          }
           description={`${formatDay(today)}, ${localTime(now)}. ${summary(live.length, later.length)}`}
         />
         <PendingSources names={pendingNames(sources)} />

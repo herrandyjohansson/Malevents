@@ -1,11 +1,12 @@
 import "server-only";
 
-import { LIVE_MODE } from "../config";
+import { LIVE_MODE, RECENT_EVENT_GRACE_MS } from "../config";
 import { truncate } from "../html";
 import { fetchText } from "../http";
 import { parsePriceText, toCategory } from "../normalize";
+import { reportSkipped } from "../report";
 import { loadHtml, textOf } from "../scrape";
-import type { EventSource, MalmoEvent } from "../types";
+import type { EventSource, MalmoEvent, SourceReport } from "../types";
 
 const ID = "hypnos";
 const SITE = "https://hypnostheatre.com";
@@ -39,43 +40,44 @@ function calendarTime(value: string | undefined) {
  * `.screening-row`. The exact times are only in each row's "add to Google
  * Calendar" link (`dates=START/END` in UTC); the visible "Fri Oct 30" has no year.
  */
-export function parseHypnosPage(html: string): HypnosRow[] {
+export function parseHypnosPage(html: string, report?: SourceReport): HypnosRow[] {
   const $ = loadHtml(html);
-  return $(".screening-row")
-    .toArray()
-    .flatMap((el) => {
-      const row = $(el);
-      const calendar = row.find('a[href*="calendar/render"]').first().attr("href");
-      if (!calendar) return [];
-      let dates: string[] = [];
-      try {
-        dates = (new URL(calendar).searchParams.get("dates") ?? "").split("/");
-      } catch {
-        return [];
-      }
-      const start = calendarTime(dates[0]);
-      const id = row.find("[data-target^='screening-details-']").first().attr("data-target")?.replace("screening-details-", "");
-      const title = textOf($, row.find(".screening-film-title").first());
-      if (!start || !id || !title) return [];
-      const price = row.find(".screening-tags a.tag-neutral").first();
-      return [
-        {
-          id,
-          title,
-          start,
-          end: calendarTime(dates[1]),
-          description: textOf($, row.find(".screening-description").first()) || undefined,
-          meta: row
-            .find(".screening-meta")
-            .toArray()
-            .map((m) => textOf($, m))
-            .filter(Boolean),
-          imageUrl: row.find(".screening-poster img").first().attr("src") || undefined,
-          priceText: textOf($, price) || undefined,
-          ticketUrl: price.attr("href") || undefined,
-        },
-      ];
-    });
+  const els = $(".screening-row").toArray();
+  const rows = els.flatMap((el) => {
+    const row = $(el);
+    const calendar = row.find('a[href*="calendar/render"]').first().attr("href");
+    if (!calendar) return [];
+    let dates: string[] = [];
+    try {
+      dates = (new URL(calendar).searchParams.get("dates") ?? "").split("/");
+    } catch {
+      return [];
+    }
+    const start = calendarTime(dates[0]);
+    const id = row.find("[data-target^='screening-details-']").first().attr("data-target")?.replace("screening-details-", "");
+    const title = textOf($, row.find(".screening-film-title").first());
+    if (!start || !id || !title) return [];
+    const price = row.find(".screening-tags a.tag-neutral").first();
+    return [
+      {
+        id,
+        title,
+        start,
+        end: calendarTime(dates[1]),
+        description: textOf($, row.find(".screening-description").first()) || undefined,
+        meta: row
+          .find(".screening-meta")
+          .toArray()
+          .map((m) => textOf($, m))
+          .filter(Boolean),
+        imageUrl: row.find(".screening-poster img").first().attr("src") || undefined,
+        priceText: textOf($, price) || undefined,
+        ticketUrl: price.attr("href") || undefined,
+      },
+    ];
+  });
+  reportSkipped(report, els.length - rows.length, els.length);
+  return rows;
 }
 
 export function hypnosRowToEvent(row: HypnosRow): MalmoEvent {
@@ -105,9 +107,9 @@ export function hypnosRowToEvent(row: HypnosRow): MalmoEvent {
  * Hypnos Theatre (small cinema and stage in Sofielund): screenings, talks
  * and performances from its home page, one request.
  */
-async function getHypnosEvents(): Promise<MalmoEvent[]> {
-  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
-  return parseHypnosPage(LIVE_MODE ? await fetchText(ID, SITE) : demoHtml())
+async function getHypnosEvents(report: SourceReport): Promise<MalmoEvent[]> {
+  const cutoff = Date.now() - RECENT_EVENT_GRACE_MS;
+  return parseHypnosPage(LIVE_MODE ? await fetchText(ID, SITE) : demoHtml(), report)
     .map(hypnosRowToEvent)
     .filter((e) => Date.parse(e.endsAt ?? e.startsAt) >= cutoff);
 }

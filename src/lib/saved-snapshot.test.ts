@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isSameSaved } from "./saved-snapshot";
+import { isSameSaved, parseSaved } from "./saved-snapshot";
 
 describe("isSameSaved", () => {
   const kept = { id: "slagthuset:6894", duplicateIds: ["malmo-stad:5.1@1", "tickster-malmo:x@2026-10-30"] };
@@ -17,5 +17,24 @@ describe("isSameSaved", () => {
   it("keeps different events apart, including saved entries from before merging existed", () => {
     expect(isSameSaved({ id: "slagthuset:7736" }, kept)).toBe(false);
     expect(isSameSaved({ id: "a" }, { id: "b" })).toBe(false);
+  });
+});
+
+describe("parseSaved", () => {
+  const good = { id: "a", title: "A", url: "https://example.com", startsAt: "2026-11-02T19:00:00+01:00", category: "music", isFree: false, savedAt: "2026-11-01T10:00:00Z" };
+
+  it("keeps valid entries", () => {
+    expect(parseSaved(JSON.stringify([good]))).toEqual([good]);
+  });
+
+  it("drops entries the Saved tab can't show instead of crashing on them", () => {
+    const stored = [good, { ...good, id: "no-date", startsAt: undefined }, { ...good, id: "bad-date", startsAt: "soon" }, { ...good, id: "bad-end", endsAt: "later" }, { ...good, id: "no-url", url: 42 }, null, "text"];
+    expect(parseSaved(JSON.stringify(stored)).map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("starts over on an empty, corrupt or non-list value", () => {
+    expect(parseSaved(null)).toEqual([]);
+    expect(parseSaved("{not json")).toEqual([]);
+    expect(parseSaved(JSON.stringify({ id: "a" }))).toEqual([]);
   });
 });

@@ -20,11 +20,11 @@ import {
   toFilterable,
 } from "@/lib/events/filters";
 import { localDay } from "@/lib/events/malmo-time";
-import { pendingNames } from "@/lib/events/pending";
+import { listedSources, pendingNames } from "@/lib/events/pending";
 
 import { EventCard } from "./event-card";
 import { PendingSources } from "./pending-sources";
-import { SourceAlert, SourceList } from "./source-status";
+import { SourceList } from "./source-status";
 import { SpotlightList } from "./spotlight-list";
 
 /** Events per "page"; "Show more" adds this many again. */
@@ -49,17 +49,16 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
   const filters = parseFilters(params);
   const view = one(params, "view") === "calendar" ? "calendar" : "list";
   const show = Math.min(MAX_SHOW, Math.max(PAGE, Math.round(Number(one(params, "show")) / PAGE) * PAGE || PAGE));
-  // Request-time: reads admin settings and hides events that have ended.
+  // Request-time: hides events that have ended.
   await connection();
   const { events, sources } = await getAllEvents();
   const now = new Date();
   const today = localDay(now);
-  const enabledSources = sources.filter((s) => s.enabled).map(({ id, name }) => ({ id, name }));
+  const enabledSources = listedSources(sources).map(({ id, name }) => ({ id, name }));
 
   if (view === "calendar") {
     return (
       <div className="flex flex-col gap-6">
-        <SourceAlert sources={sources} />
         <PendingSources names={pendingNames(sources)} />
         <CalendarView events={buildCalendarEvents(events, sources, now)} today={today} sources={enabledSources} />
         <SourceList sources={sources} />
@@ -75,6 +74,9 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]));
   // With a later time picked (next weekend), events already running sit under its first day.
   const groups = takeEvents(groupByDay(visible, today, resolveRange(filters, today)?.from), show);
+  // A listing site picked in the link that has no events now (unknown, or down): say so instead of blaming the filters.
+  const listedIds = new Set(enabledSources.map((s) => s.id));
+  const siteWithoutEvents = filters.sources.some((id) => !listedIds.has(id));
   const moreParams = filtersToParams(filters);
   moreParams.set("show", String(show + PAGE));
 
@@ -89,7 +91,6 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
           lastMonth={lastEventDay(filterables, today)}
         />
       </div>
-      <SourceAlert sources={sources} />
       <PendingSources names={pendingNames(sources)} />
       {visible.length > 0 ? (
         <div className="flex flex-col gap-10">
@@ -136,14 +137,26 @@ export async function EventResults({ searchParams }: { searchParams: Promise<Par
         <div className="bg-card/40 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-4 py-16 text-center">
           <CalendarX className="text-muted-foreground size-8" />
           <p className="font-medium">
-            {filters.q ? <>Nothing matches &ldquo;{filters.q}&rdquo; with these filters</> : "No events match these filters"}
+            {upcoming.length === 0 ? (
+              "No events to show right now"
+            ) : siteWithoutEvents ? (
+              "That listing site has no events right now"
+            ) : filters.q ? (
+              <>Nothing matches &ldquo;{filters.q}&rdquo; with these filters</>
+            ) : (
+              "No events match these filters"
+            )}
           </p>
           <p className="text-muted-foreground max-w-sm text-sm">
-            {filters.when !== "all"
-              ? "Try a wider time, like Any time, or remove an area or kind of event."
-              : "Try another area or kind of event, or check the spelling."}
+            {upcoming.length === 0
+              ? "Check back in a minute."
+              : siteWithoutEvents
+                ? "Clear the filters to see everything else that's on."
+                : filters.when !== "all"
+                  ? "Try a wider time, like Any time, or remove an area or kind of event."
+                  : "Try another area or kind of event, or check the spelling."}
           </p>
-          <ClearFiltersButton />
+          {upcoming.length > 0 && <ClearFiltersButton />}
         </div>
       )}
       <SourceList sources={sources} />
