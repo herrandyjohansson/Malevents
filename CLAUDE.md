@@ -25,7 +25,7 @@ npm run test:live               # also calls the real venue sites
 npm run bench:openweb           # OpenWeb vs current adapters, see benchmarks/openweb/README.md
 ```
 
-Vitest (`vitest.config.ts`) runs `src/**/*.test.ts` and `benchmarks/**/*.test.ts`; tests that call venue sites only run with `BENCH_LIVE=1` or `BENCH=1`. CI is `.github/workflows/ci.yml` (GitHub Actions: lint, typegen, type check, offline tests and build with `EVENTS_LIVE=false`) on every pull request and push to `main`, alongside the Vercel preview build. Run the same checks before pushing. Use `EVENTS_LIVE=false` where venue sites can't be reached.
+Vitest (`vitest.config.ts`) runs `src/**/*.test.ts` and `benchmarks/**/*.test.ts`; tests that call venue sites only run with `BENCH_LIVE=1` or `BENCH=1`. There is no GitHub Actions workflow: Vercel is the CI, building every pull request and push to `main`. It doesn't run lint, type check or tests, so run those and the build before pushing. Use `EVENTS_LIVE=false` where venue sites can't be reached.
 
 ## Architecture
 
