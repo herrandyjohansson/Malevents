@@ -1,7 +1,6 @@
 # MÖEVENTS
 
-[![CI](https://github.com/herrandyjohansson/Malevents/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/herrandyjohansson/Malevents/actions/workflows/ci.yml)
-[![Vercel production](https://img.shields.io/github/deployments/herrandyjohansson/Malevents/Production?label=vercel&logo=vercel&logoColor=white)](https://moevents.vercel.app)
+[![Vercel build](https://img.shields.io/github/deployments/herrandyjohansson/Malevents/Production?label=vercel%20build&logo=vercel&logoColor=white)](https://vercel.com/herrandyjohanssons-projects/malevents/deployments)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fmoevents.vercel.app&label=moevents.vercel.app)](https://moevents.vercel.app)
 [![Next.js](https://img.shields.io/github/package-json/dependency-version/herrandyjohansson/Malevents/next?logo=nextdotjs&label=Next.js)](https://nextjs.org)
 [![React](https://img.shields.io/github/package-json/dependency-version/herrandyjohansson/Malevents/react?logo=react&label=React)](https://react.dev)
@@ -191,14 +190,14 @@ npx tsc --noEmit         # type check
 npm run build            # the production build Vercel runs
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs lint, `next typegen`, the type check, the offline tests and the production build with `EVENTS_LIVE=false` on every pull request and every push to `main`; the CI badge at the top of this README shows its state on `main`. Vercel's build of each pull request is the second check. Run the same commands before pushing. Use `EVENTS_LIVE=false` where the venue sites can't be reached.
+Vercel is the project's CI: it builds every pull request and every push to `main`, and the Vercel build badge at the top of this README shows the latest production deployment and links to the deployment list. The build doesn't run lint, the type check or the tests, so run them before pushing. Use `EVENTS_LIVE=false` where the venue sites can't be reached.
 
 ## Deployment on Vercel
 
-The site runs on Vercel, connected to this GitHub repository through Vercel's Git integration. Vercel detects Next.js and uses its defaults (`npm install`, `next build`); `vercel.json` only sets an `ignoreCommand` so commits that change nothing but docs skip the deploy. The GitHub Actions workflow is a separate check and does not deploy.
+The site runs on Vercel, connected to this GitHub repository through Vercel's Git integration. Vercel detects Next.js and uses its defaults (`npm install`, `next build`); `vercel.json` only sets an `ignoreCommand` so commits that change nothing but docs skip the deploy.
 
 - **Production** is built and deployed automatically on every push to `main`, which in practice means every merged pull request.
-- **Preview deployments** are built for every pull request branch. A failed build shows up as the Vercel check on the pull request, next to the CI check. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
+- **Preview deployments** are built for every pull request branch. The Vercel check on the pull request is the project's CI: a failed build shows up there. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
 - **Rendering on Vercel.** Static shells are prerendered at build time and served from the CDN. Request-time parts run as serverless Vercel Functions.
 - **Runtime Cache.** `fetchSource` uses `"use cache: remote"`, which on Vercel is stored in Vercel's Runtime Cache, shared by all function instances and provided automatically (no setup or keys). Plain in-memory `"use cache"` would be per instance, so every cold instance would re-scrape every venue site. Entries are keyed per build, so the first visits after a new deployment do a cold fetch (up to the source timeouts), and later visits are served from cache while refreshing in the background.
 - **Refreshing data.** Data refreshes on its own per the cache profiles, and a new deployment starts with a fresh cache. To force it without a deploy, run `vercel cache invalidate --tag events` (every source) or `--tag events:<id>` (one source) with the Vercel CLI. The site has no refresh button, so visitors can't make it re-scrape the venue sites.
@@ -226,7 +225,7 @@ The site runs on Vercel, connected to this GitHub repository through Vercel's Gi
 | `eslint` 9 + `eslint-config-next` | Linting (`npm run lint`) |
 | `vitest` 3 | Unit tests (`npm test`) |
 
-There is no database. Every pull request is checked by the GitHub Actions CI workflow and by Vercel's build (see [Tests and checks](#tests-and-checks)).
+There is no database. Vercel's build is the automated check on every pull request, and the tests run locally (see [Tests and checks](#tests-and-checks)).
 
 ## Project structure
 
@@ -467,11 +466,11 @@ On Vercel the same lines appear under the project's Logs, searchable by text (e.
 
 ## Deployment on Vercel
 
-The site runs on Vercel, connected to this GitHub repository through Vercel's Git integration. Vercel detects Next.js and uses its defaults (`npm install`, `next build`); `vercel.json` only sets an `ignoreCommand` so commits that change nothing but docs skip the deploy. The GitHub Actions workflow is a separate check and does not deploy.
+The site runs on Vercel, connected to this GitHub repository through Vercel's Git integration. Vercel detects Next.js and uses its defaults (`npm install`, `next build`); `vercel.json` only sets an `ignoreCommand` so commits that change nothing but docs skip the deploy.
 
 - **Production** is built and deployed automatically on every push to `main`, which in practice means every merged pull request.
 - **Docs-only commits are not deployed.** `vercel.json` has an `ignoreCommand` that skips the build when a commit only changes Markdown files, `docs/`, `review/` or `ASSIGNMENT_*/`. Every deployment starts with an empty Runtime Cache, so each one re-scrapes every venue and rewrites every cache entry.
-- **Preview deployments** are built for every pull request branch (except docs-only commits). A failed build shows up as the Vercel check on the pull request, next to the CI check. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
+- **Preview deployments** are built for every pull request branch (except docs-only commits). The Vercel check on the pull request is the project's CI: a failed build shows up there. Previews sit behind Vercel's login (Deployment Protection), so only signed-in team members can open them.
 - **Rendering on Vercel.** Static shells are prerendered at build time and served from the CDN. Request-time parts run as serverless Vercel Functions.
 - **Runtime Cache.** `fetchSource` uses `"use cache: remote"`, which on Vercel is stored in Vercel's Runtime Cache, shared by all function instances and provided automatically (no setup or keys). Plain in-memory `"use cache"` would be per instance, so every cold instance would re-scrape every venue site. Entries are keyed per build, so the first visits after a new deployment do a cold fetch (up to the source timeouts), and later visits are served from cache while refreshing in the background.
 

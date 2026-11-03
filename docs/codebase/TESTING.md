@@ -40,7 +40,7 @@ Status in this checkout: `node_modules/` is missing, so none of these could be r
 ### 5) Coverage and Quality Signals
 
 - Coverage tool + threshold: none.
-- CI: GitHub Actions `.github/workflows/ci.yml` runs lint, typegen, `tsc --noEmit`, `npm test` and `npm run build` with `EVENTS_LIVE=false` on every pull request and push to `main`, next to the Vercel preview build.
+- CI: Vercel's build of each pull request and of `main` is the only automated check; there is no GitHub Actions workflow. Lint, type check and tests run locally.
 - Known gaps: date parsing (`scrape.ts`), year inference, time-zone conversion (`demo-dates.ts:18-24`), de-duplication (`aggregate.ts:28-39`), filter parsing (`filters.ts:69-91`) and DST-sensitive day stepping (`week-data.ts:23`) have no automated checks.
 
 ### 6) Evidence
